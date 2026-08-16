@@ -132,7 +132,7 @@ make -j4
 make cia
 ```
 
-### Lite Build (Optimized for Old 3DS RAM limits)
+### Lite Build (No base game videos)
 ```bash
 make LITE=1 -j4
 ```
@@ -146,7 +146,7 @@ make clean
 
 ## Running on 3DS / Emulator
 
-- **Citra / Azahar / Lime3DS**: Open `SnakeEngine.3dsx` directly from the project root.
+- **Citra / Azahar / Lime3DS / etc**: Open `SnakeEngine.3dsx` directly from the project root.
 - **Real 3DS Hardware**: 
   - Copy `SnakeEngine.3dsx` and `SnakeEngine.smdh` to `sdmc:/3ds/SnakeEngine/`.
   - Launch using **Homebrew Launcher** (or install the generated `.cia` via **FBI** for example).
