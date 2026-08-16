@@ -2,6 +2,11 @@
 
 A Friday Night Funkin' engine tailored for the **Nintendo 3DS**, built natively in C++ with **devkitARM**, **libctru**, and **citro2d**.
 
+<p align="center">
+  <img src="art/Logo.png" alt="Snake Engine Logo" width="400"/>
+</p>
+
+
 ---
 
 ## Psych Engine API Support
@@ -159,4 +164,6 @@ make clean
 - **Friday Night Funkin'** by The Funkin' Crew.
 - Powered by [devkitPro](https://devkitpro.org/), [libctru](https://github.com/devkitPro/libctru), and [citro2d](https://github.com/devkitPro/citro2d).
 - Distributed under the terms of the project licenses (see `SNAKE ENGINE LICENSE.md` and `FRIDAY NIGHT FUNKIN LICENSE.md`).
+
+> This project was developed with some help of AI tools.
 
