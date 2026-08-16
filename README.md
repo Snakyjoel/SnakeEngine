@@ -6,7 +6,7 @@ A Friday Night Funkin' engine tailored for the **Nintendo 3DS**, built natively 
 
 ## Psych Engine API Support
 
-Snake Engine includes support for the **Psych Engine Lua API**. This is not a 1:1 implementation and some functions may behave differently or not be available. Refer to the existing mod scripts in `romfs/preload/scripts/` as a reference.
+Snake Engine includes support for the **Psych Engine Lua API**. This is not a 1:1 implementation and some functions may behave differently or not be available.
 
 ---
 
@@ -15,24 +15,7 @@ Snake Engine includes support for the **Psych Engine Lua API**. This is not a 1:
 Mods are loaded from the SD card at runtime. To install a mod:
 
 1. Create a folder for your mod inside `sdmc:/SnakeEngine/mods/`.
-2. Place your mod files inside it following the standard folder structure:
-   - `songs/` — song audio files (`.adp` format).
-   - `data/` — chart JSON files.
-   - `images/` — character sheets, stages, note skins, etc.
-   - `characters/` — character JSON definitions.
-   - `stages/` — stage JSON and Lua files.
-   - `scripts/` — global Lua scripts that run during gameplay.
-3. Add a `pack.json` file to the root of your mod folder with at least:
-   ```json
-   {
-     "name": "My Mod",
-     "description": "A cool mod",
-     "restart": false
-   }
-   ```
-4. Enable the mod from the **Mods** menu in-game.
-
-> Audio files must be in the `.adp` (ADPCM) format. Use the included `tools/converters/convert_assets.py` script to convert `.ogg` files.
+2. Place your mod files inside it.
 
 ---
 
@@ -166,7 +149,7 @@ make clean
 - **Citra / Azahar / Lime3DS**: Open `SnakeEngine.3dsx` directly from the project root.
 - **Real 3DS Hardware**: 
   - Copy `SnakeEngine.3dsx` and `SnakeEngine.smdh` to `sdmc:/3ds/SnakeEngine/`.
-  - Launch using **Homebrew Launcher** (or install the generated `.cia` via **FBI**).
+  - Launch using **Homebrew Launcher** (or install the generated `.cia` via **FBI** for example).
 
 ---
 
