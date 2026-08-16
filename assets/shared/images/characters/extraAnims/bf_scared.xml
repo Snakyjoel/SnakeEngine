@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="bf_scared.png" width="346" height="345">
+  <SubTexture name="BF idle shaking0000" x="0" y="173.45999999999998" width="173.04" height="171.35999999999999" rotated="true"  frameX="-0.42" frameY="-0.42" frameWidth="172.2" frameHeight="173.45999999999998"/>
+  <SubTexture name="BF idle shaking0001" x="173.04" y="173.45999999999998" width="173.04" height="171.35999999999999" rotated="true"  frameX="-0.84" frameY="-0.42" frameWidth="172.2" frameHeight="173.45999999999998"/>
+  <SubTexture name="BF idle shaking0002" x="0" y="0"  width="171.35999999999999" height="173.45999999999998" frameX="-0.42" frameY="-0" frameWidth="172.2" frameHeight="173.45999999999998"/>
+  <SubTexture name="BF idle shaking0003" x="171.35999999999999" y="0"  width="172.2" height="173.45999999999998" frameX="-0" frameY="-0" frameWidth="172.2" frameHeight="173.45999999999998"/>
+</TextureAtlas>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="newgrounds.png" width="180" height="355">
+  <SubTexture name="newgrounds logo instance 1" x="0" y="0"  width="180" height="177.29999999999998" frameX="-0" frameY="-0" frameWidth="180" frameHeight="177.29999999999998"/>
+  <SubTexture name="newgrounds logo instance 2" x="0" y="177.29999999999998"  width="180" height="177.29999999999998" frameX="-0" frameY="-0" frameWidth="180" frameHeight="177.29999999999998"/>
+</TextureAtlas>

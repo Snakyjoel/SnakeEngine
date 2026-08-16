@@ -1,0 +1,60 @@
+{
+	"defaultZoom": 1,
+	"camera_speed": 1,
+	"boyfriend": [
+		473,
+		-422
+	],
+	"girlfriend": [
+		149,
+		-360
+	],
+	"opponent": [
+		-609,
+		-268
+	],
+	"camera_boyfriend": [
+		-71,
+		109
+	],
+	"camera_opponent": [
+		231,
+		76
+	],
+	"camera_girlfriend": [
+		139,
+		19
+	],
+	"sprites": [
+		{
+			"image": "stages/weekend1/sky",
+			"x": 247,
+			"y": -252,
+			"scrollX": 1,
+			"scrollY": 1,
+			"front": false,
+			"alpha": true,
+			"scale": 5
+		},
+		{
+			"image": "stages/weekend1/back",
+			"x": 62,
+			"y": -192,
+			"scrollX": 1,
+			"scrollY": 1,
+			"front": false,
+			"alpha": true,
+			"scale": 2.5
+		},
+		{
+			"image": "stages/weekend1/floor",
+			"x": 49,
+			"y": -121,
+			"scrollX": 1,
+			"scrollY": 1,
+			"front": false,
+			"alpha": true,
+			"scale": 2.5
+		}
+	]
+}

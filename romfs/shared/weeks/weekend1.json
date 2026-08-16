@@ -1,0 +1,62 @@
+{
+	"songs": [
+		[
+			"darnell",
+			"darnellpixel",
+			[
+				146,
+				113,
+				253
+			],
+			"darnellCutscene.snaky"
+		],
+		[
+			"lit up",
+			"darnellpixel",
+			[
+				146,
+				113,
+				253
+			]
+		],
+		[
+			"2hot",
+			"darnellpixel",
+			[
+				146,
+				113,
+				253
+			]
+		],
+		[
+			"blazin",
+			"darnellpixel",
+			[
+				146,
+				113,
+				253
+			],
+			"2hotCutscene.snaky",
+			"blazinCutscene.snaky"
+		]
+	],
+	"hiddenUntilUnlocked": false,
+	"hideFreeplay": false,
+	"weekBackground": "chud",
+	"difficulties": "",
+	"weekCharacters": [
+		"",
+		"",
+		""
+	],
+	"storyName": "due debits",
+	"weekName": "week8",
+	"freeplayColor": [
+		146,
+		113,
+		253
+	],
+	"hideStoryMode": false,
+	"weekBefore": "tutorial",
+	"startUnlocked": true
+}

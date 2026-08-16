@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="cleared.png" width="122" height="99">
+  <SubTexture name="00000" x="1.8" y="50.4"  width="22.5" height="21.6" frameX="-0" frameY="-0" frameWidth="22.5" frameHeight="21.6"/>
+  <SubTexture name="10000" x="27.900000000000002" y="50.4"  width="9" height="21.6" frameX="-0" frameY="-0" frameWidth="9" frameHeight="21.6"/>
+  <SubTexture name="20000" x="40.5" y="50.4" width="20.7" height="21.6" rotated="true"  frameX="-0" frameY="-0.9" frameWidth="21.6" frameHeight="21.6"/>
+  <SubTexture name="30000" x="64.8" y="50.4"  width="21.6" height="21.6" frameX="-0" frameY="-0" frameWidth="21.6" frameHeight="21.6"/>
+  <SubTexture name="40000" x="1.8" y="75.60000000000001"  width="21.6" height="21.6" frameX="-0" frameY="-0" frameWidth="21.6" frameHeight="21.6"/>
+  <SubTexture name="50000" x="27" y="75.60000000000001" width="20.7" height="21.6" rotated="true"  frameX="-0" frameY="-0.9" frameWidth="21.6" frameHeight="21.6"/>
+  <SubTexture name="60000" x="51.300000000000004" y="75.60000000000001" width="20.7" height="21.6" rotated="true"  frameX="-0" frameY="-0.9" frameWidth="21.6" frameHeight="21.6"/>
+  <SubTexture name="70000" x="75.60000000000001" y="75.60000000000001"  width="21.6" height="21.6" frameX="-0" frameY="-0" frameWidth="21.6" frameHeight="21.6"/>
+  <SubTexture name="80000" x="90" y="50.4"  width="21.6" height="21.6" frameX="-0" frameY="-0" frameWidth="21.6" frameHeight="21.6"/>
+  <SubTexture name="90000" x="98.10000000000001" y="1.8"  width="21.6" height="20.7" frameX="-0" frameY="-0.9" frameWidth="21.6" frameHeight="21.6"/>
+  <SubTexture name="clearBox" x="1.8" y="1.8"  width="92.7" height="45" frameX="-0" frameY="-0" frameWidth="92.7" frameHeight="45"/>
+</TextureAtlas>

@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>stage editor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #111; color: #ccc; font-family: monospace; font-size: 12px; display: flex; height: 100vh; overflow: hidden; }
+#sidebar { width: 240px; min-width: 240px; background: #1a1a1a; padding: 8px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; border-right: 1px solid #2a2a2a; }
+#sidebar h3 { color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+#sidebar label { display: block; margin-bottom: 2px; color: #666; font-size: 11px; }
+#sidebar input[type=file] { width: 100%; color: #aaa; font-size: 11px; }
+select { width: 100%; background: #222; color: #ccc; border: 1px solid #333; padding: 3px; font-size: 11px; }
+button { background: #222; color: #bbb; border: 1px solid #444; padding: 4px 8px; cursor: pointer; width: 100%; font-size: 11px; }
+button:hover { background: #333; }
+hr { border-color: #2a2a2a; }
+input[type=number] { width: 70px; background: #222; color: #ccc; border: 1px solid #333; padding: 2px 4px; font-family: monospace; font-size: 11px; }
+input[type=checkbox] { margin-right: 4px; }
+.row { display: flex; gap: 6px; align-items: center; }
+.coord-row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.coord-row label { width: auto; color: #555; }
+.badge { display: inline-block; padding: 1px 5px; border-radius: 2px; font-size: 10px; font-weight: bold; }
+.badge-bf { background: #1a4a8a; color: #7af; }
+.badge-dad { background: #5a1a1a; color: #f77; }
+.badge-gf { background: #3a1a5a; color: #c7f; }
+.char-section { border: 1px solid #2a2a2a; padding: 6px; border-radius: 3px; }
+#canvas-wrap { flex: 1; position: relative; overflow: hidden; background: #0a0a0a; }
+canvas { display: block; }
+#overlay { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.7); padding: 5px 8px; font-size: 11px; pointer-events: none; border: 1px solid #222; }
+#status { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.7); padding: 4px 8px; font-size: 11px; pointer-events: none; color: #666; }
+.char-marker { position: absolute; pointer-events: none; font-size: 10px; padding: 1px 4px; border-radius: 2px; }
+.section-title { background: #222; padding: 3px 6px; border-radius: 2px; margin: 2px 0; font-size: 11px; color: #888; }
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <div id="workspaceControls" style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #2a2a2a;">
+    <button id="btnConnect" style="background:#2a4a2a; border-color:#4a8; color:#8f8">connect to engine workspace</button>
+    <div id="workspaceLoaded" style="display:none; margin-top:4px;">
+      <label>Stage:</label>
+      <select id="selStage"><option value="">-- select stage --</option></select>
+      <label style="margin-top:4px;">Song (for characters):</label>
+      <select id="selSong"><option value="">-- select song --</option></select>
+      <button id="btnLoadFromWorkspace" style="margin-top:4px;">Load Selected</button>
+      <button id="btnSaveToWorkspace" style="margin-top:4px; background:#4a2a2a; border-color:#844; color:#f88">Save to Workspace</button>
+    </div>
+  </div>
+
+  <h3>Stage Files (Manual)</h3>
+  <div>
+    <label>Stage JSON</label>
+    <input type="file" id="fileJson" accept=".json">
+  </div>
+  <div>
+    <label>Stage Script (Lua) — display only</label>
+    <input type="file" id="fileLua" accept=".lua">
+  </div>
+
+  <hr>
+  <h3>Sprites</h3>
+  <input type="file" id="spriteFiles" accept="image/*" multiple style="display:none">
+  <button id="btnLoadSprites">📂 load sprites (PNG)</button>
+  <div id="spriteList" style="font-size:10px; color:#555; background:#111; padding:4px; max-height:120px; overflow-y:auto; border:1px solid #222; margin-top:4px;">
+    load stage JSON first, then click above
+  </div>
+
+  <hr>
+  <h3>Characters (optional)</h3>
+
+  <div class="char-section">
+    <div class="row"><span class="badge badge-bf">BF</span><span style="color:#666;margin-left:4px;font-size:10px;">Boyfriend</span></div>
+    <label style="margin-top:4px">Spritesheet (PNG)</label>
+    <input type="file" id="bfImg" accept="image/*">
+    <label>XML</label>
+    <input type="file" id="bfXml" accept=".xml">
+    <label>Character JSON</label>
+    <input type="file" id="bfJson" accept=".json">
+    <label style="margin-top:3px"><input type="checkbox" id="bfIsPlayer" checked> is Player</label>
+  </div>
+
+  <div class="char-section">
+    <div class="row"><span class="badge badge-dad">DAD</span><span style="color:#666;margin-left:4px;font-size:10px;">Opponent</span></div>
+    <label style="margin-top:4px">Spritesheet (PNG)</label>
+    <input type="file" id="dadImg" accept="image/*">
+    <label>XML</label>
+    <input type="file" id="dadXml" accept=".xml">
+    <label>Character JSON</label>
+    <input type="file" id="dadJson" accept=".json">
+    <label style="margin-top:3px"><input type="checkbox" id="dadIsPlayer"> is Player</label>
+  </div>
+
+  <div class="char-section">
+    <div class="row"><span class="badge badge-gf">GF</span><span style="color:#666;margin-left:4px;font-size:10px;">Girlfriend</span></div>
+    <label style="margin-top:4px">Spritesheet (PNG)</label>
+    <input type="file" id="gfImg" accept="image/*">
+    <label>XML</label>
+    <input type="file" id="gfXml" accept=".xml">
+    <label>Character JSON</label>
+    <input type="file" id="gfJson" accept=".json">
+    <label style="margin-top:3px"><input type="checkbox" id="gfIsPlayer"> is Player</label>
+  </div>
+
+  <hr>
+  <h3>View</h3>
+  <div style="color:#555; font-size:10px; line-height:1.7">
+    scroll = zoom<br>
+    middle drag = pan<br>
+    left click+drag = move selected
+  </div>
+  <div class="row" style="margin-top:4px">
+    <label style="color:#666">zoom</label>
+    <input type="number" id="zoomInput" value="1.0" step="0.05" min="0.1" max="5" style="width:60px">
+  </div>
+
+  <hr>
+  <h3>Edit Mode</h3>
+  <div style="display:flex; gap:4px; margin-bottom:4px; flex-wrap:wrap">
+    <button id="btnModeChars" style="flex:1; background:#1a3a6a; border-color:#4af; color:#7af">characters</button>
+    <button id="btnModeSprites" style="flex:1">stage sprites</button>
+    <button id="btnModeCamera" style="flex:1">cameras</button>
+  </div>
+
+  <hr>
+  <h3>Selected</h3>
+  <div id="selectedInfo" style="font-size:10px;color:#666">click a character to select</div>
+  <div id="selectedControls" style="display:none; margin-top:4px">
+    <div class="section-title" id="selectedLabel">---</div>
+    <div class="coord-row" style="margin-top:4px">
+      <label>X</label>
+      <input type="number" id="selX" step="1">
+      <label>Y</label>
+      <input type="number" id="selY" step="1">
+    </div>
+    <div class="coord-row" style="margin-top:4px; display:none;" id="scaleRow">
+      <label>ScaleX</label>
+      <input type="number" id="selScaleX" step="0.05">
+      <label>ScaleY</label>
+      <input type="number" id="selScaleY" step="0.05">
+    </div>
+    <div id="camControls" style="margin-top:4px">
+      <div class="section-title">camera offset (stage JSON)</div>
+      <div class="coord-row" style="margin-top:2px">
+        <label>camX</label>
+        <input type="number" id="selCamX" step="1">
+        <label>camY</label>
+        <input type="number" id="selCamY" step="1">
+      </div>
+      <div style="font-size:10px;color:#555;margin-top:3px">char cam offset (from char JSON):</div>
+      <div class="coord-row">
+        <label>+</label>
+        <span id="charCamOffsetX" style="color:#444;font-size:10px">0</span>
+        <label>,</label>
+        <span id="charCamOffsetY" style="color:#444;font-size:10px">0</span>
+      </div>
+    </div>
+    <button id="btnFocusCam" style="margin-top:4px">preview camera focus</button>
+  </div>
+
+  <hr>
+  <h3>Stage JSON Settings</h3>
+  <div class="coord-row">
+    <label>zoom</label>
+    <input type="number" id="stageZoom" value="1.1" step="0.05" min="0.1">
+  </div>
+  <hr>
+  <button id="btnExport">export stage JSON</button>
+  <button id="btnExportLua" style="margin-top:4px">export stage Lua</button>
+  <div style="font-size:10px; color:#444; margin-top:4px;" id="luaPreview"></div>
+</div>
+
+<div id="canvas-wrap">
+  <div id="overlay">load stage JSON to start</div>
+  <div id="status"></div>
+  <canvas id="canvas"></canvas>
+</div>
+
+<script>
+const SCREEN_W = 400; // 3DS top screen width
+const SCREEN_H = 240; // 3DS top screen height
+const SCREEN_SCALE = 240.0 / 720.0; // engine's screenScale factor
+
+// Canvas display is a 2x upscale of 3DS screen
+const CANVAS_W = 800;
+const CANVAS_H = 480;
+
+// =========================
+// State
+// =========================
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = CANVAS_W;
+canvas.height = CANVAS_H;
+
+// Pan & zoom for the editor view
+let editorPanX = 0;
+let editorPanY = 0;
+let editorZoom = 1.0;
+
+// Stage data
+let stageJson = null;
+let sprites = []; // { img, name, x, y, scrollX, scrollY, scale, front }
+
+// Characters
+let chars = {
+    bf:  { img: null, xmlData: [], jsonData: null, role: 'bf',  label: 'BF',  color: '#7af', stageX: 0, stageY: 0, camX: 0, camY: 0 },
+    dad: { img: null, xmlData: [], jsonData: null, role: 'dad', label: 'DAD', color: '#f77', stageX: 0, stageY: 0, camX: 0, camY: 0 },
+    gf:  { img: null, xmlData: [], jsonData: null, role: 'gf',  label: 'GF',  color: '#c7f', stageX: 0, stageY: 0, camX: 0, camY: 0 },
+};
+
+let selected = null;      // 'bf' | 'dad' | 'gf'
+let selectedSprite = null; // index into sprites[]
+let editMode = 'chars';    // 'chars' | 'sprites'
+let dragMode = 0; // 0=none, 1=move-selected, 2=pan
+let lastMouse = { x: 0, y: 0 };
+let camPreview = null; // { x, y } world cam position to preview
+let luaOriginalText = ''; // Full Lua source to re-export
+
+function worldToCanvas(wx, wy) {
+    // Map world coords (as the 3DS would draw them) → canvas pixel
+    // Engine formula: drawX = (worldX * screenScale * camZoom) + SCREEN_W/2
+    // We ignore camZoom here (it's baked per-sprite with scrollX/Y)
+    // Editor view adds pan and editorZoom on top
+    const sx = wx * SCREEN_SCALE;
+    const sy = wy * SCREEN_SCALE;
+    const cx = (sx + SCREEN_W / 2) * 2 * editorZoom + editorPanX;
+    const cy = (sy + SCREEN_H / 2) * 2 * editorZoom + editorPanY;
+    return { x: cx, y: cy };
+}
+
+function canvasToWorld(cx, cy) {
+    const sx = ((cx - editorPanX) / (2 * editorZoom)) - SCREEN_W / 2;
+    const sy = ((cy - editorPanY) / (2 * editorZoom)) - SCREEN_H / 2;
+    return { x: sx / SCREEN_SCALE, y: sy / SCREEN_SCALE };
+}
+
+function screenPxPerWorldPx() {
+    return SCREEN_SCALE * 2 * editorZoom;
+}
+
+function drawSprite(s, camX, camY, camZoom, highlight) {
+    const drawX_world = s.x - camX * s.scrollX;
+    const drawY_world = s.y - camY * s.scrollY;
+
+    const finalX_screen = drawX_world * camZoom * SCREEN_SCALE + SCREEN_W / 2;
+    const finalY_screen = drawY_world * camZoom * SCREEN_SCALE + SCREEN_H / 2;
+    const drawScaleX = s.scaleX * SCREEN_SCALE * camZoom;
+    const drawScaleY = s.scaleY * SCREEN_SCALE * camZoom;
+
+    let imgW_screen = 0, imgH_screen = 0;
+    if (s.img) {
+        imgW_screen = s.img.naturalWidth  * SCREEN_SCALE * camZoom;
+        imgH_screen = s.img.naturalHeight * SCREEN_SCALE * camZoom;
+    }
+
+    const visualX_screen = finalX_screen - (s.scaleX - 1.0) * (imgW_screen / 2.0);
+    const visualY_screen = finalY_screen - (s.scaleY - 1.0) * (imgH_screen / 2.0);
+
+    // Convert screen-space to canvas-space
+    const cx = visualX_screen * 2 * editorZoom + editorPanX;
+    const cy = visualY_screen * 2 * editorZoom + editorPanY;
+    const pxScaleX = drawScaleX * 2 * editorZoom;
+    const pxScaleY = drawScaleY * 2 * editorZoom;
+
+    if (s.img) {
+        ctx.drawImage(s.img, cx, cy, s.img.naturalWidth * pxScaleX, s.img.naturalHeight * pxScaleY);
+    } else {
+        // Draw placeholder dashed box for [[UNKNOW EHEHAHSJAHSJAHSJ SPRITE]] ahhh spamton text
+        ctx.strokeStyle = '#444';
+        ctx.setLineDash([3,3]);
+        ctx.strokeRect(cx, cy, 60 * editorZoom, 60 * editorZoom);
+        ctx.setLineDash([]);
+    }
+
+    if (highlight) {
+        const w = s.img ? s.img.naturalWidth  * pxScaleX : 60 * editorZoom;
+        const h = s.img ? s.img.naturalHeight * pxScaleY : 60 * editorZoom;
+        ctx.strokeStyle = '#ff0';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(cx, cy, w, h);
+        ctx.fillStyle = '#ff0';
+        ctx.font = '10px monospace';
+        const parts = s.name.split('/'); ctx.fillText(parts[parts.length-1], cx, cy - 3);
+    }
+
+    // Draw origin dot at s.x, s.y (before pivot adjust)
+    const ox = finalX_screen * 2 * editorZoom + editorPanX;
+    const oy = finalY_screen * 2 * editorZoom + editorPanY;
+    ctx.fillStyle = '#666';
+    ctx.beginPath(); ctx.arc(ox, oy, 2, 0, Math.PI*2); ctx.fill();
+}
+
+function getFirstFrame(xmlData, animData) {
+    if (!xmlData || xmlData.length === 0 || !animData) return null;
+    const prefix = animData.name.toLowerCase();
+    const matching = xmlData.filter(f => {
+        const fn = f.name.toLowerCase();
+        if (!fn.startsWith(prefix)) return false;
+        if (fn.length === prefix.length) return true;
+        const rest = f.name.substring(prefix.length);
+        const next = rest.trim()[0];
+        return !isNaN(parseInt(next)) || rest.toLowerCase().includes("instancia");
+    });
+    if (matching.length === 0) return null;
+    if (animData.indices && animData.indices.length > 0) {
+        const idx = animData.indices[0];
+        if (matching[idx]) return matching[idx];
+    }
+    return matching[0];
+}
+
+function drawCharacter(charKey, camX, camY, camZoom) {
+    const ch = chars[charKey];
+    if (!ch.img || !ch.jsonData) {
+        // Draw placeholder box
+        drawCharPlaceholder(charKey, camX, camZoom);
+        return;
+    }
+
+    const jd = ch.jsonData;
+    const isPlayer = document.getElementById(charKey + 'IsPlayer').checked;
+    const flipX = jd.flip_x || false;
+    const shouldFlip = isPlayer !== flipX;
+    const charScaleVal = jd.scale !== undefined ? jd.scale : 6.0;
+
+    // Get idle anim
+    const idleAnim = jd.animations ? jd.animations.find(a => a.anim === 'idle' || a.anim === 'danceLeft') : null;
+    const frame = getFirstFrame(ch.xmlData, idleAnim || (jd.animations && jd.animations[0]));
+
+    // Stage position (character base position from json + stage offset)
+    const charBaseX = jd.position ? (jd.position[0] || 0) : 0;
+    const charBaseY = jd.position ? (jd.position[1] || 0) : 0;
+    const worldX = ch.stageX + charBaseX;
+    const worldY = ch.stageY + charBaseY;
+
+    // Engine char draw formula:
+    // baseX = stageX + char.x - camX
+    // drawX = (baseX * screenScale * zoom) + SCREEN_W/2
+    // Then: drawX += originX * (1 - charScale) * screenScale * zoom
+    // Then (no flip): drawX -= (frame.frameX + anim.offsetX) * finalScale
+
+    const offsets = (idleAnim && idleAnim.offsets) ? idleAnim.offsets : [0, 0];
+    const f = frame || { frameX: 0, frameY: 0, frameW: 100, frameH: 100, w: 100, h: 100 };
+
+    // finalScale = charScaleVal * screenScale * zoom  (engine)
+    // canvas units: finalScale * 2 * editorZoom
+    const finalScale = charScaleVal * SCREEN_SCALE * camZoom;
+    const canvasFinalScale = finalScale * 2 * editorZoom;
+
+    const baseX = worldX - camX;
+    const baseY = worldY - camY;
+    let drawX = (baseX * SCREEN_SCALE * camZoom + SCREEN_W / 2) * 2 * editorZoom + editorPanX;
+    let drawY = (baseY * SCREEN_SCALE * camZoom + SCREEN_H / 2) * 2 * editorZoom + editorPanY;
+
+    // Origin offset
+    drawX += (f.frameW / 2.0) * (1.0 - charScaleVal) * SCREEN_SCALE * camZoom * 2 * editorZoom;
+    drawY += (f.frameH / 2.0) * (1.0 - charScaleVal) * SCREEN_SCALE * camZoom * 2 * editorZoom;
+
+    if (shouldFlip) {
+        drawX += (f.frameW + f.frameX - offsets[0]) * canvasFinalScale;
+    } else {
+        drawX -= (f.frameX + offsets[0]) * canvasFinalScale;
+    }
+    drawY -= (f.frameY + offsets[1]) * canvasFinalScale;
+
+    if (frame && ch.img) {
+        ctx.save();
+        if (shouldFlip) {
+            ctx.translate(drawX, drawY);
+            ctx.scale(-1, 1);
+            ctx.drawImage(ch.img, frame.x, frame.y, frame.w, frame.h,
+                0, 0, frame.w * canvasFinalScale, frame.h * canvasFinalScale);
+        } else {
+            ctx.drawImage(ch.img, frame.x, frame.y, frame.w, frame.h,
+                drawX, drawY, frame.w * canvasFinalScale, frame.h * canvasFinalScale);
+        }
+        ctx.restore();
+    }
+
+    // Draw character label marker at their position origin
+    const originPos = worldToCanvas(baseX * camZoom, baseY * camZoom);
+    ctx.fillStyle = ch.color;
+    ctx.beginPath();
+    ctx.arc(originPos.x, originPos.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = ch.color;
+    ctx.font = 'bold 10px monospace';
+    ctx.fillText(ch.label, originPos.x + 7, originPos.y + 4);
+}
+
+function drawCharPlaceholder(charKey, camX, camZoom) {
+    const ch = chars[charKey];
+    const baseX = ch.stageX - camX;
+    const baseY = ch.stageY - camY;
+    // For placeholder, use stageY from ch.stageY with camY=0 offset
+    const actualBaseX = ch.stageX - camX;
+    const actualBaseY = ch.stageY - 0; // camY is handled below
+    const px = (actualBaseX * SCREEN_SCALE * camZoom + SCREEN_W / 2) * 2 * editorZoom + editorPanX;
+    const py = (actualBaseY * SCREEN_SCALE * camZoom + SCREEN_H / 2) * 2 * editorZoom + editorPanY;
+
+    ctx.strokeStyle = ch.color;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(px - 1, py - 1, 80 * editorZoom, 120 * editorZoom);
+    ctx.setLineDash([]);
+    ctx.fillStyle = ch.color;
+    ctx.font = 'bold 11px monospace';
+    ctx.fillText(ch.label, px + 4, py + 16);
+}
+
+function drawCameraFocus(camX, camY, camZoom) {
+    if (!camPreview) return;
+    // Camera target is: char world pos + camOffset
+    // On screen center
+    const cx = CANVAS_W / 2 * editorZoom + editorPanX;
+    const cy = CANVAS_H / 2 * editorZoom + editorPanY;
+    const center = worldToCanvas(0, 0); // world 0,0 is screen center
+
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 3]);
+    // Draw crosshair at where camera will focus
+    const focusCx = ((camPreview.x * SCREEN_SCALE * camZoom + SCREEN_W / 2) * 2 * editorZoom + editorPanX);
+    const focusCy = ((camPreview.y * SCREEN_SCALE * camZoom + SCREEN_H / 2) * 2 * editorZoom + editorPanY);
+    ctx.beginPath(); ctx.moveTo(0, focusCy); ctx.lineTo(CANVAS_W, focusCy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(focusCx, 0); ctx.lineTo(focusCx, CANVAS_H); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath(); ctx.arc(focusCx, focusCy, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff0';
+    ctx.font = '10px monospace';
+    ctx.fillText('cam target', focusCx + 6, focusCy - 4);
+}
+
+function getCamTarget(charKey) {
+    // Engine formula from focusCamera:
+    //   camFollowX = char.x + 150 + char.camOffsetX + stage.camX
+    // In the editor, char.camOffsetX comes from the character's loaded JSON
+    // and stage.camX is the chars[key].camX value.
+    const ch = chars[charKey];
+    const jd = ch.jsonData;
+    const charCamOffX = jd ? (jd.camera_position ? (jd.camera_position[0] || 0) : 0) : 0;
+    const charCamOffY = jd ? (jd.camera_position ? (jd.camera_position[1] || 0) : 0) : 0;
+    const charBaseX = jd ? (jd.position ? (jd.position[0] || 0) : 0) : 0;
+    const charBaseY = jd ? (jd.position ? (jd.position[1] || 0) : 0) : 0;
+    return {
+        x: ch.stageX + charBaseX + 150.0 + charCamOffX + ch.camX,
+        y: ch.stageY + charBaseY + 150.0 + charCamOffY + ch.camY,
+        charCamOffX, charCamOffY
+    };
+}
+
+function drawCameraViewports(camZoom) {
+    // The 3DS screen in world units at camZoom:
+    //   visibleW = (SCREEN_W / screenScale) / camZoom = (400 / (240/720)) / camZoom
+    //   world units per screen px = 1 / (SCREEN_SCALE * camZoom)
+    //   visible world width = SCREEN_W / (SCREEN_SCALE * camZoom)
+    const visW = SCREEN_W / (SCREEN_SCALE * camZoom); // world units visible horizontally
+    const visH = SCREEN_H / (SCREEN_SCALE * camZoom); // world units visible vertically
+
+    const camDefs = [
+        { key: 'bf',  label: 'BF CAM',  color: '#7af' },
+        { key: 'dad', label: 'DAD CAM', color: '#f77' },
+        { key: 'gf',  label: 'GF CAM',  color: '#c7f' },
+    ];
+
+    for (const def of camDefs) {
+        const ch = chars[def.key];
+        const target = getCamTarget(def.key);
+        const isSelected = editMode === 'cameras' && selected === def.key;
+
+        // Viewport rect in world: centered at (target.x, target.y)
+        const rectLeft  = target.x - visW / 2;
+        const rectTop   = target.y - visH / 2;
+
+        // Convert to canvas coordinates
+        // Engine: drawX_screen = (worldX * camZoom * screenScale) + SCREEN_W/2
+        // So: world → canvas:
+        const toCanvas = (wx, wy) => ({
+            x: (wx * camZoom * SCREEN_SCALE + SCREEN_W/2) * 2 * editorZoom + editorPanX,
+            y: (wy * camZoom * SCREEN_SCALE + SCREEN_H/2) * 2 * editorZoom + editorPanY,
+        });
+
+        const tl = toCanvas(rectLeft, rectTop);
+        const br = toCanvas(rectLeft + visW, rectTop + visH);
+        const cw = br.x - tl.x;
+        const ch2 = br.y - tl.y;
+
+        // Camera target dot
+        const dot = toCanvas(target.x, target.y);
+
+        // Parse hex color to rgba
+        const r = parseInt(def.color.slice(1, 2).repeat(2), 16);
+        const g = parseInt(def.color.slice(2, 3).repeat(2), 16);
+        const b2 = parseInt(def.color.slice(3, 4).repeat(2), 16);
+        const fillAlpha = isSelected ? 0.30 : 0.18;
+
+        // Semi-transparent fill first
+        ctx.fillStyle = `rgba(${r},${g},${b2},${fillAlpha})`;
+        ctx.fillRect(tl.x, tl.y, cw, ch2);
+
+        // Draw viewport border on top
+        ctx.strokeStyle = def.color;
+        ctx.lineWidth = isSelected ? 2 : 1;
+        ctx.setLineDash(isSelected ? [] : [6, 4]);
+        ctx.strokeRect(tl.x, tl.y, cw, ch2);
+        ctx.setLineDash([]);
+
+        // Crosshair at camera target
+        ctx.strokeStyle = def.color;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(tl.x, dot.y); ctx.lineTo(br.x, dot.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(dot.x, tl.y); ctx.lineTo(dot.x, br.y); ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Dot at camera target
+        ctx.fillStyle = def.color;
+        ctx.beginPath(); ctx.arc(dot.x, dot.y, isSelected ? 5 : 3, 0, Math.PI*2); ctx.fill();
+
+        // Label
+        ctx.font = (isSelected ? 'bold ' : '') + '10px monospace';
+        ctx.fillStyle = def.color;
+        ctx.fillText(def.label, tl.x + 4, tl.y + 12);
+    }
+}
+
+// =========================
+// Main render
+// =========================
+function render() {
+    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    const camZoom = stageJson ? (stageJson.defaultZoom || 1.0) : 1.0;
+    const camX = 0; // no camera movement in editor by default
+    const camY = 0;
+
+    // Draw screen border
+    const tl = worldToCanvas(-SCREEN_W / 2 / SCREEN_SCALE / camZoom, -SCREEN_H / 2 / SCREEN_SCALE / camZoom);
+    const br = worldToCanvas(SCREEN_W / 2 / SCREEN_SCALE / camZoom, SCREEN_H / 2 / SCREEN_SCALE / camZoom);
+    // Actually draw the visible 3DS screen frame
+    const screenLeft  = editorPanX;
+    const screenTop   = editorPanY;
+    const screenRight = CANVAS_W * editorZoom + editorPanX; // fake... use proper
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    // Draw crosshair at world origin (0,0)
+    const orig = worldToCanvas(0, 0);
+    ctx.strokeStyle = '#1e1e1e';
+    ctx.beginPath(); ctx.moveTo(0, orig.y); ctx.lineTo(CANVAS_W, orig.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(orig.x, 0); ctx.lineTo(orig.x, CANVAS_H); ctx.stroke();
+
+    // Draw back sprites
+    for (let i = 0; i < sprites.length; i++) {
+        const s = sprites[i];
+        if (!s.front) drawSprite(s, camX, camY, camZoom, editMode === 'sprites' && selectedSprite === i);
+    }
+
+    // Draw gf, dad, bf (in that order)
+    if (chars.gf.jsonData || chars.gf.img)  drawCharacter('gf',  camX, camY, camZoom);
+    if (chars.dad.jsonData || chars.dad.img) drawCharacter('dad', camX, camY, camZoom);
+    if (chars.bf.jsonData || chars.bf.img)   drawCharacter('bf',  camX, camY, camZoom);
+
+    // Draw front sprites
+    for (let i = 0; i < sprites.length; i++) {
+        const s = sprites[i];
+        if (s.front) drawSprite(s, camX, camY, camZoom, editMode === 'sprites' && selectedSprite === i);
+    }
+
+    // Camera preview (old single-marker)
+    if (editMode !== 'cameras') drawCameraFocus(camX, camY, camZoom);
+
+    // Camera viewports in cameras mode
+    if (editMode === 'cameras') drawCameraViewports(camZoom);
+
+    // Draw selected character highlight
+    if (editMode === 'chars' && selected) {
+        const ch = chars[selected];
+        const pos = worldToCanvas(ch.stageX * camZoom, ch.stageY * camZoom);
+        ctx.strokeStyle = chars[selected].color;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // HUD: overlay frame (green border = 3DS screen boundary)
+    const fLeft = editorPanX;
+    const fTop = editorPanY;
+    const fW = SCREEN_W * 2 * editorZoom;
+    const fH = SCREEN_H * 2 * editorZoom;
+    ctx.strokeStyle = '#1a3a1a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(fLeft, fTop, fW, fH);
+
+    updateOverlay(camZoom);
+}
+
+function updateOverlay(camZoom) {
+    const lines = [
+        `mode: ${editMode}  zoom: ${editorZoom.toFixed(2)}x  stage-zoom: ${camZoom.toFixed(2)}`,
+        `pan: [${Math.round(editorPanX)}, ${Math.round(editorPanY)}]`,
+    ];
+    if (editMode === 'chars' && selected) {
+        const ch = chars[selected];
+        lines.push(`${ch.label} pos: [${Math.round(ch.stageX)}, ${Math.round(ch.stageY)}]`);
+        lines.push(`${ch.label} cam: [${Math.round(ch.camX)}, ${Math.round(ch.camY)}]`);
+    }
+    if (editMode === 'sprites' && selectedSprite !== null) {
+        const s = sprites[selectedSprite];
+        const parts = s.name.split('/');
+        lines.push(`sprite: ${parts[parts.length-1]}`);
+        lines.push(`pos: [${Math.round(s.x)}, ${Math.round(s.y)}]`);
+    }
+    if (editMode === 'cameras' && selected) {
+        const ch = chars[selected];
+        const t = getCamTarget(selected);
+        lines.push(`${ch.label} cam target: [${Math.round(t.x)}, ${Math.round(t.y)}]`);
+        lines.push(`stage offset: [${Math.round(ch.camX)}, ${Math.round(ch.camY)}]`);
+    }
+    document.getElementById('overlay').innerHTML = lines.join('<br>');
+}
+
+function setMode(mode) {
+    editMode = mode;
+    const btnDefs = [
+        { id: 'btnModeChars',   key: 'chars',   bg: '#1a3a6a', bc: '#4af', fg: '#7af' },
+        { id: 'btnModeSprites', key: 'sprites', bg: '#3a2a1a', bc: '#fa4', fg: '#fa8' },
+        { id: 'btnModeCamera',  key: 'cameras', bg: '#2a1a3a', bc: '#a4f', fg: '#c7f' },
+    ];
+    for (const b of btnDefs) {
+        const el = document.getElementById(b.id);
+        const on = mode === b.key;
+        el.style.background   = on ? b.bg  : '#222';
+        el.style.borderColor  = on ? b.bc  : '#444';
+        el.style.color        = on ? b.fg  : '#bbb';
+    }
+
+    if (mode === 'sprites') {
+        selected = null;
+        document.getElementById('selectedControls').style.display = 'none';
+        document.getElementById('selectedInfo').textContent = 'click a sprite to select';
+    } else if (mode === 'cameras') {
+        selectedSprite = null;
+        selected = null;
+        document.getElementById('selectedControls').style.display = 'none';
+        document.getElementById('selectedInfo').textContent = 'click a camera rect to select';
+    } else {
+        selectedSprite = null;
+        document.getElementById('selectedInfo').textContent = 'click a character to select';
+        if (!selected) document.getElementById('selectedControls').style.display = 'none';
+    }
+    render();
+}
+document.getElementById('btnModeChars').onclick   = () => setMode('chars');
+document.getElementById('btnModeSprites').onclick = () => setMode('sprites');
+document.getElementById('btnModeCamera').onclick  = () => setMode('cameras');
+
+function parseXml(text) {
+    const xml = new DOMParser().parseFromString(text, 'text/xml');
+    const textures = xml.getElementsByTagName('SubTexture');
+    const frames = [];
+    for (let t of textures) {
+        frames.push({
+            name: t.getAttribute('name'),
+            x: parseInt(t.getAttribute('x')),
+            y: parseInt(t.getAttribute('y')),
+            w: parseInt(t.getAttribute('width')),
+            h: parseInt(t.getAttribute('height')),
+            frameX: parseInt(t.getAttribute('frameX')) || 0,
+            frameY: parseInt(t.getAttribute('frameY')) || 0,
+            frameW: parseInt(t.getAttribute('frameWidth'))  || parseInt(t.getAttribute('width')),
+            frameH: parseInt(t.getAttribute('frameHeight')) || parseInt(t.getAttribute('height')),
+        });
+    }
+    return frames;
+}
+
+function readFile(input, cb) {
+    if (!input.files[0]) return;
+    const r = new FileReader();
+    r.onload = () => cb(r.result);
+    return r;
+}
+
+document.getElementById('fileJson').onchange = e => {
+    const r = new FileReader();
+    r.onload = () => {
+        stageJson = JSON.parse(r.result);
+        loadStageFromJson(stageJson);
+        document.getElementById('stageZoom').value = stageJson.defaultZoom || 1.1;
+        updateSelectedControls();
+        updateSpriteList();
+        render();
+    };
+    r.readAsText(e.target.files[0]);
+};
+
+function loadStageFromJson(j) {
+    // Characters from JSON
+    if (j.boyfriend)  { chars.bf.stageX  = j.boyfriend[0];  chars.bf.stageY  = j.boyfriend[1]; }
+    if (j.opponent)   { chars.dad.stageX = j.opponent[0];   chars.dad.stageY = j.opponent[1]; }
+    if (j.girlfriend) { chars.gf.stageX  = j.girlfriend[0]; chars.gf.stageY  = j.girlfriend[1]; }
+
+    const bfCam  = j.boyfriend_camera  || j.camera_boyfriend  || [0,0];
+    const dadCam = j.opponent_camera   || j.camera_opponent   || [0,0];
+    const gfCam  = j.girlfriend_camera || j.camera_girlfriend || [0,0];
+    chars.bf.camX  = bfCam[0];  chars.bf.camY  = bfCam[1];
+    chars.dad.camX = dadCam[0]; chars.dad.camY = dadCam[1];
+    chars.gf.camX  = gfCam[0];  chars.gf.camY  = gfCam[1];
+
+    // Sprite data from JSON (if any, e.g. "sprites" array)
+    sprites = [];
+    if (j.sprites && Array.isArray(j.sprites)) {
+        for (const s of j.sprites) {
+            const sc = s.scale !== undefined ? s.scale : 1.0;
+            const scX = s.scaleX !== undefined ? s.scaleX : sc;
+            const scY = s.scaleY !== undefined ? s.scaleY : sc;
+            sprites.push({ img: null, name: s.image || '', x: s.x || 0, y: s.y || 0, scrollX: s.scrollX !== undefined ? s.scrollX : 1, scrollY: s.scrollY !== undefined ? s.scrollY : 1, scaleX: scX, scaleY: scY, front: s.front || false, alpha: s.alpha !== false });
+        }
+    }
+}
+
+// Lua script — parse sprite calls and inject into sprites array
+document.getElementById('fileLua').onchange = e => {
+    const r = new FileReader();
+    r.onload = () => {
+        luaOriginalText = r.result;
+        const lua = r.result;
+        const lines = lua.split('\n');
+        luaSpriteNames = [];
+
+        // Parse scaleObject calls for scale overrides
+        const scaleMap = {};
+        lines.forEach(l => {
+            const ms = l.match(/scaleObject\s*\(\s*'([^']+)'\s*,\s*([-\d.]+)(?:\s*,\s*([-\d.]+))?/);
+            if (ms) {
+                const tag = ms[1];
+                const sx = parseFloat(ms[2]);
+                const sy = ms[3] !== undefined ? parseFloat(ms[3]) : sx;
+                scaleMap[tag] = { x: sx, y: sy };
+            }
+        });
+        // Parse setScrollFactor
+        const scrollMap = {};
+        lines.forEach(l => {
+            const ms = l.match(/setScrollFactor\s*\(\s*'([^']+)'\s*,\s*([\d.]+)\s*,\s*([\d.]+)/);
+            if (ms) scrollMap[ms[1]] = { x: parseFloat(ms[2]), y: parseFloat(ms[3]) };
+        });
+        // Parse addLuaSprite for front/back
+        const frontMap = {};
+        lines.forEach(l => {
+            const ms = l.match(/addLuaSprite\s*\(\s*'([^']+)'\s*,\s*(true|false)/);
+            if (ms) frontMap[ms[1]] = ms[2] === 'true';
+        });
+
+        let luaHtml = '<b style="color:#555">Lua sprites:</b><br>';
+        lines.forEach(l => {
+            const m  = l.match(/makeLuaSprite\s*\(\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)/);
+            const m2 = l.match(/makeAnimatedLuaSprite\s*\(\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)/);
+            const match = m || m2;
+            if (match) {
+                const tag = match[1];
+                const imgPath = match[2];
+                const sx = parseFloat(match[3]);
+                const sy = parseFloat(match[4]);
+                const sc = scaleMap[tag] || { x: 1.0, y: 1.0 };
+                const scroll = scrollMap[tag] || { x: 1, y: 1 };
+                const front = frontMap[tag] !== undefined ? frontMap[tag] : false;
+                luaSpriteNames.push({ tag, imagePath: imgPath, x: sx, y: sy, scaleX: sc.x, scaleY: sc.y, scrollX: scroll.x, scrollY: scroll.y, front });
+                luaHtml += `<div style="color:#666;margin:1px 0">${tag}: ${imgPath} [${sx}, ${sy}] sx:${sc.x} sy:${sc.y}</div>`;
+            }
+        });
+
+        // Merge Lua sprites into sprites array (without image yet)
+        for (const ls of luaSpriteNames) {
+            const parts = ls.imagePath.split('/');
+            const bn = parts[parts.length - 1].toLowerCase();
+            const already = sprites.find(s => {
+                const sp = s.name.split('/'); return sp[sp.length-1].toLowerCase() === bn;
+            });
+            if (!already) {
+                sprites.push({ img: null, name: ls.imagePath, x: ls.x, y: ls.y, scrollX: ls.scrollX, scrollY: ls.scrollY, scaleX: ls.scaleX, scaleY: ls.scaleY, front: ls.front, alpha: true });
+            }
+        }
+
+        document.getElementById('luaPreview').innerHTML = luaHtml;
+        updateSpriteList();
+        render();
+    };
+    r.readAsText(e.target.files[0]);
+};
+
+// Generic char file loader
+function setupCharLoaders(key) {
+    document.getElementById(key + 'Img').onchange = e => {
+        const r = new FileReader();
+        r.onload = () => {
+            chars[key].img = new Image();
+            chars[key].img.onload = render;
+            chars[key].img.src = r.result;
+        };
+        r.readAsDataURL(e.target.files[0]);
+    };
+    document.getElementById(key + 'Xml').onchange = e => {
+        const r = new FileReader();
+        r.onload = () => { chars[key].xmlData = parseXml(r.result); render(); };
+        r.readAsText(e.target.files[0]);
+    };
+    document.getElementById(key + 'Json').onchange = e => {
+        const r = new FileReader();
+        r.onload = () => {
+            chars[key].jsonData = JSON.parse(r.result);
+            const jd = chars[key].jsonData;
+            if (jd._editor_isPlayer !== undefined) {
+                document.getElementById(key + 'IsPlayer').checked = jd._editor_isPlayer;
+            }
+            render();
+        };
+        r.readAsText(e.target.files[0]);
+    };
+    document.getElementById(key + 'IsPlayer').onchange = render;
+}
+setupCharLoaders('bf');
+setupCharLoaders('dad');
+setupCharLoaders('gf');
+
+// Known sprite names from Lua (parsed when Lua is loaded)
+let luaSpriteNames = []; // [ { tag, imagePath, x, y } ]
+
+function updateSpriteList() {
+    const list = document.getElementById('spriteList');
+    // Collect all expected sprite image paths from JSON sprites + Lua sprites
+    const expected = [];
+    for (const s of sprites) {
+        // image path like 'stages/stage/floor' → basename 'floor'
+        const parts = s.name.split('/');
+        expected.push({ key: s.name, basename: parts[parts.length - 1], sprite: s });
+    }
+    for (const ls of luaSpriteNames) {
+        const parts = ls.imagePath.split('/');
+        const bn = parts[parts.length - 1];
+        // Add if not already represented in the JSON sprites list
+        if (!expected.find(e => e.basename === bn)) {
+            expected.push({ key: ls.imagePath, basename: bn, sprite: null, lua: ls });
+        }
+    }
+    if (expected.length === 0) {
+        list.innerHTML = '<span style="color:#444">load stage JSON / Lua first</span>';
+        return;
+    }
+    list.innerHTML = expected.map(e => {
+        const loaded = e.sprite && e.sprite.img ? '✅' : '⬜';
+        const pos = e.sprite ? ` [${e.sprite.x}, ${e.sprite.y}]` : (e.lua ? ` [${e.lua.x}, ${e.lua.y}]` : '');
+        return `<div style="margin:1px 0">${loaded} <span style="color:#666">${e.basename}</span><span style="color:#444">${pos}</span></div>`;
+    }).join('');
+}
+
+// Multi-image loader — matches files to expected sprites by basename
+document.getElementById('btnLoadSprites').onclick = () => {
+    document.getElementById('spriteFiles').click();
+};
+document.getElementById('spriteFiles').onchange = e => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    // Build a map from basename (no ext) → sprite entry
+    const matchMap = {};
+    for (const s of sprites) {
+        const parts = s.name.split('/');
+        const bn = parts[parts.length - 1].toLowerCase();
+        matchMap[bn] = s;
+    }
+    // Also match Lua sprites that are not in the JSON sprites list
+    for (const ls of luaSpriteNames) {
+        const parts = ls.imagePath.split('/');
+        const bn = parts[parts.length - 1].toLowerCase();
+        if (!matchMap[bn]) {
+            // Create a synthetic sprite entry
+            const s = { img: null, name: ls.imagePath, x: ls.x, y: ls.y, scrollX: ls.scrollX, scrollY: ls.scrollY, scaleX: ls.scaleX !== undefined ? ls.scaleX : 1.0, scaleY: ls.scaleY !== undefined ? ls.scaleY : 1.0, front: ls.front, alpha: true };
+            sprites.push(s);
+            matchMap[bn] = s;
+        }
+    }
+
+    let loaded = 0;
+    files.forEach(file => {
+        // Strip extension and get basename
+        const bn = file.name.replace(/\.[^.]+$/, '').toLowerCase();
+        const target = matchMap[bn];
+        if (!target) {
+            console.log('No matching sprite for:', file.name);
+            return;
+        }
+        const r = new FileReader();
+        r.onload = () => {
+            const imgEl = new Image();
+            imgEl.onload = () => {
+                target.img = imgEl;
+                loaded++;
+                updateSpriteList();
+                render();
+            };
+            imgEl.src = r.result;
+        };
+        r.readAsDataURL(file);
+    });
+    // Reset so same files can be re-selected
+    e.target.value = '';
+};
+
+// =========================
+// Lua export
+// =========================
+document.getElementById('btnExportLua').onclick = () => {
+    if (!luaOriginalText) { alert('Load a Lua script first.'); return; }
+    let out = luaOriginalText;
+    for (const s of sprites) {
+        // Match makeLuaSprite('tag', 'image', x, y) or makeAnimatedLuaSprite
+        // We match by image path
+        const escapedPath = s.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Replace x,y in makeLuaSprite / makeAnimatedLuaSprite calls for this image
+        out = out.replace(
+            new RegExp(`(make(?:Animated)?LuaSprite\\s*\\(\\s*'[^']*'\\s*,\\s*'${escapedPath}'\\s*,\\s*)([-\\d.]+)(\\s*,\\s*)([-\\d.]+)`, 'g'),
+            `$1${Math.round(s.x)}$3${Math.round(s.y)}`
+        );
+
+        // Find the tag corresponding to this sprite name in luaSpriteNames
+        const ls = luaSpriteNames.find(item => {
+            const parts = item.imagePath.split('/');
+            const bn = parts[parts.length - 1].toLowerCase();
+            const sParts = s.name.split('/');
+            return bn === sParts[sParts.length - 1].toLowerCase();
+        });
+        if (ls) {
+            // Update or add scaleObject call in Lua
+            const scaleRegex = new RegExp(`(scaleObject\\s*\\(\\s*'${ls.tag}'\\s*,\\s*)([-\\d.]+)(?:\\s*,\\s*([-\\d.]+))?(\\s*\\))`, 'g');
+            if (scaleRegex.test(out)) {
+                out = out.replace(scaleRegex, (match, p1, p2, p3, p4) => {
+                    if (s.scaleX === s.scaleY) {
+                        return `${p1}${s.scaleX}${p4}`;
+                    } else {
+                        return `${p1}${s.scaleX}, ${s.scaleY}${p4}`;
+                    }
+                });
+            } else if (s.scaleX !== 1.0 || s.scaleY !== 1.0) {
+                const makeRegex = new RegExp(`((?:make(?:Animated)?LuaSprite)\\s*\\(\\s*'${ls.tag}'.*\\))`, 'g');
+                const scaleCall = s.scaleX === s.scaleY ? 
+                    `scaleObject('${ls.tag}', ${s.scaleX})` : 
+                    `scaleObject('${ls.tag}', ${s.scaleX}, ${s.scaleY})`;
+                out = out.replace(makeRegex, `$1\n\t${scaleCall}`);
+            }
+        }
+    }
+    const blob = new Blob([out], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'stage.lua';
+    a.click();
+};
+
+function getSpriteScreenBounds(s, camZoom) {
+    const camX = 0, camY = 0;
+    const drawX_world = s.x - camX * s.scrollX;
+    const drawY_world = s.y - camY * s.scrollY;
+    const finalX_screen = drawX_world * camZoom * SCREEN_SCALE + SCREEN_W / 2;
+    const finalY_screen = drawY_world * camZoom * SCREEN_SCALE + SCREEN_H / 2;
+    const drawScaleX = s.scaleX * SCREEN_SCALE * camZoom;
+    const drawScaleY = s.scaleY * SCREEN_SCALE * camZoom;
+    let imgW_screen = 0, imgH_screen = 0;
+    if (s.img) {
+        imgW_screen = s.img.naturalWidth  * SCREEN_SCALE * camZoom;
+        imgH_screen = s.img.naturalHeight * SCREEN_SCALE * camZoom;
+    } else {
+        imgW_screen = 60 * SCREEN_SCALE * camZoom;
+        imgH_screen = 60 * SCREEN_SCALE * camZoom;
+    }
+    const visualX_screen = finalX_screen - (s.scaleX - 1.0) * (imgW_screen / 2.0);
+    const visualY_screen = finalY_screen - (s.scaleY - 1.0) * (imgH_screen / 2.0);
+    const cx = visualX_screen * 2 * editorZoom + editorPanX;
+    const cy = visualY_screen * 2 * editorZoom + editorPanY;
+    const pxScaleX = drawScaleX * 2 * editorZoom;
+    const pxScaleY = drawScaleY * 2 * editorZoom;
+    const w = s.img ? s.img.naturalWidth * pxScaleX : 60 * editorZoom;
+    const h = s.img ? s.img.naturalHeight * pxScaleY : 60 * editorZoom;
+    return { cx, cy, w, h };
+}
+
+function selectSpriteAt(mx, my, camZoom) {
+    // Check front sprites first (top of stack)
+    for (let i = sprites.length - 1; i >= 0; i--) {
+        const s = sprites[i];
+        const b = getSpriteScreenBounds(s, camZoom);
+        if (mx >= b.cx && mx <= b.cx + b.w && my >= b.cy && my <= b.cy + b.h) {
+            selectedSprite = i;
+            const parts = s.name.split('/');
+            document.getElementById('selectedLabel').textContent = parts[parts.length-1];
+            document.getElementById('selX').value = Math.round(s.x);
+            document.getElementById('selY').value = Math.round(s.y);
+            document.getElementById('scaleRow').style.display = 'flex';
+            document.getElementById('selScaleX').value = s.scaleX;
+            document.getElementById('selScaleY').value = s.scaleY;
+            document.getElementById('camControls').style.display = 'none';
+            document.getElementById('selectedControls').style.display = 'block';
+            document.getElementById('selectedInfo').textContent = '';
+            return true;
+        }
+    }
+    return false;
+}
+
+function selectChar(key) {
+    selected = key;
+    document.getElementById('camControls').style.display = 'block';
+    document.getElementById('selectedControls').style.display = 'block';
+    document.getElementById('selectedInfo').textContent = '';
+    document.getElementById('selectedLabel').textContent = chars[key].label;
+    // Show char camOffset from JSON in the info display
+    const jd = chars[key].jsonData;
+    const charCamOffX = jd ? (jd.camera_position ? (jd.camera_position[0] || 0) : 0) : 0;
+    const charCamOffY = jd ? (jd.camera_position ? (jd.camera_position[1] || 0) : 0) : 0;
+    document.getElementById('charCamOffsetX').textContent = charCamOffX;
+    document.getElementById('charCamOffsetY').textContent = charCamOffY;
+    syncSelectedInputs();
+    render();
+}
+
+function syncSelectedInputs() {
+    if (editMode === 'sprites' && selectedSprite !== null) {
+        const s = sprites[selectedSprite];
+        document.getElementById('selX').value = Math.round(s.x);
+        document.getElementById('selY').value = Math.round(s.y);
+        document.getElementById('selX').parentElement.style.display = 'flex';
+        document.getElementById('scaleRow').style.display = 'flex';
+        document.getElementById('selScaleX').value = s.scaleX;
+        document.getElementById('selScaleY').value = s.scaleY;
+        document.getElementById('camControls').style.display = 'none';
+        return;
+    }
+    document.getElementById('scaleRow').style.display = 'none';
+    if (editMode === 'cameras' && selected) {
+        const ch = chars[selected];
+        // In camera mode: hide position row, only show camera offset
+        document.getElementById('selX').parentElement.style.display = 'none';
+        document.getElementById('camControls').style.display = 'block';
+        document.getElementById('selCamX').value = Math.round(ch.camX);
+        document.getElementById('selCamY').value = Math.round(ch.camY);
+        return;
+    }
+    // chars mode
+    if (!selected) return;
+    document.getElementById('selX').parentElement.style.display = 'flex';
+    document.getElementById('camControls').style.display = 'block';
+    const ch = chars[selected];
+    document.getElementById('selX').value = Math.round(ch.stageX);
+    document.getElementById('selY').value = Math.round(ch.stageY);
+    document.getElementById('selCamX').value = Math.round(ch.camX);
+    document.getElementById('selCamY').value = Math.round(ch.camY);
+}
+
+function updateSelectedControls() {
+    syncSelectedInputs();
+}
+
+['selX', 'selY', 'selCamX', 'selCamY', 'selScaleX', 'selScaleY'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.oninput = () => {
+        if (editMode === 'sprites' && selectedSprite !== null) {
+            sprites[selectedSprite].x = parseFloat(document.getElementById('selX').value) || 0;
+            sprites[selectedSprite].y = parseFloat(document.getElementById('selY').value) || 0;
+            sprites[selectedSprite].scaleX = parseFloat(document.getElementById('selScaleX').value) || 1.0;
+            sprites[selectedSprite].scaleY = parseFloat(document.getElementById('selScaleY').value) || 1.0;
+            render(); return;
+        }
+        if (!selected) return;
+        const ch = chars[selected];
+        ch.stageX = parseFloat(document.getElementById('selX').value) || 0;
+        ch.stageY = parseFloat(document.getElementById('selY').value) || 0;
+        ch.camX   = parseFloat(document.getElementById('selCamX').value) || 0;
+        ch.camY   = parseFloat(document.getElementById('selCamY').value) || 0;
+        render();
+    };
+});
+
+document.getElementById('stageZoom').oninput = () => {
+    if (stageJson) stageJson.defaultZoom = parseFloat(document.getElementById('stageZoom').value) || 1.0;
+    render();
+};
+
+document.getElementById('zoomInput').oninput = () => {
+    editorZoom = parseFloat(document.getElementById('zoomInput').value) || 1.0;
+    render();
+};
+
+document.getElementById('btnFocusCam').onclick = () => {
+    if (!selected) return;
+    const ch = chars[selected];
+    const camZoom = stageJson ? (stageJson.defaultZoom || 1.0) : 1.0;
+    // Camera focuses on char position + char.camOffsetX/Y + stage cam offset
+    // In the engine: camX targets char.x + char.camOffsetX (character's own offset) + stage bfCamX etc.
+    // Here we only have the stage cam offsets (camX/camY on chars)
+    // So preview the camera center
+    const focusWorldX = ch.stageX + ch.camX;
+    const focusWorldY = ch.stageY + ch.camY;
+    camPreview = { x: focusWorldX, y: focusWorldY };
+    render();
+
+    // Clear after 3 seconds
+    setTimeout(() => { camPreview = null; render(); }, 3000);
+};
+
+function buildExportJson() {
+    const out = Object.assign({}, stageJson);
+    out.boyfriend  = [Math.round(chars.bf.stageX),  Math.round(chars.bf.stageY)];
+    out.opponent   = [Math.round(chars.dad.stageX), Math.round(chars.dad.stageY)];
+    out.girlfriend = [Math.round(chars.gf.stageX),  Math.round(chars.gf.stageY)];
+    out.camera_boyfriend  = [Math.round(chars.bf.camX),  Math.round(chars.bf.camY)];
+    out.camera_opponent   = [Math.round(chars.dad.camX), Math.round(chars.dad.camY)];
+    out.camera_girlfriend = [Math.round(chars.gf.camX),  Math.round(chars.gf.camY)];
+    delete out.boyfriend_camera;
+    delete out.opponent_camera;
+    delete out.girlfriend_camera;
+    out.defaultZoom = parseFloat(document.getElementById('stageZoom').value) || 1.1;
+
+    // Map in-memory sprites back to JSON output
+    out.sprites = sprites.map(s => {
+        const matched = (stageJson.sprites || []).find(orig => orig.image === s.name) || {};
+        const item = Object.assign({}, matched, {
+            image: s.name,
+            x: Math.round(s.x),
+            y: Math.round(s.y),
+            scrollX: s.scrollX,
+            scrollY: s.scrollY,
+            front: s.front,
+            alpha: s.alpha
+        });
+        if (s.scaleX === s.scaleY) {
+            item.scale = s.scaleX;
+            delete item.scaleX;
+            delete item.scaleY;
+        } else {
+            item.scaleX = s.scaleX;
+            item.scaleY = s.scaleY;
+            delete item.scale;
+        }
+        return item;
+    });
+    return out;
+}
+
+document.getElementById('btnExport').onclick = () => {
+    if (!stageJson) { alert('Load a stage JSON first.'); return; }
+    const out = buildExportJson();
+    const blob = new Blob([JSON.stringify(out, null, '\t')], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'stage.json';
+    a.click();
+};
+
+canvas.onmousedown = e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (CANVAS_W / rect.width);
+    const my = (e.clientY - rect.top)  * (CANVAS_H / rect.height);
+    lastMouse = { x: mx, y: my };
+
+    if (e.button === 1) { dragMode = 2; return; }
+    if (e.button === 0) {
+        const camZoom = stageJson ? (stageJson.defaultZoom || 1.0) : 1.0;
+
+        if (editMode === 'sprites') {
+            if (selectSpriteAt(mx, my, camZoom)) { dragMode = 1; }
+            else {
+                selectedSprite = null;
+                document.getElementById('selectedControls').style.display = 'none';
+                document.getElementById('selectedInfo').textContent = 'click a sprite to select';
+                dragMode = 2;
+            }
+            render(); return;
+        }
+
+        if (editMode === 'cameras') {
+            // Click inside a camera viewport rect to select it
+            const visW = SCREEN_W / (SCREEN_SCALE * camZoom);
+            const visH = SCREEN_H / (SCREEN_SCALE * camZoom);
+            let hit = null;
+            for (const key of ['bf', 'dad', 'gf']) {
+                const t = getCamTarget(key);
+                const tl_x = (( t.x - visW/2) * camZoom * SCREEN_SCALE + SCREEN_W/2) * 2 * editorZoom + editorPanX;
+                const tl_y = (( t.y - visH/2) * camZoom * SCREEN_SCALE + SCREEN_H/2) * 2 * editorZoom + editorPanY;
+                const br_x = (( t.x + visW/2) * camZoom * SCREEN_SCALE + SCREEN_W/2) * 2 * editorZoom + editorPanX;
+                const br_y = (( t.y + visH/2) * camZoom * SCREEN_SCALE + SCREEN_H/2) * 2 * editorZoom + editorPanY;
+                if (mx >= tl_x && mx <= br_x && my >= tl_y && my <= br_y) { hit = key; break; }
+            }
+            if (hit) {
+                selected = hit;
+                document.getElementById('selectedLabel').textContent = chars[hit].label + ' camera';
+                document.getElementById('camControls').style.display = 'block';
+                document.getElementById('selectedControls').style.display = 'block';
+                document.getElementById('selectedInfo').textContent = '';
+                const jd = chars[hit].jsonData;
+                const ccx = jd ? (jd.camera_position ? (jd.camera_position[0] || 0) : 0) : 0;
+                const ccy = jd ? (jd.camera_position ? (jd.camera_position[1] || 0) : 0) : 0;
+                document.getElementById('charCamOffsetX').textContent = ccx;
+                document.getElementById('charCamOffsetY').textContent = ccy;
+                syncSelectedInputs();
+                dragMode = 1;
+            } else {
+                selected = null;
+                document.getElementById('selectedControls').style.display = 'none';
+                document.getElementById('selectedInfo').textContent = 'click a camera rect to select';
+                dragMode = 2;
+            }
+            render(); return;
+        }
+
+        // chars mode
+        let closest = null, closestDist = 30;
+        for (const key of ['bf', 'dad', 'gf']) {
+            const ch = chars[key];
+            const jd = ch.jsonData;
+            const charBaseX = jd ? (jd.position ? (jd.position[0] || 0) : 0) : 0;
+            const charBaseY = jd ? (jd.position ? (jd.position[1] || 0) : 0) : 0;
+            const px = ((ch.stageX + charBaseX) * SCREEN_SCALE * camZoom + SCREEN_W / 2) * 2 * editorZoom + editorPanX;
+            const py = ((ch.stageY + charBaseY) * SCREEN_SCALE * camZoom + SCREEN_H / 2) * 2 * editorZoom + editorPanY;
+            const dist = Math.hypot(mx - px, my - py);
+            if (dist < closestDist) { closestDist = dist; closest = key; }
+        }
+        if (closest) { selectChar(closest); dragMode = 1; }
+        else { dragMode = 2; }
+    }
+};
+
+window.onmouseup = () => { dragMode = 0; };
+canvas.oncontextmenu = e => e.preventDefault();
+
+canvas.onmousemove = e => {
+    if (dragMode === 0) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (CANVAS_W / rect.width);
+    const my = (e.clientY - rect.top)  * (CANVAS_H / rect.height);
+    const dx = mx - lastMouse.x;
+    const dy = my - lastMouse.y;
+    lastMouse = { x: mx, y: my };
+
+    if (dragMode === 2) {
+        editorPanX += dx;
+        editorPanY += dy;
+    } else if (dragMode === 1) {
+        const camZoom = stageJson ? (stageJson.defaultZoom || 1.0) : 1.0;
+        const worldDx = dx / (SCREEN_SCALE * camZoom * 2 * editorZoom);
+        const worldDy = dy / (SCREEN_SCALE * camZoom * 2 * editorZoom);
+        if (editMode === 'sprites' && selectedSprite !== null) {
+            sprites[selectedSprite].x += worldDx;
+            sprites[selectedSprite].y += worldDy;
+        } else if (editMode === 'cameras' && selected) {
+            // Dragging moves the stage camera offset directly
+            chars[selected].camX += worldDx;
+            chars[selected].camY += worldDy;
+        } else if (editMode === 'chars' && selected) {
+            chars[selected].stageX += worldDx;
+            chars[selected].stageY += worldDy;
+        }
+        syncSelectedInputs();
+    }
+    render();
+};
+
+canvas.onwheel = e => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 1.1 : 0.9;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (CANVAS_W / rect.width);
+    const my = (e.clientY - rect.top)  * (CANVAS_H / rect.height);
+    editorPanX = mx + (editorPanX - mx) * delta;
+    editorPanY = my + (editorPanY - my) * delta;
+    editorZoom *= delta;
+    editorZoom = Math.max(0.1, Math.min(8, editorZoom));
+    document.getElementById('zoomInput').value = editorZoom.toFixed(2);
+    render();
+};
+
+// Keyboard: arrows to move selected
+window.onkeydown = e => {
+    const step = e.shiftKey ? 10 : 1;
+    let moved = false;
+    if (editMode === 'sprites' && selectedSprite !== null) {
+        const s = sprites[selectedSprite];
+        if (e.key === 'ArrowLeft')       { s.x -= step; moved = true; }
+        else if (e.key === 'ArrowRight') { s.x += step; moved = true; }
+        else if (e.key === 'ArrowUp')    { s.y -= step; moved = true; }
+        else if (e.key === 'ArrowDown')  { s.y += step; moved = true; }
+    } else if (editMode === 'cameras' && selected) {
+        // Arrows move the camera offset
+        const ch = chars[selected];
+        if (e.key === 'ArrowLeft')       { ch.camX -= step; moved = true; }
+        else if (e.key === 'ArrowRight') { ch.camX += step; moved = true; }
+        else if (e.key === 'ArrowUp')    { ch.camY -= step; moved = true; }
+        else if (e.key === 'ArrowDown')  { ch.camY += step; moved = true; }
+    } else if (editMode === 'chars' && selected) {
+        const ch = chars[selected];
+        if (e.key === 'ArrowLeft')       { ch.stageX -= step; moved = true; }
+        else if (e.key === 'ArrowRight') { ch.stageX += step; moved = true; }
+        else if (e.key === 'ArrowUp')    { ch.stageY -= step; moved = true; }
+        else if (e.key === 'ArrowDown')  { ch.stageY += step; moved = true; }
+    }
+    if (moved) { syncSelectedInputs(); render(); e.preventDefault(); }
+};
+
+function resizeCanvas() {
+    const wrap = document.getElementById('canvas-wrap');
+    canvas.style.width  = wrap.clientWidth  + 'px';
+    canvas.style.height = wrap.clientHeight + 'px';
+}
+window.onresize = () => { resizeCanvas(); render(); };
+resizeCanvas();
+
+// Initial render
+render();
+
+// =========================
+// Workspace API Integration
+// =========================
+let API_URL = 'http://localhost:8123';
+let workspaceActive = false;
+
+document.getElementById('btnConnect').onclick = async () => {
+    try {
+        const res = await fetch(`${API_URL}/api/workspace_info`);
+        const data = await res.json();
+        
+        const selStage = document.getElementById('selStage');
+        selStage.innerHTML = '<option value="">-- select stage --</option>';
+        data.stages.forEach(s => selStage.innerHTML += `<option value="${s}">${s}</option>`);
+        
+        const selSong = document.getElementById('selSong');
+        selSong.innerHTML = '<option value="">-- select song --</option>';
+        data.songs.forEach(s => selSong.innerHTML += `<option value="${s}">${s}</option>`);
+        
+        document.getElementById('workspaceLoaded').style.display = 'block';
+        document.getElementById('btnConnect').textContent = 'connected ✅';
+        workspaceActive = true;
+    } catch (e) {
+        alert('Could not connect to workspace. Ensure tools/editor_server.py is running! Error: ' + e);
+    }
+};
+
+async function loadFromWorkspace() {
+    const stage = document.getElementById('selStage').value;
+    const song = document.getElementById('selSong').value;
+    
+    if (!stage) { alert('Select a stage first'); return; }
+    
+    // Load stage JSON
+    const resStage = await fetch(`${API_URL}/api/load_file?path=stages/${stage}.json`);
+    if (resStage.ok) {
+        stageJson = await resStage.json();
+        loadStageFromJson(stageJson);
+        document.getElementById('stageZoom').value = stageJson.defaultZoom || 1.1;
+        updateSelectedControls();
+        render();
+    }
+    
+    // Load stage Lua (if exists)
+    const resLua = await fetch(`${API_URL}/api/load_file?path=stages/${stage}.lua`);
+    if (resLua.ok) {
+        const text = await resLua.text();
+        luaOriginalText = text;
+        const lines = text.split('\n');
+        luaSpriteNames = [];
+
+        const scaleMap = {};
+        lines.forEach(l => {
+            const ms = l.match(/scaleObject\s*\(\s*'([^']+)'\s*,\s*([-\d.]+)(?:\s*,\s*([-\d.]+))?/);
+            if (ms) {
+                const tag = ms[1];
+                const sx = parseFloat(ms[2]);
+                const sy = ms[3] !== undefined ? parseFloat(ms[3]) : sx;
+                scaleMap[tag] = { x: sx, y: sy };
+            }
+        });
+        const scrollMap = {};
+        lines.forEach(l => {
+            const ms = l.match(/setScrollFactor\s*\(\s*'([^']+)'\s*,\s*([\d.]+)\s*,\s*([\d.]+)/);
+            if (ms) scrollMap[ms[1]] = { x: parseFloat(ms[2]), y: parseFloat(ms[3]) };
+        });
+        const frontMap = {};
+        lines.forEach(l => {
+            const ms = l.match(/addLuaSprite\s*\(\s*'([^']+)'\s*,\s*(true|false)/);
+            if (ms) frontMap[ms[1]] = ms[2] === 'true';
+        });
+
+        let luaHtml = '<b style="color:#555">Lua sprites:</b><br>';
+        lines.forEach(l => {
+            const m  = l.match(/makeLuaSprite\s*\(\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)/);
+            const m2 = l.match(/makeAnimatedLuaSprite\s*\(\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)/);
+            const match = m || m2;
+            if (match) {
+                const tag = match[1];
+                const imgPath = match[2];
+                const sx = parseFloat(match[3]);
+                const sy = parseFloat(match[4]);
+                const sc = scaleMap[tag] || { x: 1.0, y: 1.0 };
+                const scroll = scrollMap[tag] || { x: 1, y: 1 };
+                const front = frontMap[tag] !== undefined ? frontMap[tag] : false;
+                luaSpriteNames.push({ tag, imagePath: imgPath, x: sx, y: sy, scaleX: sc.x, scaleY: sc.y, scrollX: scroll.x, scrollY: scroll.y, front });
+                luaHtml += `<div style="color:#666;margin:1px 0">${tag}: ${imgPath} [${sx}, ${sy}] sx:${sc.x} sy:${sc.y}</div>`;
+            }
+        });
+
+        for (const ls of luaSpriteNames) {
+            const parts = ls.imagePath.split('/');
+            const bn = parts[parts.length - 1].toLowerCase();
+            const already = sprites.find(s => {
+                const sp = s.name.split('/'); return sp[sp.length-1].toLowerCase() === bn;
+            });
+            if (!already) {
+                sprites.push({ img: null, name: ls.imagePath, x: ls.x, y: ls.y, scrollX: ls.scrollX, scrollY: ls.scrollY, scaleX: ls.scaleX, scaleY: ls.scaleY, front: ls.front, alpha: true });
+            }
+        }
+        document.getElementById('luaPreview').innerHTML = luaHtml;
+    }
+    
+    // Auto-load sprites from workspace if missing
+    for (let s of sprites) {
+        if (!s.img) {
+            const imgRes = await fetch(`${API_URL}/api/load_file?path=images/${s.name}.png`);
+            if (imgRes.ok) {
+                const blob = await imgRes.blob();
+                const img = new Image();
+                img.onload = () => { s.img = img; updateSpriteList(); render(); };
+                img.src = URL.createObjectURL(blob);
+            }
+        }
+    }
+    updateSpriteList();
+    
+    // If song is selected, load characters
+    if (song) {
+        const resSong = await fetch(`${API_URL}/api/load_file?path=data/${song}/${song}-hard.json`);
+        let songJson = null;
+        if (resSong.ok) songJson = await resSong.json();
+        else {
+            const resSongEasy = await fetch(`${API_URL}/api/load_file?path=data/${song}/${song}.json`);
+            if (resSongEasy.ok) songJson = await resSongEasy.json();
+        }
+        
+        if (songJson) {
+            const sData = songJson.song || songJson;
+            const bfName = sData.player1 || 'bf';
+            const dadName = sData.player2 || 'dad';
+            const gfName = sData.gfVersion || sData.player3 || 'gf';
+            
+            await loadCharFromWorkspace('bf', bfName);
+            await loadCharFromWorkspace('dad', dadName);
+            await loadCharFromWorkspace('gf', gfName);
+        }
+    }
+    render();
+}
+
+async function loadCharFromWorkspace(key, charName) {
+    const resJ = await fetch(`${API_URL}/api/load_file?path=characters/${charName}.json`);
+    if (!resJ.ok) return;
+    const jd = await resJ.json();
+    chars[key].jsonData = jd;
+    
+    const imgName = jd.image || charName;
+    const resI = await fetch(`${API_URL}/api/load_file?path=images/${imgName}.png`);
+    if (resI.ok) {
+        const blob = await resI.blob();
+        const img = new Image();
+        img.onload = render;
+        img.src = URL.createObjectURL(blob);
+        chars[key].img = img;
+    }
+    
+    const resX = await fetch(`${API_URL}/api/load_file?path=images/${imgName}.xml`);
+    if (resX.ok) {
+        const text = await resX.text();
+        chars[key].xmlData = parseXml(text);
+    }
+}
+
+document.getElementById('btnLoadFromWorkspace').onclick = loadFromWorkspace;
+
+document.getElementById('btnSaveToWorkspace').onclick = async () => {
+    if (!stageJson || !workspaceActive) { alert('Not connected or no stage loaded'); return; }
+    const stage = document.getElementById('selStage').value;
+    if (!stage) { alert('Select a stage name from the dropdown'); return; }
+    
+    const out = buildExportJson();
+    
+    try {
+        const res = await fetch(`${API_URL}/api/save_stage?name=${stage}`, {
+            method: 'POST',
+            body: JSON.stringify(out, null, '\t'),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) alert('Saved ' + stage + '.json to workspace!');
+        else alert('Save failed');
+    } catch (e) {
+        alert('Save failed: ' + e);
+    }
+};
+</script>
+</body>
+</html>
+

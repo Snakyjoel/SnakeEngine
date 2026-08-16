@@ -1,0 +1,30 @@
+{
+	"storyName": "Due Debts",
+	"hideFreeplay": false,
+	"weekBackground": "phillystreets",
+	"weekBefore": "week7e",
+	"freeplayColor": [
+		146,
+		113,
+		253
+	],
+	"startUnlocked": true,
+	"weekCharacters": [
+		"darnell",
+		"pico-player",
+		"nene"
+	],
+	"songs": [
+		[
+			"Darnell Bf Mix",
+			"darnell",
+			[
+				65,
+				60,
+				174
+			]
+		]
+	],
+	"hideStoryMode": true,
+	"weekName": "Weekend 1 Bf Mix"
+}

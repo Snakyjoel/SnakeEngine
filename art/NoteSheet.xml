@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="NoteSheet.png" width="256" height="270">
+  <SubTexture name="NoteSheet DownHit0000" x="0" y="0"  width="64" height="64" frameX="-0" frameY="-0" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet DownIdle0000" x="64" y="0"  width="64" height="64" frameX="-0" frameY="-0" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet DownNote0000" x="0" y="64"  width="64" height="64" frameX="-0" frameY="-0" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet DownPress0000" x="0" y="192"  width="58" height="58" frameX="-3" frameY="-3" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet DownTail0000" x="232" y="192"  width="22" height="20" frameX="-0" frameY="-0" frameWidth="32" frameHeight="32"/>
+  <SubTexture name="NoteSheet LeftHit0000" x="64" y="64"  width="64" height="64" frameX="-0" frameY="-0" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet LeftIdle0000" x="128" y="0"  width="64" height="64" frameX="-0" frameY="-0" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet LeftNote0000" x="128" y="64"  width="64" height="64" frameX="-0" frameY="-0" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet LeftPress0000" x="58" y="192"  width="58" height="58" frameX="-3" frameY="-3" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet LeftTail0000" x="232" y="212"  width="22" height="20" frameX="-0" frameY="-0" frameWidth="32" frameHeight="32"/>
+  <SubTexture name="NoteSheet RightHit0000" x="0" y="128"  width="64" height="64" frameX="-0" frameY="-0" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet RightIdle0000" x="64" y="128"  width="64" height="64" frameX="-0" frameY="-0" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet RightNote0000" x="128" y="128"  width="64" height="64" frameX="-0" frameY="-0" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet RightPress0000" x="116" y="192"  width="58" height="58" frameX="-3" frameY="-3" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet RightTail0000" x="0" y="250"  width="22" height="20" frameX="-0" frameY="-0" frameWidth="32" frameHeight="32"/>
+  <SubTexture name="NoteSheet UpHit0000" x="192" y="0"  width="64" height="64" frameX="-0" frameY="-0" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet UpIdle0000" x="192" y="64"  width="64" height="64" frameX="-0" frameY="-0" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet UpNote0000" x="192" y="128"  width="64" height="64" frameX="-0" frameY="-0" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet UpPress0000" x="174" y="192"  width="58" height="58" frameX="-3" frameY="-3" frameWidth="64" frameHeight="64"/>
+  <SubTexture name="NoteSheet UpTail0000" x="22" y="250"  width="22" height="20" frameX="-0" frameY="-0" frameWidth="32" frameHeight="32"/>
+</TextureAtlas>

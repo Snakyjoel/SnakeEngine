@@ -1,0 +1,52 @@
+{
+	"songs": [
+		[
+			"Ugh",
+			"tankmanpixel",
+			[
+				246,
+				182,
+				4
+			],
+			"ughCutscene.snaky"
+		],
+		[
+			"Guns",
+			"tankmanpixel",
+			[
+				246,
+				182,
+				4
+			],
+			"gunsCutscene.snaky"
+		],
+		[
+			"Stress",
+			"tankmanpixel",
+			[
+				246,
+				182,
+				4
+			],
+			"stressCutscene.snaky"
+		]
+	],
+	"hideFreeplay": false,
+	"weekBackground": "week7",
+	"album": "volume2",
+	"weekCharacters": [
+		"tankman",
+		"bf",
+		"gf"
+	],
+	"storyName": "Tankman",
+	"weekName": "Week 7",
+	"freeplayColor": [
+		146,
+		113,
+		253
+	],
+	"hideStoryMode": false,
+	"weekBefore": "week6",
+	"startUnlocked": true
+}

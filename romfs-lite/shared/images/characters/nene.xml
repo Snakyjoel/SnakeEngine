@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="nene.png" width="716" height="675">
+  <SubTexture name="beepboop0000" x="0" y="0"  width="210" height="169" frameX="-0" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0001" x="0" y="0"  width="210" height="169" frameX="-0" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0002" x="210" y="210" width="169" height="209" rotated="true"  frameX="-1" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0003" x="210" y="210" width="169" height="209" rotated="true"  frameX="-1" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0004" x="0" y="338"  width="209" height="169" frameX="-1" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0005" x="379" y="0" width="169" height="209" rotated="true"  frameX="-1" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0006" x="379" y="209" width="169" height="209" rotated="true"  frameX="-1" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0007" x="0" y="169"  width="210" height="169" frameX="-0" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0008" x="210" y="0" width="169" height="210" rotated="true"  frameX="-0" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0009" x="0" y="507"  width="209" height="168" frameX="-1" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0010" x="379" y="418" width="168" height="209" rotated="true"  frameX="-1" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0011" x="209" y="419" width="168" height="209" rotated="true"  frameX="-1" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0012" x="548" y="0" width="168" height="209" rotated="true"  frameX="-1" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0013" x="548" y="209" width="168" height="209" rotated="true"  frameX="-1" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0014" x="547" y="418" width="168" height="209" rotated="true"  frameX="-1" frameY="-0" frameWidth="210" frameHeight="169"/>
+  <SubTexture name="beepboop0015" x="547" y="418" width="168" height="209" rotated="true"  frameX="-1" frameY="-0" frameWidth="210" frameHeight="169"/>
+</TextureAtlas>

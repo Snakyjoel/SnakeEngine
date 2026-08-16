@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="tankmanUgh.png" width="242" height="338">
+  <SubTexture name="TANKMAN UGH 10000" x="120.75" y="169.65"  width="117.3" height="166.5" frameX="-2.1" frameY="-2.6999999999999997" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10001" x="120.75" y="169.65"  width="117.3" height="166.5" frameX="-2.1" frameY="-2.6999999999999997" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10002" x="0.15" y="169.65"  width="120.3" height="168.6" frameX="-0.3" frameY="-0.6" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10003" x="0.15" y="169.65"  width="120.3" height="168.6" frameX="-0.3" frameY="-0.6" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10004" x="0.15" y="0.15"  width="120.89999999999999" height="169.2" frameX="-0" frameY="-0" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10005" x="0.15" y="0.15"  width="120.89999999999999" height="169.2" frameX="-0" frameY="-0" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10006" x="121.35" y="0.15"  width="120.89999999999999" height="169.2" frameX="-0" frameY="-0" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10007" x="121.35" y="0.15"  width="120.89999999999999" height="169.2" frameX="-0" frameY="-0" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10008" x="121.35" y="0.15"  width="120.89999999999999" height="169.2" frameX="-0" frameY="-0" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10009" x="121.35" y="0.15"  width="120.89999999999999" height="169.2" frameX="-0" frameY="-0" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10010" x="121.35" y="0.15"  width="120.89999999999999" height="169.2" frameX="-0" frameY="-0" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10011" x="121.35" y="0.15"  width="120.89999999999999" height="169.2" frameX="-0" frameY="-0" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10012" x="121.35" y="0.15"  width="120.89999999999999" height="169.2" frameX="-0" frameY="-0" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10013" x="121.35" y="0.15"  width="120.89999999999999" height="169.2" frameX="-0" frameY="-0" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10014" x="121.35" y="0.15"  width="120.89999999999999" height="169.2" frameX="-0" frameY="-0" frameWidth="120.89999999999999" frameHeight="169.2"/>
+  <SubTexture name="TANKMAN UGH 10015" x="121.35" y="0.15"  width="120.89999999999999" height="169.2" frameX="-0" frameY="-0" frameWidth="120.89999999999999" frameHeight="169.2"/>
+</TextureAtlas>

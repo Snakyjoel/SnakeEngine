@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="rating-pixel.png" width="79" height="56">
+  <SubTexture name="bad" x="51" y="0"  width="28" height="19" frameX="-0" frameY="-0" frameWidth="28" frameHeight="19"/>
+  <SubTexture name="good" x="0" y="20"  width="39" height="16" frameX="-0" frameY="-0" frameWidth="39" frameHeight="16"/>
+  <SubTexture name="num0" x="35" y="36"  width="9" height="12" frameX="-0" frameY="-0" frameWidth="9" frameHeight="12"/>
+  <SubTexture name="num1" x="39" y="20"  width="9" height="12" frameX="-0" frameY="-0" frameWidth="9" frameHeight="12"/>
+  <SubTexture name="num2" x="44" y="32"  width="10" height="12" frameX="-0" frameY="-0" frameWidth="10" frameHeight="12"/>
+  <SubTexture name="num3" x="44" y="44"  width="10" height="12" frameX="-0" frameY="-0" frameWidth="10" frameHeight="12"/>
+  <SubTexture name="num4" x="48" y="20"  width="10" height="12" frameX="-0" frameY="-0" frameWidth="10" frameHeight="12"/>
+  <SubTexture name="num5" x="58" y="19"  width="10" height="12" frameX="-0" frameY="-0" frameWidth="10" frameHeight="12"/>
+  <SubTexture name="num6" x="68" y="19"  width="10" height="12" frameX="-0" frameY="-0" frameWidth="10" frameHeight="12"/>
+  <SubTexture name="num7" x="54" y="32"  width="9" height="12" frameX="-0" frameY="-0" frameWidth="9" frameHeight="12"/>
+  <SubTexture name="num8" x="54" y="44"  width="9" height="12" frameX="-0" frameY="-0" frameWidth="9" frameHeight="12"/>
+  <SubTexture name="num9" x="63" y="31"  width="9" height="12" frameX="-0" frameY="-0" frameWidth="9" frameHeight="12"/>
+  <SubTexture name="shit" x="0" y="36"  width="35" height="20" frameX="-0" frameY="-0" frameWidth="35" frameHeight="20"/>
+  <SubTexture name="sick" x="0" y="0"  width="51" height="20" frameX="-0" frameY="-0" frameWidth="51" frameHeight="20"/>
+</TextureAtlas>

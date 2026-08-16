@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="NOTE_assets-pixel.png" width="85" height="80">
+  <SubTexture name="arrowDOWN" x="0" y="0"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="arrowLEFT" x="17" y="0"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="arrowRIGHT" x="0" y="17"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="arrowUP" x="17" y="17"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="blue" x="34" y="0"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="blue hold end" x="0" y="68"  width="7" height="5" frameX="-0" frameY="-0" frameWidth="7" frameHeight="5"/>
+  <SubTexture name="blue hold piece" x="0" y="73"  width="7" height="7" frameX="-0" frameY="-0" frameWidth="7" frameHeight="7"/>
+  <SubTexture name="down confirm 1" x="34" y="17"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="down confirm 2" x="0" y="34"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="down press" x="17" y="34"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="green" x="34" y="34"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="green hold end" x="7" y="68"  width="7" height="5" frameX="-0" frameY="-0" frameWidth="7" frameHeight="5"/>
+  <SubTexture name="green hold piece" x="7" y="73"  width="7" height="7" frameX="-0" frameY="-0" frameWidth="7" frameHeight="7"/>
+  <SubTexture name="left confirm1" x="51" y="0"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="left confirm2" x="51" y="17"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="left press" x="51" y="34"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="purple" x="0" y="51"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="purple end hold" x="14" y="68"  width="7" height="5" frameX="-0" frameY="-0" frameWidth="7" frameHeight="5"/>
+  <SubTexture name="purple hold piece" x="14" y="73"  width="7" height="7" frameX="-0" frameY="-0" frameWidth="7" frameHeight="7"/>
+  <SubTexture name="red" x="17" y="51"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="red hold end" x="21" y="68"  width="7" height="5" frameX="-0" frameY="-0" frameWidth="7" frameHeight="5"/>
+  <SubTexture name="red hold piece" x="21" y="73"  width="7" height="7" frameX="-0" frameY="-0" frameWidth="7" frameHeight="7"/>
+  <SubTexture name="right confirm 1" x="34" y="51"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="right confirm 2" x="51" y="51"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="right press" x="68" y="0"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="up confirm 1" x="68" y="17"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="up confirm 2" x="68" y="34"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+  <SubTexture name="up press" x="68" y="51"  width="17" height="17" frameX="-0" frameY="-0" frameWidth="17" frameHeight="17"/>
+</TextureAtlas>

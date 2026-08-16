@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="iconPack1.png" width="512" height="507">
+  <SubTexture name="bfSticker1" x="137.70000000000002" y="274.72"  width="129.88" height="86.36" frameX="-0" frameY="-0" frameWidth="129.88" frameHeight="86.36"/>
+  <SubTexture name="bfSticker2" x="0.68" y="402.90000000000003"  width="125.80000000000001" height="86.36" frameX="-0" frameY="-0" frameWidth="125.80000000000001" frameHeight="86.36"/>
+  <SubTexture name="bfSticker3" x="0.68" y="315.18"  width="129.20000000000002" height="86.36" frameX="-0" frameY="-0" frameWidth="129.20000000000002" frameHeight="86.36"/>
+  <SubTexture name="dadSticker1" x="397.12" y="106.42"  width="101.66000000000001" height="105.06" frameX="-0" frameY="-0" frameWidth="101.66000000000001" frameHeight="105.06"/>
+  <SubTexture name="dadSticker2" x="268.94" y="315.18"  width="100.98" height="109.14000000000001" frameX="-0" frameY="-0" frameWidth="100.98" frameHeight="109.14000000000001"/>
+  <SubTexture name="dadSticker3" x="131.24" y="362.44"  width="99.28" height="109.82000000000001" frameX="-0" frameY="-0" frameWidth="99.28" frameHeight="109.82000000000001"/>
+  <SubTexture name="gfSticker1" x="276.08000000000004" y="215.56"  width="122.74000000000001" height="98.26" frameX="-0" frameY="-0" frameWidth="122.74000000000001" frameHeight="98.26"/>
+  <SubTexture name="gfSticker2" x="137.70000000000002" y="162.52"  width="137.02" height="110.84" frameX="-0" frameY="-0" frameWidth="137.02" frameHeight="110.84"/>
+  <SubTexture name="gfSticker3" x="273.70000000000005" y="0.68"  width="126.14000000000001" height="104.38000000000001" frameX="-0" frameY="-0" frameWidth="126.14000000000001" frameHeight="104.38000000000001"/>
+  <SubTexture name="momSticker1" x="0.68" y="162.52"  width="135.66" height="151.3" frameX="-0" frameY="-0" frameWidth="135.66" frameHeight="151.3"/>
+  <SubTexture name="momSticker2" x="138.04000000000002" y="0.68"  width="134.3" height="153" frameX="-0" frameY="-0" frameWidth="134.3" frameHeight="153"/>
+  <SubTexture name="momSticker3" x="0.68" y="0.68"  width="136" height="160.48000000000002" frameX="-0" frameY="-0" frameWidth="136" frameHeight="160.48000000000002"/>
+  <SubTexture name="monsterSticker1" x="231.88000000000002" y="425.68"  width="112.88000000000001" height="80.24000000000001" frameX="-0" frameY="-0" frameWidth="112.88000000000001" frameHeight="80.24000000000001"/>
+  <SubTexture name="monsterSticker2" x="371.28000000000003" y="410.38000000000005"  width="116.28000000000002" height="86.7" frameX="-0" frameY="-0" frameWidth="116.28000000000002" frameHeight="86.7"/>
+  <SubTexture name="monsterSticker3" x="371.28000000000003" y="315.18"  width="112.88000000000001" height="93.84" frameX="-0" frameY="-0" frameWidth="112.88000000000001" frameHeight="93.84"/>
+  <SubTexture name="picoSticker1" x="401.20000000000005" y="0.68"  width="106.76" height="86.36" frameX="-0" frameY="-0" frameWidth="106.76" frameHeight="86.36"/>
+  <SubTexture name="picoSticker2" x="400.18" y="212.84"  width="111.18" height="86.36" frameX="-0" frameY="-0" frameWidth="111.18" frameHeight="86.36"/>
+  <SubTexture name="picoSticker3" x="276.08000000000004" y="106.42"  width="119.68" height="107.78" frameX="-0" frameY="-0" frameWidth="119.68" frameHeight="107.78"/>
+</TextureAtlas>

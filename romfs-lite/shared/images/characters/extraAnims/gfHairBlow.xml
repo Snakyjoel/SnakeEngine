@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="gfHairBlow.png" width="718" height="831">
+  <SubTexture name="GF Dancing Beat Hair blowing0000" x="0" y="0"  width="239.36" height="207.68" frameX="-0" frameY="-0" frameWidth="239.36" frameHeight="207.68"/>
+  <SubTexture name="GF Dancing Beat Hair blowing0001" x="0" y="207.68"  width="239.36" height="207.68" frameX="-0" frameY="-0" frameWidth="239.36" frameHeight="207.68"/>
+  <SubTexture name="GF Dancing Beat Hair blowing0002" x="239.36" y="0"  width="239.36" height="207.68" frameX="-0" frameY="-0" frameWidth="239.36" frameHeight="207.68"/>
+  <SubTexture name="GF Dancing Beat Hair blowing0003" x="239.36" y="207.68"  width="239.36" height="207.68" frameX="-0" frameY="-0" frameWidth="239.36" frameHeight="207.68"/>
+  <SubTexture name="GF Dancing Beat Hair blowing0005" x="0" y="415.36"  width="239.36" height="207.68" frameX="-0" frameY="-0" frameWidth="239.36" frameHeight="207.68"/>
+  <SubTexture name="GF Dancing Beat Hair blowing0006" x="239.36" y="415.36"  width="239.36" height="207.68" frameX="-0" frameY="-0" frameWidth="239.36" frameHeight="207.68"/>
+  <SubTexture name="GF Dancing Beat Hair blowing0007" x="478.72" y="0"  width="239.36" height="207.68" frameX="-0" frameY="-0" frameWidth="239.36" frameHeight="207.68"/>
+  <SubTexture name="GF Dancing Beat Hair blowing0008" x="478.72" y="207.68"  width="239.36" height="207.68" frameX="-0" frameY="-0" frameWidth="239.36" frameHeight="207.68"/>
+  <SubTexture name="GF Dancing Beat Hair blowing0009" x="478.72" y="415.36"  width="239.36" height="207.68" frameX="-0" frameY="-0" frameWidth="239.36" frameHeight="207.68"/>
+  <SubTexture name="GF Dancing Beat Hair blowing0010" x="0" y="623.04"  width="239.36" height="207.68" frameX="-0" frameY="-0" frameWidth="239.36" frameHeight="207.68"/>
+  <SubTexture name="GF Dancing Beat Hair blowing0011" x="0" y="623.04"  width="239.36" height="207.68" frameX="-0" frameY="-0" frameWidth="239.36" frameHeight="207.68"/>
+  <SubTexture name="GF Dancing Beat Hair blowing0012" x="239.36" y="623.04"  width="239.36" height="207.68" frameX="-0" frameY="-0" frameWidth="239.36" frameHeight="207.68"/>
+</TextureAtlas>

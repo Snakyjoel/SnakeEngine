@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<TextureAtlas imagePath="limoDancer.png">
+    <SubTexture name="bg dancer sketch PINKR0000" x="0" y="0" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0001" x="0" y="0" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0002" x="0" y="0" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0003" x="0" y="0" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0004" x="0" y="0" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0005" x="0" y="237" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0006" x="0" y="237" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0007" x="0" y="237" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0008" x="0" y="237" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0009" x="0" y="474" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0010" x="0" y="474" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0011" x="0" y="474" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0012" x="0" y="474" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0013" x="0" y="474" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKR0014" x="0" y="474" width="422" height="237" />
+    <SubTexture name="bg dancer sketch PINKL0000" x="0" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0001" x="0" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0002" x="0" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0003" x="0" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0004" x="0" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0005" x="243" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0006" x="243" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0007" x="243" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0008" x="243" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0009" x="486" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0010" x="486" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0011" x="486" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0012" x="486" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0013" x="486" y="711" width="243" height="246" />
+    <SubTexture name="bg dancer sketch PINKL0014" x="486" y="711" width="243" height="246" />
+</TextureAtlas>

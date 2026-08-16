@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<TextureAtlas imagePath="rating.png">
+<SubTexture name="rating bad0000" x="159" y="0" width="95" height="63" frameX="-32" frameY="0" frameWidth="160" frameHeight="64" />
+<SubTexture name="rating good0000" x="0" y="66" width="152" height="64" frameX="-4" frameY="0" frameWidth="160" frameHeight="64" />
+<SubTexture name="rating shit0000" x="153" y="64" width="108" height="64" frameX="-26" frameY="0" frameWidth="160" frameHeight="64" />
+<SubTexture name="rating sick0000" x="0" y="0" width="158" height="65" frameX="-1" frameY="0" frameWidth="160" frameHeight="64" />
+</TextureAtlas>

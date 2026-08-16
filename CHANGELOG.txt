@@ -1,0 +1,180 @@
+v2.6.7 - THE SIX SEVEN UPDATE
+- Some fixes were made
+- Game Over was finally added
+- The ogg files of the base game were converted to adp for better performance
+- Improved the audio player in debug menu
+- Improved the source files organization
+
+v2.5.7
+- Fixed a crash with change character, but not tested
+- Fixed another leak with removeLuaSprite
+- Now the engine loads your score and enable/disabled mods
+- Improved the quality of more sprites
+- Fixed a leak with Fast Notes
+- Fixed a leak with the image bg of Main Menu (for example)
+- Lua was even more expanded
+- Ranks are now saved
+- Improved the way it looks the favorite songs on Freeplay
+- Check for updates its now working
+- Sustains were improved
+
+v2.4.7 - PREVIEW
+- Added hitbox options
+- Fixed a bug where you couldn't put custom album photos, icons, story banners and week images
+- Change Character was optimized
+- if Debug Info is enable, you can now do L + R + Select to see the debug info on menus
+- Lite version is now avalible (No videos)
+- Fixed a crash in mods menu and freeplay
+- The compression method for multiple sprites was adjusted to the most convenient one depending on the sprite
+- Some little Fixes to the shaders
+- CRT Shader was Improved
+- New Shaders: Pixelate, Kaleidoscope / Tiling, Vignette, Mirror, Scanline Roll, VHS, Color Depth, virtualboy, black white, infinite scroll
+- Replaced notes sprites with the original ones
+- Notes sustains no longer appear stretched, only the body but not the tail
+- The opponent's notes now maintain the hit animation on sustains
+- Change Difficulty and options are now avalible in pause menu
+- The engine can now check for avalible updates using Gamejolt (WORKING ON IT, ITS STILL DONT WORK BUT I WILL LET THIS HERE)
+- The transitions between menus are now much smoother
+- Menus no longer freeze during transitions
+- The pause menu without alphabet was changed once again to be more like the normal one
+- The VCR source is no longer blurry
+- Some fixes were made related to antialiasing
+- The options were reorganized and the engine's default settings were changed
+- Added "Erase Save Data" 
+- A new camera mode has been added "setCameraExtended('camName', true/false)"
+- Videos can now be played on playstate
+- Botplay has been added
+- Added sticker transition
+- The quality of many sprites has been improved
+- Categories were added to freeplay
+- Zoom for lua sprites was fixed on the HUD Camera
+- Some problems with shaders were fixed
+- Banner model and sound was updated (Thanks Mimikitty3 for the sound)
+- Now you can load custom Note and Rating Skins
+- A problem with offset was fixed for animated sprites (Sorry if this mess up your stage)
+- Added note underlay
+- Erect and Nightmare is now avalible (Not fully)
+- Result is almost finished
+
+v2.3.6
+- Optimized the change character event
+- Fixed week 1 and 2 stages
+- Added all the icons into the game
+- Now you can use sprites from Free Texture Packer
+- Optimized all the spritesheets
+- Added Mom
+- Fixed a memory leak when restarting a song (Finally)
+- Psych engine API was extended
+- Added alphabet spritesheet
+- Added opponent notes
+- Fast Notes were Improved
+- Options menu was fully remade
+- Updated the app sound in home menu
+- Added lua functions for control the system
+- Improved the storymenu and freeplay logic
+- Fixed week and song order on storymenu and freeplay
+- Added placeholders for story menu and freeplay
+- You can now return to title screen on main menu
+- Added a parallax effect to main menu
+- Added version text on main menu
+- Finished freeplay menu
+- .snaky Videos were optimized, they are now smaller and faster
+- Debug menu added in titlestate (Do the Konami code to enter)
+- Removed Adp Player from mods menu
+- LMODS were removed
+- Added a ogg, rawtext, t3x and png debug menus
+- Achievements Menu was added
+- Improved the transition to promo videos in title menu
+- Added the skip ring on promo videos
+- Newgrounds logo was updated
+- PlayAnimFES now works for mods
+- Added compatibility for Psych Engine 1.0 Charts (0.7.3 not tested)
+- Added weekend 1
+- Sprite usage has been optimized; now, if you have two objects that use the same sprite, instead of loading the same sprite twice into RAM, it will only do so once, sharing it with the others.
+- Debug Info was fixed
+- Mods Menu got a bit of rework
+- Added a Custom option for asset convertion (W.I.P)
+- Added result screen (W.I.P)
+- You can now tap the screen on Title Screen to begin
+- Combo now can be placed anywhere
+- Descriptions on options were fixed
+- Added "Alphabet Pause" option
+- The grid from the bottom screen can now be toggled on/off in the options menu
+- Added sidescroll option
+- Added options to toggle the opponent notes
+- Added antialiasing
+- You can now use the circle pad on the menus
+- You can now swipe on the story menu
+- An error regarding positions in the interface was corrected.
+- Build-in shaders were added
+
+
+v1.2.6
+- Fixed the crashes on base game songs
+- Reworked mod menu
+- Added PNG and OGG converter to RAWTEX and ADP
+- Fixed the PNG encoder
+- Title Menu, main menu, options menu, freeplay menu, pause menu and story menu was remade (still unfinished)
+- Added mods! (Create a folder called mods inside of the SnakeEngine folder on your SD card)
+- Menus now have music and sounds
+- Added fade transition between menus
+- New banner
+- New section in mods menu
+- Optimized memory usage
+- Fixed the memory leaks
+- Fixed the debug info
+- Added credits menu
+- Added videos compatibility! (.snaky)
+- Added Title screen promo videos
+- Added week 7 videos
+
+v0.2.5
+- Broken build :(
+
+v0.2.4
+- Added the ability to load lmods has been added to the engine
+
+v0.2.3
+- Fixed a bug where the engine crashed on loading a song
+
+v0.2.0
+- The restart option was fixed
+- Some memory optimizations were made
+- Weeks can now be loaded as in Psych Engine (using JSON)
+- weekList was added and now the weeks can be sorted
+- New weeks were added:
+    - Week 2
+    - Week 3
+    - Week 4
+    - Week 5
+    - Week 6
+    - Week 7
+    - Tutorial
+- Freeplay memu was added
+- Adjustments to the first stage to make it similar to the original
+- Lua was added:
+    - Stages: Stages can be loaded and customized using Lua scripts and JSON files (like in Psych Engine)
+    - Songs: Songs can now use Lua scripts, but it's in an early stage
+- Hallowen stage was added
+- Spooky kids are now in the game
+- Lemon Demon was added
+- Scared animations for bf and gf were added
+- Sayori was executed in public with no mercy
+- Added new events to the engine:
+    - Lyrics
+    - Set GF Speed
+    - Add Camera Zoom
+    - Play Animation
+    - Camera Follow Pos
+    - Screen Shake
+    - Change Scroll Speed
+    - Set Property events to the engine
+- A bug was fixed where audio could be sped up or slowed down depending on its frequency
+- Countdown was added with sound
+- App sound was changed (Old one was from deltarune)
+
+v0.1.0
+- The engine was released
+
+v0.0.0
+- The engine was created

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="highscore.png" width="247" height="252">
+  <SubTexture name="highscore small instance 10000" x="2.2" y="2.2"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10001" x="2.2" y="2.2"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10002" x="2.2" y="2.2"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10003" x="2.2" y="2.2"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10004" x="2.2" y="2.2"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10005" x="2.2" y="2.2"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10006" x="2.2" y="30.250000000000004"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10007" x="2.2" y="30.250000000000004"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10008" x="2.2" y="58.300000000000004"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10009" x="2.2" y="58.300000000000004"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10010" x="2.2" y="86.35000000000001"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10011" x="2.2" y="86.35000000000001"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10012" x="2.2" y="114.4"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10013" x="2.2" y="142.45000000000002"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10014" x="165" y="2.2" width="23.650000000000002" height="158.4" rotated="true"  frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10015" x="2.2" y="170.5"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10016" x="193.05" y="2.2" width="23.650000000000002" height="158.4" rotated="true"  frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10017" x="193.05" y="2.2" width="23.650000000000002" height="158.4" rotated="true"  frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10018" x="2.2" y="198.55"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10019" x="2.2" y="198.55"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10020" x="221.10000000000002" y="2.2" width="23.650000000000002" height="158.4" rotated="true"  frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10021" x="221.10000000000002" y="2.2" width="23.650000000000002" height="158.4" rotated="true"  frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10022" x="2.2" y="226.60000000000002"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10023" x="2.2" y="226.60000000000002"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10024" x="2.2" y="2.2"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10025" x="2.2" y="2.2"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+  <SubTexture name="highscore small instance 10026" x="2.2" y="2.2"  width="158.4" height="23.650000000000002" frameX="-0" frameY="-0" frameWidth="158.95000000000002" frameHeight="23.650000000000002"/>
+</TextureAtlas>

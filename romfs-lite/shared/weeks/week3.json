@@ -1,0 +1,44 @@
+{
+	"songs": [
+		[
+			"Pico",
+			"picopixel",
+			[
+				148,
+				22,
+				83
+			]
+		],
+		[
+			"Philly Nice",
+			"picopixel",
+			[
+				148,
+				22,
+				83
+			]
+		],
+		[
+			"Blammed",
+			"picopixel",
+			[
+				148,
+				22,
+				83
+			]
+		]
+	],
+	"weekCharacters": [
+		"pico",
+		"bf",
+		"gf"
+	],
+	"weekBackground": "week3",
+	"storyName": "PICO",
+	"weekBefore": "week2",
+	"weekName": "Week 3",
+	"album": "volume1",
+	"startUnlocked": true,
+	"hideStoryMode": false,
+	"hideFreeplay": false
+}

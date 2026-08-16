@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="fmr.png" width="1024" height="1024">
+  <SubTexture name="bricksGround" x="0" y="971"  width="382" height="51" frameX="-0" frameY="-0" frameWidth="382" frameHeight="51"/>
+  <SubTexture name="floor" x="0" y="0"  width="1024" height="259" frameX="-0" frameY="-317" frameWidth="1024" frameHeight="576"/>
+  <SubTexture name="mountains" x="0" y="259"  width="1024" height="360" frameX="-0" frameY="-0" frameWidth="1024" frameHeight="360"/>
+  <SubTexture name="ruins" x="0" y="619"  width="1002" height="352" frameX="-22" frameY="-16" frameWidth="1024" frameHeight="368"/>
+</TextureAtlas>

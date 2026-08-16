@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="pico-blazin.png" width="416" height="353">
+  <SubTexture name="Pico Block Hit0001" x="102" y="98" width="95" height="85" rotated="true"  frameX="-0" frameY="-0" frameWidth="85" frameHeight="95"/>
+  <SubTexture name="Pico Block Hit0002" x="102" y="98" width="95" height="85" rotated="true"  frameX="-0" frameY="-0" frameWidth="85" frameHeight="95"/>
+  <SubTexture name="Pico Block Hit0003" x="102" y="183" width="95" height="84" rotated="true"  frameX="-0" frameY="-0" frameWidth="85" frameHeight="95"/>
+  <SubTexture name="Pico Block Hit0004" x="102" y="183" width="95" height="84" rotated="true"  frameX="-0" frameY="-0" frameWidth="85" frameHeight="95"/>
+  <SubTexture name="Pico Block Hit0005" x="102" y="183" width="95" height="84" rotated="true"  frameX="-0" frameY="-0" frameWidth="85" frameHeight="95"/>
+  <SubTexture name="Pico Block Hit0006" x="102" y="183" width="95" height="84" rotated="true"  frameX="-0" frameY="-0" frameWidth="85" frameHeight="95"/>
+  <SubTexture name="Pico Block Hit0007" x="102" y="183" width="95" height="84" rotated="true"  frameX="-0" frameY="-0" frameWidth="85" frameHeight="95"/>
+  <SubTexture name="Pico Block Hit0008" x="102" y="183" width="95" height="84" rotated="true"  frameX="-0" frameY="-0" frameWidth="85" frameHeight="95"/>
+  <SubTexture name="Pico Block Hit0009" x="102" y="183" width="95" height="84" rotated="true"  frameX="-0" frameY="-0" frameWidth="85" frameHeight="95"/>
+  <SubTexture name="Pico Dodge0001" x="349" y="0"  width="67" height="92" frameX="-0" frameY="-0" frameWidth="68" frameHeight="92"/>
+  <SubTexture name="Pico Dodge0002" x="349" y="0"  width="67" height="92" frameX="-0" frameY="-0" frameWidth="68" frameHeight="92"/>
+  <SubTexture name="Pico Dodge0003" x="280" y="264" width="91" height="68" rotated="true"  frameX="-0" frameY="-1" frameWidth="68" frameHeight="92"/>
+  <SubTexture name="Pico Dodge0004" x="280" y="264" width="91" height="68" rotated="true"  frameX="-0" frameY="-1" frameWidth="68" frameHeight="92"/>
+  <SubTexture name="Pico Dodge0005" x="280" y="264" width="91" height="68" rotated="true"  frameX="-0" frameY="-1" frameWidth="68" frameHeight="92"/>
+  <SubTexture name="Pico Idle0001" x="197" y="0"  width="76" height="94" frameX="-0" frameY="-0" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0002" x="197" y="0"  width="76" height="94" frameX="-0" frameY="-0" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0003" x="197" y="0"  width="76" height="94" frameX="-0" frameY="-0" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0004" x="197" y="94"  width="76" height="94" frameX="-0" frameY="-0" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0005" x="273" y="0"  width="76" height="94" frameX="-0" frameY="-0" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0006" x="273" y="94"  width="76" height="94" frameX="-0" frameY="-0" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0007" x="273" y="94"  width="76" height="94" frameX="-0" frameY="-0" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0008" x="197" y="188" width="94" height="76" rotated="true"  frameX="-0" frameY="-0" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0009" x="197" y="188" width="94" height="76" rotated="true"  frameX="-0" frameY="-0" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0010" x="0" y="277" width="94" height="76" rotated="true"  frameX="-0" frameY="-0" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0011" x="94" y="277" width="93" height="75" rotated="true"  frameX="-1" frameY="-1" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0012" x="187" y="267" width="93" height="75" rotated="true"  frameX="-1" frameY="-1" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0013" x="187" y="267" width="93" height="75" rotated="true"  frameX="-1" frameY="-1" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Idle0014" x="187" y="267" width="93" height="75" rotated="true"  frameX="-1" frameY="-1" frameWidth="76" frameHeight="94"/>
+  <SubTexture name="Pico Punch High0001" x="0" y="0"  width="105" height="92" frameX="-0" frameY="-0" frameWidth="105" frameHeight="92"/>
+  <SubTexture name="Pico Punch High0002" x="0" y="0"  width="105" height="92" frameX="-0" frameY="-0" frameWidth="105" frameHeight="92"/>
+  <SubTexture name="Pico Punch High0003" x="105" y="0" width="92" height="98" rotated="true"  frameX="-7" frameY="-0" frameWidth="105" frameHeight="92"/>
+  <SubTexture name="Pico Punch High0004" x="105" y="0" width="92" height="98" rotated="true"  frameX="-7" frameY="-0" frameWidth="105" frameHeight="92"/>
+  <SubTexture name="Pico Punch High0005" x="105" y="0" width="92" height="98" rotated="true"  frameX="-7" frameY="-0" frameWidth="105" frameHeight="92"/>
+  <SubTexture name="Pico Punch Low0001" x="0" y="92"  width="102" height="92" frameX="-0" frameY="-1" frameWidth="102" frameHeight="93"/>
+  <SubTexture name="Pico Punch Low0002" x="0" y="92"  width="102" height="92" frameX="-0" frameY="-1" frameWidth="102" frameHeight="93"/>
+  <SubTexture name="Pico Punch Low0003" x="0" y="184"  width="98" height="93" frameX="-4" frameY="-0" frameWidth="102" frameHeight="93"/>
+  <SubTexture name="Pico Punch Low0004" x="0" y="184"  width="98" height="93" frameX="-4" frameY="-0" frameWidth="102" frameHeight="93"/>
+  <SubTexture name="Pico Punch Low0005" x="0" y="184"  width="98" height="93" frameX="-4" frameY="-0" frameWidth="102" frameHeight="93"/>
+</TextureAtlas>

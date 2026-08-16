@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="gf_scared.png" width="412" height="376">
+  <SubTexture name="GF FEAR  instancia 10000" x="0" y="0"  width="206" height="188" frameX="-0" frameY="-0" frameWidth="207" frameHeight="188"/>
+  <SubTexture name="GF FEAR  instancia 10001" x="0" y="188"  width="206" height="188" frameX="-0" frameY="-0" frameWidth="207" frameHeight="188"/>
+  <SubTexture name="GF FEAR  instancia 10002" x="206" y="0"  width="206" height="186" frameX="-0" frameY="-1" frameWidth="207" frameHeight="188"/>
+  <SubTexture name="GF FEAR  instancia 10003" x="206" y="186"  width="206" height="187" frameX="-0" frameY="-0" frameWidth="207" frameHeight="188"/>
+</TextureAtlas>

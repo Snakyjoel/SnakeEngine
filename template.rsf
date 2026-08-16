@@ -1,0 +1,59 @@
+BasicInfo:
+  Title                   : "Snake Engine"
+  CompanyCode             : "00"
+  ProductCode             : CTR-P-SNAK
+  ContentType             : Application
+  Logo                    : Nintendo
+
+TitleInfo:
+  UniqueId                : 0xF8001
+  Category                : Application
+  Version                 : 1
+
+Option:
+  UseOnSD                 : true
+  FreeProductCode         : true
+  EnableCompress          : true
+  EnableCrypt             : false
+
+AccessControlInfo:
+  Priority                      : 16
+  CoreVersion                   : 2
+  DescVersion                   : 2
+  MemoryType                    : Application
+  HandleTableSize               : 0x200
+  SystemMode                    : 80MB
+  DisableDebug                  : true
+  EnableForceDebug              : false
+  CanWriteSharedPage            : true
+  ServiceAccessControl:
+    - apt:u
+    - ac:u
+    - am:app
+    - cam:u
+    - cecd:u
+    - cfg:i
+    - cfg:s
+    - cfg:u
+    - csnd:SND
+    - dsp::DSP
+    - frd:u
+    - fs:USER
+    - gsp::Gpu
+    - gsp::Lcd
+  SystemCallAccess:
+    ArbitrateAddress: 34
+    ControlMemory: 1
+    ExitProcess: 11
+    SleepThread: 10
+    CreateThread: 8
+    CreateMutex: 25
+    CreateEvent: 23
+
+SystemControlInfo:
+  SaveDataSize: 0KB
+  RemasterVersion: 0
+  StackSize: 0x40000
+
+RomFs:
+  RootPath: romfs

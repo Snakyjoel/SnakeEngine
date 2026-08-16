@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="iconPack2.png" width="509" height="473">
+  <SubTexture name="alucardSticker1" x="0.56" y="298.76000000000005"  width="102.76" height="89.32000000000001" frameX="-0" frameY="-0" frameWidth="102.76" frameHeight="89.32000000000001"/>
+  <SubTexture name="alucardSticker2" x="108.08000000000001" y="289.24"  width="102.76" height="92.12" frameX="-0" frameY="-0" frameWidth="102.76" frameHeight="92.12"/>
+  <SubTexture name="cassandraSticker1" x="150.36" y="0.56" width="101.92000000000002" height="107.80000000000001" rotated="true"  frameX="-0" frameY="-0" frameWidth="107.80000000000001" frameHeight="101.92000000000002"/>
+  <SubTexture name="cassandraSticker2" x="0.56" y="110.60000000000001"  width="108.64000000000001" height="101.64000000000001" frameX="-0" frameY="-0" frameWidth="108.64000000000001" frameHeight="101.64000000000001"/>
+  <SubTexture name="cassandraSticker3" x="0.56" y="0.56"  width="148.68" height="108.92000000000002" frameX="-0" frameY="-0" frameWidth="148.68" frameHeight="108.92000000000002"/>
+  <SubTexture name="cyclopsSticker1" x="110.32000000000001" y="203.56000000000003" width="106.12" height="84.56" rotated="true"  frameX="-0" frameY="-0" frameWidth="84.56" frameHeight="106.12"/>
+  <SubTexture name="cyclopsSticker2" x="0.56" y="213.36" width="106.4" height="84.28" rotated="true"  frameX="-0" frameY="-0" frameWidth="84.28" frameHeight="106.4"/>
+  <SubTexture name="dadSticker1" x="333.20000000000005" y="388.92" width="84.28" height="81.48" rotated="true"  frameX="-0" frameY="-0" frameWidth="81.48" frameHeight="84.28"/>
+  <SubTexture name="dadSticker2" x="346.64000000000004" y="0.56" width="84.56" height="96.32000000000001" rotated="true"  frameX="-0" frameY="-0" frameWidth="96.32000000000001" frameHeight="84.56"/>
+  <SubTexture name="dadSticker3" x="432.32000000000005" y="0.56"  width="75.88000000000001" height="83.44000000000001" frameX="-0" frameY="-0" frameWidth="75.88000000000001" frameHeight="83.44000000000001"/>
+  <SubTexture name="darnellSticker1" x="246.96000000000004" y="388.92" width="85.12" height="80.36000000000001" rotated="true"  frameX="-0" frameY="-0" frameWidth="80.36000000000001" frameHeight="85.12"/>
+  <SubTexture name="darnellSticker2" x="0.56" y="389.20000000000005"  width="87.92" height="83.44000000000001" frameX="-0" frameY="-0" frameWidth="87.92" frameHeight="83.44000000000001"/>
+  <SubTexture name="darnellSticker3" x="218.12000000000003" y="109.48"  width="104.16000000000001" height="84.28" frameX="-0" frameY="-0" frameWidth="104.16000000000001" frameHeight="84.28"/>
+  <SubTexture name="miscSticker1" x="420.84000000000003" y="98.00000000000001"  width="80.36000000000001" height="76.44000000000001" frameX="-0" frameY="-0" frameWidth="80.36000000000001" frameHeight="76.44000000000001"/>
+  <SubTexture name="miscSticker2" x="418.6" y="251.44000000000003" width="53.760000000000005" height="44.24" rotated="true"  frameX="-0" frameY="-0" frameWidth="44.24" frameHeight="53.760000000000005"/>
+  <SubTexture name="miscSticker3" x="418.6" y="296.8" width="51.800000000000004" height="45.080000000000005" rotated="true"  frameX="-0" frameY="-0" frameWidth="45.080000000000005" frameHeight="51.800000000000004"/>
+  <SubTexture name="miscSticker4" x="211.96" y="297.36" width="102.2" height="49.56" rotated="true"  frameX="-0" frameY="-0" frameWidth="49.56" frameHeight="102.2"/>
+  <SubTexture name="miscSticker5" x="420.84000000000003" y="175.56000000000003" width="78.96000000000001" height="74.76" rotated="true"  frameX="-0" frameY="-0" frameWidth="74.76" frameHeight="78.96000000000001"/>
+  <SubTexture name="neneSticker1" x="110.32000000000001" y="110.60000000000001"  width="106.68" height="91.84" frameX="-0" frameY="-0" frameWidth="106.68" frameHeight="91.84"/>
+  <SubTexture name="neneSticker2" x="217.56000000000003" y="203.56000000000003"  width="104.44000000000001" height="92.68" frameX="-0" frameY="-0" frameWidth="104.44000000000001" frameHeight="92.68"/>
+  <SubTexture name="neneSticker3" x="253.40000000000003" y="0.56" width="92.12" height="104.72000000000001" rotated="true"  frameX="-0" frameY="-0" frameWidth="104.72000000000001" frameHeight="92.12"/>
+  <SubTexture name="picoSticker1" x="176.68" y="382.48" width="69.16000000000001" height="85.68" rotated="true"  frameX="-0" frameY="-0" frameWidth="85.68" frameHeight="69.16000000000001"/>
+  <SubTexture name="picoSticker2" x="89.60000000000001" y="389.20000000000005"  width="85.96000000000001" height="81.48" frameX="-0" frameY="-0" frameWidth="85.96000000000001" frameHeight="81.48"/>
+  <SubTexture name="picoSticker3" x="346.64000000000004" y="98.00000000000001" width="73.08000000000001" height="88.76" rotated="true"  frameX="-0" frameY="-0" frameWidth="88.76" frameHeight="73.08000000000001"/>
+  <SubTexture name="someDeadGuySticker1" x="315.28000000000003" y="297.36"  width="95.2" height="90.44000000000001" frameX="-0" frameY="-0" frameWidth="95.2" frameHeight="90.44000000000001"/>
+  <SubTexture name="someDeadGuySticker2" x="323.12" y="194.88000000000002" width="94.08000000000001" height="95.2" rotated="true"  frameX="-0" frameY="-0" frameWidth="95.2" frameHeight="94.08000000000001"/>
+</TextureAtlas>

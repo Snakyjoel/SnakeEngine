@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="rankAssets1.png" width="964" height="982">
+  <SubTexture name="rankScrollEXCELLENT" x="0" y="66.55000000000001"  width="562.1" height="25.85" frameX="-2.75" frameY="-2.2" frameWidth="576.95" frameHeight="28.05"/>
+  <SubTexture name="rankScrollGOOD" x="825.5500000000001" y="262.35" width="25.85" height="260.15000000000003" rotated="true"  frameX="-2.75" frameY="-2.2" frameWidth="268.40000000000003" frameHeight="28.05"/>
+  <SubTexture name="rankScrollGREAT" x="587.95" y="66.55000000000001" width="25.85" height="320.65000000000003" rotated="true"  frameX="-2.2" frameY="-2.2" frameWidth="326.70000000000005" frameHeight="28.05"/>
+  <SubTexture name="rankScrollLOSS" x="809.6" y="522.5" width="25.85" height="260.15000000000003" rotated="true"  frameX="-2.75" frameY="-2.2" frameWidth="269.5" frameHeight="28.05"/>
+  <SubTexture name="rankScrollPERFECT" x="562.1" y="66.55000000000001" width="25.85" height="441.1" rotated="true"  frameX="-2.75" frameY="-2.2" frameWidth="448.25000000000006" frameHeight="28.05"/>
+  <SubTexture name="rankTextEXCELLENT" x="587.95" y="387.20000000000005"  width="22.55" height="306.35" frameX="-0" frameY="-0" frameWidth="22.55" frameHeight="306.35"/>
+  <SubTexture name="rankTextGOOD" x="291.5" y="860.2" width="133.10000000000002" height="22.55" rotated="true"  frameX="-0" frameY="-0" frameWidth="22.55" frameHeight="133.10000000000002"/>
+  <SubTexture name="rankTextGREAT" x="851.4000000000001" y="262.35"  width="22.55" height="167.75" frameX="-0" frameY="-0" frameWidth="22.55" frameHeight="167.75"/>
+  <SubTexture name="rankTextLOSS" x="424.6" y="860.2" width="133.10000000000002" height="22.55" rotated="true"  frameX="-0" frameY="-0" frameWidth="22.55" frameHeight="133.10000000000002"/>
+  <SubTexture name="rankTextPERFECT" x="787.0500000000001" y="581.35"  width="22.55" height="237.05" frameX="-0" frameY="-0" frameWidth="22.55" frameHeight="237.05"/>
+  <SubTexture name="results instance 10000" x="469.15000000000003" y="338.8" width="16.5" height="308.55" rotated="true"  frameX="-162.25" frameY="-26.950000000000003" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10002" x="0" y="152.35000000000002"  width="499.95000000000005" height="63.800000000000004" frameX="-121.00000000000001" frameY="-3.8500000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10004" x="0" y="274.45000000000005"  width="487.3" height="64.35000000000001" frameX="-129.25" frameY="-3.3000000000000003" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10006" x="487.3" y="274.45000000000005" width="64.9" height="463.65000000000003" rotated="true"  frameX="-154" frameY="-0" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10008" x="0" y="338.8"  width="469.15000000000003" height="58.300000000000004" frameX="-148.5" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10010" x="0" y="216.15"  width="495.55000000000007" height="58.300000000000004" frameX="-122.10000000000001" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10012" x="0" y="92.4"  width="535.7" height="59.95" frameX="-81.95" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10014" x="0" y="0"  width="617.6500000000001" height="66.55000000000001" frameX="-0" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10016" x="0" y="808.5000000000001"  width="291.5" height="74.80000000000001" frameX="-326.70000000000005" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10018" x="617.6500000000001" y="0" width="69.30000000000001" height="304.70000000000005" rotated="true"  frameX="-312.95000000000005" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10020" x="613.8000000000001" y="304.70000000000005" width="69.30000000000001" height="303.6" rotated="true"  frameX="-314.05" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10022" x="686.95" y="0" width="69.30000000000001" height="303.6" rotated="true"  frameX="-314.05" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10024" x="686.95" y="303.6" width="69.30000000000001" height="303.6" rotated="true"  frameX="-314.05" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10026" x="0" y="739.2"  width="303.6" height="69.30000000000001" frameX="-314.05" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10028" x="303.6" y="739.2"  width="303.6" height="69.30000000000001" frameX="-314.05" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10030" x="303.6" y="739.2"  width="303.6" height="69.30000000000001" frameX="-314.05" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10032" x="756.2500000000001" y="0" width="69.30000000000001" height="303.6" rotated="true"  frameX="-314.05" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10034" x="303.6" y="739.2"  width="303.6" height="69.30000000000001" frameX="-314.05" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="results instance 10035" x="303.6" y="739.2"  width="303.6" height="69.30000000000001" frameX="-314.05" frameY="-6.6000000000000005" frameWidth="621.5" frameHeight="81.95"/>
+  <SubTexture name="sound system0018" x="0" y="397.1"  width="465.85" height="342.1" frameX="-3.8500000000000005" frameY="-172.70000000000002" frameWidth="481.25000000000006" frameHeight="529.6500000000001"/>
+  <SubTexture name="tally score0000" x="894.85" y="502.15000000000003" width="25.3" height="227.70000000000002" rotated="true"  frameX="-0" frameY="-25.85" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0001" x="908.0500000000001" y="729.85" width="56.1" height="211.75000000000003" rotated="true"  frameX="-91.30000000000001" frameY="-10.450000000000001" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0002" x="0" y="926.2"  width="211.20000000000002" height="56.1" frameX="-91.30000000000001" frameY="-10.450000000000001" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0003" x="921.2500000000001" y="0" width="42.900000000000006" height="216.70000000000002" rotated="true"  frameX="-88.55000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0004" x="688.0500000000001" y="883.3000000000001"  width="220.00000000000003" height="42.900000000000006" frameX="-86.9" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0005" x="463.1" y="883.3000000000001"  width="224.95000000000002" height="42.900000000000006" frameX="-84.15" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0006" x="233.75000000000003" y="883.3000000000001"  width="229.35000000000002" height="42.900000000000006" frameX="-81.95" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0007" x="0" y="883.3000000000001"  width="233.75000000000003" height="42.900000000000006" frameX="-79.75" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0008" x="851.4000000000001" y="502.15000000000003" width="43.45" height="240.35000000000002" rotated="true"  frameX="-76.45" frameY="-16.5" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0009" x="874.5000000000001" y="255.20000000000002" width="45.650000000000006" height="246.95000000000002" rotated="true"  frameX="-73.15" frameY="-15.400000000000002" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0010" x="874.5000000000001" y="0" width="46.75000000000001" height="255.20000000000002" rotated="true"  frameX="-68.75" frameY="-14.850000000000001" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0011" x="825.5500000000001" y="0" width="48.95" height="262.35" rotated="true"  frameX="-65.45" frameY="-13.750000000000002" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0012" x="737.0000000000001" y="607.2" width="50.050000000000004" height="265.65000000000003" rotated="true"  frameX="-63.25000000000001" frameY="-13.200000000000001" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0013" x="610.5" y="608.3000000000001" width="52.25000000000001" height="273.90000000000003" rotated="true"  frameX="-58.85" frameY="-12.65" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0014" x="756.2500000000001" y="303.6" width="53.35" height="277.75" rotated="true"  frameX="-57.2" frameY="-11.55" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0015" x="683.1" y="607.2" width="53.900000000000006" height="276.1" rotated="true"  frameX="-57.75000000000001" frameY="-11.55" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0016" x="291.5" y="808.5000000000001"  width="263.45000000000005" height="51.7" frameX="-63.800000000000004" frameY="-12.65" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0017" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0018" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0019" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0020" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0021" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0022" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0023" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0024" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0025" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0026" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0027" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0028" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+  <SubTexture name="tally score0029" x="921.2500000000001" y="216.70000000000002" width="42.900000000000006" height="162.8" rotated="true"  frameX="-115.50000000000001" frameY="-17.05" frameWidth="391.6" frameHeight="79.75"/>
+</TextureAtlas>

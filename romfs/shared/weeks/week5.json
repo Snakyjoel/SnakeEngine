@@ -1,0 +1,48 @@
+{
+	"songs": [
+		[
+			"Cocoa",
+			"parents-christmaspixel",
+			[
+				160,
+				209,
+				255
+			]
+		],
+		[
+			"Eggnog",
+			"parents-christmaspixel",
+			[
+				160,
+				209,
+				255
+			]
+		],
+		[
+			"Winter Horrorland",
+			"monsterpixel",
+			[
+				160,
+				209,
+				255
+			]
+		]
+	],
+	"weekCharacters": [
+		"parents-christmas",
+		"bf",
+		"gf"
+	],
+	"weekBackground": "week5",
+	"storyName": "RED SNOW",
+	"weekBefore": "week4",
+	"weekName": "Week 5",
+	"album": "volume1",
+	"songAlbum": {
+		"song-diff": "Winter Horrorland",
+		"song": "volume2"
+	},
+	"startUnlocked": true,
+	"hideStoryMode": false,
+	"hideFreeplay": false
+}

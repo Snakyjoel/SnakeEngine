@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnakeEngine - Lua API Coverage Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-secondary: #131a2c;
+            --bg-tertiary: #1b253f;
+            --accent-green: #10b981;
+            --accent-green-glow: rgba(16, 185, 129, 0.15);
+            --accent-red: #ef4444;
+            --accent-red-glow: rgba(239, 68, 68, 0.15);
+            --accent-blue: #06b6d4;
+            --accent-blue-glow: rgba(6, 182, 212, 0.15);
+            --accent-orange: #f59e0b;
+            --accent-orange-glow: rgba(245, 158, 11, 0.15);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --text-dark: #6b7280;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --glass-bg: rgba(19, 26, 44, 0.6);
+            --glass-blur: blur(12px);
+            --font-display: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+            --font-body: 'Plus Jakarta Sans', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            font-family: var(--font-body);
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.04) 0%, transparent 40%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding-bottom: 3rem;
+        }
+
+        /* Top Header */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem 2.5rem;
+            background: rgba(11, 15, 25, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: var(--bg-primary);
+            font-family: var(--font-display);
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #ffffff, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .version-badge {
+            font-size: 0.75rem;
+            background: var(--bg-tertiary);
+            color: var(--accent-blue);
+            padding: 0.4rem 0.75rem;
+            border-radius: 99px;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1300px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        /* Dropzones Layout */
+        .dropzones-wrapper {
+            display: grid;
+            grid-template-columns: 2fr 3fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .dropzones-wrapper {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .dropzones-group {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem;
+        }
+
+        .group-title {
+            font-family: var(--font-display);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .dropzone-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .dropzone-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+
+        @media (max-width: 640px) {
+            .dropzone-grid-2, .dropzone-grid-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .dropzone {
+            background: rgba(11, 15, 25, 0.5);
+            border: 2px dashed rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 110px;
+        }
+
+        .dropzone:hover {
+            border-color: var(--accent-blue);
+            background: rgba(6, 182, 212, 0.04);
+            transform: translateY(-2px);
+        }
+
+        .dropzone.loaded {
+            border-color: var(--accent-green);
+            background: rgba(16, 185, 129, 0.04);
+        }
+
+        .dropzone input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .dz-title {
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+            color: var(--text-main);
+        }
+
+        .dz-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            line-height: 1.2;
+        }
+
+        .dz-status {
+            margin-top: 0.6rem;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-family: var(--font-mono);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--accent-red);
+            display: inline-block;
+        }
+
+        .dropzone.loaded .status-dot {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 6px var(--accent-green);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1.5fr repeat(3, 1fr);
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .stat-card {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: transparent;
+        }
+
+        .stat-card.progress-card::before { background: linear-gradient(90deg, var(--accent-blue), var(--accent-green)); }
+        .stat-card.blue::before { background: var(--accent-blue); }
+        .stat-card.green::before { background: var(--accent-green); }
+        .stat-card.orange::before { background: var(--accent-orange); }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .stat-val {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
+            color: var(--text-main);
+        }
+
+        /* Progress Card */
+        .progress-card {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }
+
+        .progress-info {
+            flex-grow: 1;
+        }
+
+        .progress-container {
+            width: 76px;
+            height: 76px;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .progress-ring {
+            width: 100%;
+            height: 100%;
+        }
+
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        .progress-text-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        /* Category Card Stats */
+        .category-stat-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 0.6rem;
+        }
+
+        .stat-ratio {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 99px;
+            width: 0%;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .stat-card.blue .progress-bar-fill { background: var(--accent-blue); }
+        .stat-card.green .progress-bar-fill { background: var(--accent-green); }
+        .stat-card.orange .progress-bar-fill { background: var(--accent-orange); }
+
+        /* Tabs and Controls */
+        .tab-section {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .tabs {
+            display: flex;
+            background: var(--bg-primary);
+            padding: 0.25rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            gap: 0.15rem;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 0.6rem 1.1rem;
+            border-radius: 8px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .tab:hover {
+            color: var(--text-main);
+        }
+
+        .tab.active {
+            background: var(--bg-tertiary);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .tab-badge {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 0.1rem 0.4rem;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            color: var(--text-muted);
+        }
+
+        .tab.active .tab-badge {
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+
+        .search-wrapper {
+            position: relative;
+            min-width: 300px;
+        }
+
+        @media (max-width: 640px) {
+            .search-wrapper {
+                width: 100%;
+                min-width: unset;
+            }
+        }
+
+        .search-input {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 0.6rem 1rem 0.6rem 2.5rem;
+            color: var(--text-main);
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.9rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+            font-size: 0.9rem;
+        }
+
+        /* Grid / List View */
+        .list-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .list-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .list-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .list-container::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+        }
+
+        .function-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem 1.25rem;
+            background: rgba(255, 255, 255, 0.015);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .function-row:hover {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateX(3px);
+        }
+
+        .func-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .func-name {
+            font-family: var(--font-mono);
+            font-weight: 500;
+            font-size: 0.925rem;
+            color: var(--text-main);
+        }
+
+        .badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            letter-spacing: 0.03em;
+        }
+
+        .badge-success {
+            background: var(--accent-green-glow);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .badge-danger {
+            background: var(--accent-red-glow);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .badge-warning {
+            background: var(--accent-orange-glow);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .badge-info {
+            background: var(--accent-blue-glow);
+            color: #22d3ee;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fade {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        .details-hint {
+            font-size: 0.72rem;
+            color: var(--text-dark);
+            font-family: var(--font-mono);
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        /* Buttons & Modal */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.25rem;
+            border-radius: 8px;
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+            color: var(--bg-primary);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-1px);
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 650px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        .modal-header h3 {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .modal-close:hover {
+            color: #ffffff;
+        }
+
+        .modal-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        #export-text {
+            width: 100%;
+            height: 250px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1rem;
+            color: #34d399;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            resize: none;
+            outline: none;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-area">
+            <div class="logo-icon">🐍</div>
+            <div>
+                <h1>SnakeEngine</h1>
+                <div style="font-size: 0.7rem; color: var(--text-muted)">Psych Lua Compatibility Tracker</div>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" id="btn-export-top">
+                Exportar Reporte
+            </button>
+            <div class="version-badge">FunkinLua 0.6.3</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Expanded Dropzones Grouped by File Context -->
+        <div class="dropzones-wrapper">
+            <!-- Psych Source Files -->
+            <div class="dropzones-group">
+                <div class="group-title"><span>📂</span> Archivos original (Psych Engine)</div>
+                <div class="dropzone-grid-2">
+                    <div class="dropzone" id="dz-hx">
+                        <input type="file" id="file-hx" accept=".hx">
+                        <div class="dz-title">FunkinLua.hx</div>
+                        <div class="dz-desc">Arrastra o selecciona el FunkinLua.hx</div>
+                        <div class="dz-status" id="status-hx"><span class="status-dot"></span><span>Desconectado</span></div>
+                    </div>
+                    <div class="dropzone" id="dz-playstate-hx">
+                        <input type="file" id="file-playstate-hx" accept=".hx">
+                        <div class="dz-title">PlayState.hx</div>
+                        <div class="dz-desc">Opcional: Para parsear más eventos</div>
+                        <div class="dz-status" id="status-playstate-hx"><span class="status-dot"></span><span>Desconectado</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SnakeEngine Target Files -->
+            <div class="dropzones-group">
+                <div class="group-title"><span>🛠️</span> Archivos locales (SnakeEngine)</div>
+                <div class="dropzone-grid-3">
+                    <div class="dropzone" id="dz-cpp">
+                        <input type="file" id="file-cpp" accept=".cpp">
+                        <div class="dz-title">LuaManager.cpp</div>
+                        <div class="dz-desc">Arrastra tu LuaManager.cpp</div>
+                        <div class="dz-status" id="status-cpp"><span class="status-dot"></span><span>Desconectado</span></div>
+                    </div>
+                    <div class="dropzone" id="dz-hpp">
+                        <input type="file" id="file-hpp" accept=".hpp">
+                        <div class="dz-title">LuaManager.hpp</div>
+                        <div class="dz-desc">Arrastra tu LuaManager.hpp</div>
+                        <div class="dz-status" id="status-hpp"><span class="status-dot"></span><span>Desconectado</span></div>
+                    </div>
+                    <div class="dropzone" id="dz-playstate-cpp">
+                        <input type="file" id="file-playstate-cpp" accept=".cpp">
+                        <div class="dz-title">PlayState.cpp</div>
+                        <div class="dz-desc">Opcional: Para verificar eventos locales</div>
+                        <div class="dz-status" id="status-playstate-cpp"><span class="status-dot"></span><span>Desconectado</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Multi-Progress Category Stats Dashboard -->
+        <div class="stats-grid">
+            <!-- Overall Progress ring -->
+            <div class="stat-card progress-card">
+                <div class="progress-info">
+                    <div class="stat-label">Compatibilidad Global</div>
+                    <div class="stat-val" id="val-pct">0%</div>
+                    <div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 0.25rem;">Cobertura de la API de Psych</div>
+                </div>
+                <div class="progress-container">
+                    <svg class="progress-ring">
+                        <circle class="progress-ring__circle" stroke="#1f2937" stroke-width="6" fill="transparent" r="32" cx="38" cy="38"/>
+                        <circle class="progress-ring__circle" id="progress-bar" stroke="url(#gradient)" stroke-width="6" stroke-linecap="round" fill="transparent" r="32" cx="38" cy="38" stroke-dasharray="201.06" stroke-dashoffset="201.06"/>
+                        <defs>
+                            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#06b6d4" />
+                                <stop offset="100%" stop-color="#10b981" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="progress-text-center" id="val-pct-ring">0%</div>
+                </div>
+            </div>
+
+            <!-- Callbacks & Events Progress -->
+            <div class="stat-card blue">
+                <div class="stat-label">Eventos & Callbacks</div>
+                <div class="category-stat-row">
+                    <div class="stat-val" id="val-callbacks">0%</div>
+                    <div class="stat-ratio" id="ratio-callbacks">0 / 0</div>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="fill-callbacks"></div>
+                </div>
+            </div>
+
+            <!-- Lua Functions Progress -->
+            <div class="stat-card green">
+                <div class="stat-label">Funciones de la API</div>
+                <div class="category-stat-row">
+                    <div class="stat-val" id="val-functions">0%</div>
+                    <div class="stat-ratio" id="ratio-functions">0 / 0</div>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="fill-functions"></div>
+                </div>
+            </div>
+
+            <!-- Variables Progress -->
+            <div class="stat-card orange">
+                <div class="stat-label">Variables Globales</div>
+                <div class="category-stat-row">
+                    <div class="stat-val" id="val-variables">0%</div>
+                    <div class="stat-ratio" id="ratio-variables">0 / 0</div>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="fill-variables"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab contents tracker -->
+        <div class="tab-section">
+            <div class="controls-row">
+                <div class="tabs">
+                    <button class="tab active" data-tab="callbacks">
+                        Eventos & Callbacks
+                        <span class="tab-badge" id="badge-tab-callbacks">0</span>
+                    </button>
+                    <button class="tab" data-tab="functions">
+                        Funciones
+                        <span class="tab-badge" id="badge-tab-functions">0</span>
+                    </button>
+                    <button class="tab" data-tab="variables">
+                        Variables
+                        <span class="tab-badge" id="badge-tab-variables">0</span>
+                    </button>
+                    <button class="tab" data-tab="extras">
+                        Extras SnakeEngine
+                        <span class="tab-badge" id="badge-tab-extras">0</span>
+                    </button>
+                    <button class="tab" data-tab="excluded">
+                        Excluidas en 3DS
+                        <span class="tab-badge" id="badge-tab-excl">0</span>
+                    </button>
+                </div>
+
+                <div class="search-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="search-bar" class="search-input" placeholder="Filtrar por nombre...">
+                </div>
+            </div>
+
+            <div class="list-container" id="list-container">
+                <!-- Empty state at start -->
+                <div class="empty-state">
+                    <div class="empty-icon">📁</div>
+                    <h3>Falta cargar archivos</h3>
+                    <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-dark)">Arrastra o selecciona los archivos arriba para ver el reporte de compatibilidad</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal Overlay -->
+    <div class="modal-backdrop" id="export-modal" style="display: none;">
+        <div class="modal-content animate-fade">
+            <div class="modal-header">
+                <h3>Reporte de Compatibilidad (Dump)</h3>
+                <button class="modal-close" id="btn-close-modal">✕</button>
+            </div>
+            <p class="modal-desc">Copia el contenido de abajo y envíaselo al asistente de IA para sincronizar la cobertura de la API:</p>
+            <textarea id="export-text" readonly onclick="this.select()"></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="btn-download">
+                    📥 Descargar .json
+                </button>
+                <button class="btn btn-primary" id="btn-copy">
+                    📋 Copiar al Portapapeles
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Pre-populated standard Psych 0.6.3 lists
+        const PSYCH_STANDARD_CALLBACKS = [
+            "onCreate", "onCreatePost", "onDestroy",
+            "onUpdate", "onUpdatePost",
+            "onStartCountdown", "onCountdownStarted", "onCountdownTick",
+            "onBeatHit", "onStepHit", "onSectionHit",
+            "onSongStart", "onEndSong",
+            "onPause", "onResume",
+            "onGameOver", "onGameOverStart", "onGameOverConfirm",
+            "goodNoteHit", "opponentNoteHit", "noteMiss", "noteMissPress",
+            "onKeyPress", "onKeyRelease", "onGhostTap",
+            "onNextDialogue", "onSkipDialogue",
+            "onTweenCompleted", "onTimerCompleted", "onSoundFinished",
+            "onEvent", "eventEarlyTrigger", "onMoveCamera",
+            "onRecalculateRating",
+            "onCustomSubstateCreate", "onCustomSubstateCreatePost",
+            "onCustomSubstateUpdate", "onCustomSubstateUpdatePost", "onCustomSubstateDestroy"
+        ].sort();
+
+        const PSYCH_STANDARD_VARIABLES = [
+            "Function_Stop", "Function_Continue", "Function_StopLua",
+            "luaDebugMode", "luaDeprecatedWarnings", "inChartEditor",
+            "curBpm", "bpm", "scrollSpeed", "crochet", "stepCrochet",
+            "songLength", "songName", "songPath", "startedCountdown", "curStage",
+            "isStoryMode", "difficulty", "difficultyName", "difficultyPath",
+            "weekRaw", "week", "seenCutscene", "cameraX", "cameraY",
+            "screenWidth", "screenHeight", "curBeat", "curStep", "curDecBeat", "curDecStep",
+            "score", "misses", "hits", "rating", "ratingName", "ratingFC", "version",
+            "inGameOver", "mustHitSection", "altAnim", "gfSection",
+            "healthGainMult", "healthLossMult", "playbackRate", "instakillOnMiss", "botPlay", "practice",
+            "defaultBoyfriendX", "defaultBoyfriendY", "defaultOpponentX", "defaultOpponentY", "defaultGirlfriendX", "defaultGirlfriendY",
+            "boyfriendName", "dadName", "gfName",
+            "downscroll", "middlescroll", "framerate", "ghostTapping", "hideHud", "timeBarType",
+            "scoreZoom", "cameraZoomOnBeat", "flashingLights", "noteOffset", "healthBarAlpha",
+            "noResetButton", "lowQuality", "shadersEnabled", "scriptName", "currentModDirectory", "buildTarget"
+        ].sort();
+
+        // State variables
+        let parsedCallbacks = new Set(PSYCH_STANDARD_CALLBACKS);
+        let parsedFunctions = new Set();
+        let parsedVariables = new Set(PSYCH_STANDARD_VARIABLES);
+
+        let implementedCallbacks = new Set();
+        let implementedFunctions = new Set();
+        let implementedVariables = new Set();
+
+        let excludedFunctions = new Set();
+        let excludedCallbacks = new Set();
+        let excludedVariables = new Set();
+
+        // DOM elements
+        const fileHx = document.getElementById('file-hx');
+        const filePlaystateHx = document.getElementById('file-playstate-hx');
+        const fileCpp = document.getElementById('file-cpp');
+        const fileHpp = document.getElementById('file-hpp');
+        const filePlaystateCpp = document.getElementById('file-playstate-cpp');
+
+        const dzHx = document.getElementById('dz-hx');
+        const dzPlaystateHx = document.getElementById('dz-playstate-hx');
+        const dzCpp = document.getElementById('dz-cpp');
+        const dzHpp = document.getElementById('dz-hpp');
+        const dzPlaystateCpp = document.getElementById('dz-playstate-cpp');
+
+        const statusHx = document.getElementById('status-hx');
+        const statusPlaystateHx = document.getElementById('status-playstate-hx');
+        const statusCpp = document.getElementById('status-cpp');
+        const statusHpp = document.getElementById('status-hpp');
+        const statusPlaystateCpp = document.getElementById('status-playstate-cpp');
+
+        const listContainer = document.getElementById('list-container');
+        const searchBar = document.getElementById('search-bar');
+        const progressBar = document.getElementById('progress-bar');
+
+        let currentTab = 'callbacks';
+        let searchQuery = '';
+
+        // Circle circumference
+        const circleRadius = 32;
+        const circumference = 2 * Math.PI * circleRadius;
+
+        function updateProgressCircle(percent) {
+            const offset = circumference - (percent / 100) * circumference;
+            progressBar.style.strokeDashoffset = offset;
+        }
+
+        // File Selection Handlers
+        fileHx.addEventListener('change', (e) => handleFileSelect(e.target.files[0], 'hx'));
+        filePlaystateHx.addEventListener('change', (e) => handleFileSelect(e.target.files[0], 'playstate-hx'));
+        fileCpp.addEventListener('change', (e) => handleFileSelect(e.target.files[0], 'cpp'));
+        fileHpp.addEventListener('change', (e) => handleFileSelect(e.target.files[0], 'hpp'));
+        filePlaystateCpp.addEventListener('change', (e) => handleFileSelect(e.target.files[0], 'playstate-cpp'));
+
+        // Handle Drag & Drop
+        [dzHx, dzPlaystateHx, dzCpp, dzHpp, dzPlaystateCpp].forEach(dz => {
+            dz.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dz.style.borderColor = 'var(--accent-blue)';
+            });
+            dz.addEventListener('dragleave', () => {
+                dz.style.borderColor = '';
+            });
+            dz.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dz.style.borderColor = '';
+                const file = e.dataTransfer.files[0];
+                if (!file) return;
+                
+                const nameLower = file.name.toLowerCase();
+                if (nameLower === 'funkinlua.hx') {
+                    handleFileSelect(file, 'hx');
+                } else if (nameLower === 'playstate.hx') {
+                    handleFileSelect(file, 'playstate-hx');
+                } else if (nameLower === 'luamanager.cpp') {
+                    handleFileSelect(file, 'cpp');
+                } else if (nameLower === 'luamanager.hpp') {
+                    handleFileSelect(file, 'hpp');
+                } else if (nameLower === 'playstate.cpp') {
+                    handleFileSelect(file, 'playstate-cpp');
+                }
+            });
+        });
+
+        function handleFileSelect(file, type) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                if (type === 'hx') {
+                    parseFunkinLua(text);
+                    dzHx.classList.add('loaded');
+                    statusHx.querySelector('span:last-child').textContent = `Cargado: ${file.name}`;
+                } else if (type === 'playstate-hx') {
+                    parsePlayStateHx(text);
+                    dzPlaystateHx.classList.add('loaded');
+                    statusPlaystateHx.querySelector('span:last-child').textContent = `Cargado: ${file.name}`;
+                } else if (type === 'cpp') {
+                    parseLuaManagerCpp(text);
+                    dzCpp.classList.add('loaded');
+                    statusCpp.querySelector('span:last-child').textContent = `Cargado: ${file.name}`;
+                } else if (type === 'hpp') {
+                    parseLuaManagerHpp(text);
+                    dzHpp.classList.add('loaded');
+                    statusHpp.querySelector('span:last-child').textContent = `Cargado: ${file.name}`;
+                } else if (type === 'playstate-cpp') {
+                    parsePlayStateCpp(text);
+                    dzPlaystateCpp.classList.add('loaded');
+                    statusPlaystateCpp.querySelector('span:last-child').textContent = `Cargado: ${file.name}`;
+                }
+                updateDashboard();
+            };
+            reader.readAsText(file);
+        }
+
+        // Parsers
+        function parseFunkinLua(content) {
+            // Functions: Lua_helper.add_callback(lua, "funcName"
+            const callbackRegex = /Lua_helper\.add_callback\(\s*\w+\s*,\s*["']([^"']+)["']/g;
+            let match;
+            while ((match = callbackRegex.exec(content)) !== null) {
+                parsedFunctions.add(match[1]);
+            }
+
+            // Variables: set('varName'
+            const setRegex = /set\(\s*['"]([^'"]+)['"]/g;
+            while ((match = setRegex.exec(content)) !== null) {
+                if (!match[1].includes('+') && !match[1].includes('strum')) {
+                    parsedVariables.add(match[1]);
+                }
+            }
+            // Add loop-created strum elements
+            for (let i = 0; i < 4; i++) {
+                parsedVariables.add('defaultPlayerStrumX' + i);
+                parsedVariables.add('defaultPlayerStrumY' + i);
+                parsedVariables.add('defaultOpponentStrumX' + i);
+                parsedVariables.add('defaultOpponentStrumY' + i);
+            }
+
+            // Interp Variables: variables.set('Name'
+            const interpRegex = /variables\.set\(\s*['"]([^'"]+)['"]/g;
+            while ((match = interpRegex.exec(content)) !== null) {
+                parsedVariables.add(match[1]);
+            }
+
+            // Callbacks/Events: call('eventName'
+            const callRegex = /call\(\s*['"]([^'"]+)['"]/g;
+            while ((match = callRegex.exec(content)) !== null) {
+                parsedCallbacks.add(match[1]);
+            }
+        }
+
+        function parsePlayStateHx(content) {
+            // Callbacks: callOnLuas('eventName'
+            const callOnLuasRegex = /callOnLuas\(\s*['"]([^'"]+)['"]/g;
+            let match;
+            while ((match = callOnLuasRegex.exec(content)) !== null) {
+                parsedCallbacks.add(match[1]);
+            }
+        }
+
+        function parseLuaManagerCpp(content) {
+            // Implemented Functions: BIND_LUA_FUNC(name)
+            const bindRegex = /BIND_LUA_FUNC\(\s*([a-zA-Z0-9_]+)\s*\)/g;
+            let match;
+            while ((match = bindRegex.exec(content)) !== null) {
+                implementedFunctions.add(match[1]);
+            }
+
+            // Implemented Functions: lua_register(L, "name"
+            const regRegex = /lua_register\(\s*\w+\s*,\s*["']([^"']+)["']/g;
+            while ((match = regRegex.exec(content)) !== null) {
+                implementedFunctions.add(match[1]);
+            }
+
+            // Implemented Variables: lua_setglobal(L, "name")
+            const setGlobalRegex = /lua_setglobal\(\s*\w+\s*,\s*["']([^"']+)["']/g;
+            while ((match = setGlobalRegex.exec(content)) !== null) {
+                implementedVariables.add(match[1]);
+            }
+
+            // Implemented Callbacks: HOOK_NAMES array
+            const hookNamesMatch = content.match(/HOOK_NAMES\[\]\s*=\s*\{([^}]+)\}/);
+            if (hookNamesMatch) {
+                const namesStr = hookNamesMatch[1];
+                const nameRegex = /"([^"]+)"/g;
+                let nMatch;
+                while ((nMatch = nameRegex.exec(namesStr)) !== null) {
+                    implementedCallbacks.add(nMatch[1]);
+                }
+            }
+
+            // Implemented Callbacks: callFunction("name")
+            const callFuncRegex = /callFunction\(\s*["']([^"']+)["']/g;
+            while ((match = callFuncRegex.exec(content)) !== null) {
+                implementedCallbacks.add(match[1]);
+            }
+
+            // Excluded functions: static const char* excluded[] = { ... }
+            const exclMatch = content.match(/static\s+const\s+char\*\s+excluded\[\]\s*=\s*\{([^}]+)\}/);
+            if (exclMatch) {
+                const namesStr = exclMatch[1];
+                const nameRegex = /"([^"]+)"/g;
+                let nMatch;
+                while ((nMatch = nameRegex.exec(namesStr)) !== null) {
+                    excludedFunctions.add(nMatch[1]);
+                }
+            }
+        }
+
+        function parseLuaManagerHpp(content) {
+            // Implemented Functions: static int lua_someName
+            const hppFuncRegex = /static\s+int\s+lua_([a-zA-Z0-9_]+)\(\s*lua_State\*\s+\w+\s*\)/g;
+            let match;
+            while ((match = hppFuncRegex.exec(content)) !== null) {
+                implementedFunctions.add(match[1]);
+            }
+        }
+
+        function parsePlayStateCpp(content) {
+            // Implemented Callbacks: callFunction("name")
+            const callFuncRegex = /callFunction\(\s*["']([^"']+)["']/g;
+            let match;
+            while ((match = callFuncRegex.exec(content)) !== null) {
+                implementedCallbacks.add(match[1]);
+            }
+        }
+
+        // Dashboard Updates
+        function updateDashboard() {
+            const hasData = parsedFunctions.size > 0 || implementedFunctions.size > 0 || implementedCallbacks.size > 0;
+            if (!hasData) return;
+
+            // --- 1. Callbacks ---
+            let implCallbacksCount = 0;
+            let exclCallbacksCount = 0;
+            let missCallbacksCount = 0;
+            parsedCallbacks.forEach(cb => {
+                if (implementedCallbacks.has(cb)) implCallbacksCount++;
+                else if (excludedCallbacks.has(cb)) exclCallbacksCount++;
+                else missCallbacksCount++;
+            });
+            const callbacksTotal = parsedCallbacks.size;
+            const callbacksPct = callbacksTotal > 0 ? Math.round((implCallbacksCount / (callbacksTotal - exclCallbacksCount)) * 100) : 0;
+
+            // --- 2. Functions ---
+            let implFunctionsCount = 0;
+            let exclFunctionsCount = 0;
+            let missFunctionsCount = 0;
+            parsedFunctions.forEach(fn => {
+                if (implementedFunctions.has(fn)) implFunctionsCount++;
+                else if (excludedFunctions.has(fn)) exclFunctionsCount++;
+                else missFunctionsCount++;
+            });
+            const functionsTotal = parsedFunctions.size;
+            const functionsPct = functionsTotal > 0 ? Math.round((implFunctionsCount / (functionsTotal - exclFunctionsCount)) * 100) : 0;
+
+            // --- 3. Variables ---
+            let implVariablesCount = 0;
+            let exclVariablesCount = 0;
+            let missVariablesCount = 0;
+            parsedVariables.forEach(v => {
+                if (implementedVariables.has(v)) implVariablesCount++;
+                else if (excludedVariables.has(v)) exclVariablesCount++;
+                else missVariablesCount++;
+            });
+            const variablesTotal = parsedVariables.size;
+            const variablesPct = variablesTotal > 0 ? Math.round((implVariablesCount / (variablesTotal - exclVariablesCount)) * 100) : 0;
+
+            // --- 4. Overall ---
+            const totalImpl = implCallbacksCount + implFunctionsCount + implVariablesCount;
+            const totalExcl = exclCallbacksCount + exclFunctionsCount + exclVariablesCount;
+            const totalItems = callbacksTotal + functionsTotal + variablesTotal;
+            const overallPct = totalItems > 0 ? Math.round((totalImpl / (totalItems - totalExcl)) * 100) : 0;
+
+            // Overall Progress circle
+            document.getElementById('val-pct').textContent = `${overallPct}%`;
+            document.getElementById('val-pct-ring').textContent = `${overallPct}%`;
+            updateProgressCircle(overallPct);
+
+            // Update category cards
+            document.getElementById('val-callbacks').textContent = `${callbacksPct}%`;
+            document.getElementById('ratio-callbacks').textContent = `${implCallbacksCount} / ${callbacksTotal - exclCallbacksCount}`;
+            document.getElementById('fill-callbacks').style.width = `${callbacksPct}%`;
+
+            document.getElementById('val-functions').textContent = `${functionsPct}%`;
+            document.getElementById('ratio-functions').textContent = `${implFunctionsCount} / ${functionsTotal - exclFunctionsCount}`;
+            document.getElementById('fill-functions').style.width = `${functionsPct}%`;
+
+            document.getElementById('val-variables').textContent = `${variablesPct}%`;
+            document.getElementById('ratio-variables').textContent = `${implVariablesCount} / ${variablesTotal - exclVariablesCount}`;
+            document.getElementById('fill-variables').style.width = `${variablesPct}%`;
+
+            // Badges on tabs
+            document.getElementById('badge-tab-callbacks').textContent = callbacksTotal;
+            document.getElementById('badge-tab-functions').textContent = functionsTotal;
+            document.getElementById('badge-tab-variables').textContent = variablesTotal;
+
+            // SnakeEngine Extras Calculation
+            let extraCallbacks = 0;
+            implementedCallbacks.forEach(cb => { if (!parsedCallbacks.has(cb)) extraCallbacks++; });
+            let extraFunctions = 0;
+            implementedFunctions.forEach(fn => { if (!parsedFunctions.has(fn)) extraFunctions++; });
+            let extraVariables = 0;
+            implementedVariables.forEach(v => { if (!parsedVariables.has(v)) extraVariables++; });
+            document.getElementById('badge-tab-extras').textContent = extraCallbacks + extraFunctions + extraVariables;
+
+            // Excluded Calculation
+            const totalExcluded = exclCallbacksCount + exclFunctionsCount + exclVariablesCount;
+            document.getElementById('badge-tab-excl').textContent = totalExcluded;
+
+            renderList();
+        }
+
+        // Render List based on current tab and search
+        function renderList() {
+            listContainer.innerHTML = '';
+            
+            const hasData = parsedFunctions.size > 0 || implementedFunctions.size > 0 || implementedCallbacks.size > 0;
+            if (!hasData) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📁</div>
+                        <h3>Falta cargar archivos</h3>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-dark)">Arrastra o selecciona los archivos arriba para ver el reporte de compatibilidad</p>
+                    </div>`;
+                return;
+            }
+
+            let items = [];
+            const sortItems = (a, b) => {
+                const statusOrder = { 'implemented': 1, 'missing': 2, 'excluded': 3 };
+                if (statusOrder[a.status] !== statusOrder[b.status]) {
+                    return statusOrder[a.status] - statusOrder[b.status];
+                }
+                return a.name.localeCompare(b.name);
+            };
+
+            if (currentTab === 'callbacks') {
+                parsedCallbacks.forEach(cb => {
+                    if (searchQuery && !cb.toLowerCase().includes(searchQuery)) return;
+                    let status = 'missing';
+                    if (implementedCallbacks.has(cb)) status = 'implemented';
+                    else if (excludedCallbacks.has(cb)) status = 'excluded';
+                    items.push({ name: cb, type: 'Callback', status });
+                });
+                items.sort(sortItems);
+
+            } else if (currentTab === 'functions') {
+                parsedFunctions.forEach(fn => {
+                    if (searchQuery && !fn.toLowerCase().includes(searchQuery)) return;
+                    let status = 'missing';
+                    if (implementedFunctions.has(fn)) status = 'implemented';
+                    else if (excludedFunctions.has(fn)) status = 'excluded';
+                    items.push({ name: fn, type: 'Función', status });
+                });
+                items.sort(sortItems);
+
+            } else if (currentTab === 'variables') {
+                parsedVariables.forEach(v => {
+                    if (searchQuery && !v.toLowerCase().includes(searchQuery)) return;
+                    let status = 'missing';
+                    if (implementedVariables.has(v)) status = 'implemented';
+                    else if (excludedVariables.has(v)) status = 'excluded';
+                    items.push({ name: v, type: 'Variable', status });
+                });
+                items.sort(sortItems);
+
+            } else if (currentTab === 'extras') {
+                implementedCallbacks.forEach(cb => {
+                    if (parsedCallbacks.has(cb)) return;
+                    if (searchQuery && !cb.toLowerCase().includes(searchQuery)) return;
+                    items.push({ name: cb, type: 'Callback Extra', status: 'extra' });
+                });
+                implementedFunctions.forEach(fn => {
+                    if (parsedFunctions.has(fn)) return;
+                    if (searchQuery && !fn.toLowerCase().includes(searchQuery)) return;
+                    items.push({ name: fn, type: 'Función Extra', status: 'extra' });
+                });
+                implementedVariables.forEach(v => {
+                    if (parsedVariables.has(v)) return;
+                    if (searchQuery && !v.toLowerCase().includes(searchQuery)) return;
+                    items.push({ name: v, type: 'Variable Extra', status: 'extra' });
+                });
+                items.sort((a, b) => a.name.localeCompare(b.name));
+
+            } else if (currentTab === 'excluded') {
+                excludedCallbacks.forEach(cb => {
+                    if (searchQuery && !cb.toLowerCase().includes(searchQuery)) return;
+                    items.push({ name: cb, type: 'Callback Excluido', status: 'excluded' });
+                });
+                excludedFunctions.forEach(fn => {
+                    if (searchQuery && !fn.toLowerCase().includes(searchQuery)) return;
+                    items.push({ name: fn, type: 'Función Excluida', status: 'excluded' });
+                });
+                excludedVariables.forEach(v => {
+                    if (searchQuery && !v.toLowerCase().includes(searchQuery)) return;
+                    items.push({ name: v, type: 'Variable Excluida', status: 'excluded' });
+                });
+                items.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            if (items.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🔍</div>
+                        <h3>No se encontraron elementos</h3>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-dark)">Prueba refinando la búsqueda o cargando los archivos correspondientes</p>
+                    </div>`;
+                return;
+            }
+
+            // Render Rows
+            items.forEach((item, idx) => {
+                const row = document.createElement('div');
+                row.className = 'function-row animate-fade';
+                row.style.animationDelay = `${Math.min(idx * 12, 250)}ms`;
+
+                let badgeHTML = '';
+                if (item.status === 'implemented') {
+                    badgeHTML = `<span class="badge badge-success">Soportada</span>`;
+                } else if (item.status === 'missing') {
+                    badgeHTML = `<span class="badge badge-danger">Faltante</span>`;
+                } else if (item.status === 'excluded') {
+                    badgeHTML = `<span class="badge badge-warning">Excluida</span>`;
+                } else if (item.status === 'extra') {
+                    badgeHTML = `<span class="badge badge-info">SnakeEngine Extra</span>`;
+                }
+
+                row.innerHTML = `
+                    <div class="func-info">
+                        <div class="func-name">${item.name}</div>
+                        <div class="details-hint">${item.type}</div>
+                    </div>
+                    <div>
+                        ${badgeHTML}
+                    </div>
+                `;
+                listContainer.appendChild(row);
+            });
+        }
+
+        // Tab Switching
+        document.querySelectorAll('.tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                btn.classList.add('active');
+                currentTab = btn.getAttribute('data-tab');
+                renderList();
+            });
+        });
+
+        // Search bar interaction
+        searchBar.addEventListener('input', (e) => {
+            searchQuery = e.target.value.toLowerCase().trim();
+            renderList();
+        });
+
+        // JSON Dump / Export Generator
+        function generateDump() {
+            const overallPctVal = document.getElementById('val-pct').textContent;
+            
+            const stats = {
+                overall: parseInt(overallPctVal) || 0,
+                callbacks: {
+                    total: parsedCallbacks.size,
+                    implemented: Array.from(parsedCallbacks).filter(cb => implementedCallbacks.has(cb)).length,
+                    missing: Array.from(parsedCallbacks).filter(cb => !implementedCallbacks.has(cb) && !excludedCallbacks.has(cb)).length,
+                    excluded: Array.from(parsedCallbacks).filter(cb => excludedCallbacks.has(cb)).length
+                },
+                functions: {
+                    total: parsedFunctions.size,
+                    implemented: Array.from(parsedFunctions).filter(fn => implementedFunctions.has(fn)).length,
+                    missing: Array.from(parsedFunctions).filter(fn => !implementedFunctions.has(fn) && !excludedFunctions.has(fn)).length,
+                    excluded: Array.from(parsedFunctions).filter(fn => excludedFunctions.has(fn)).length
+                },
+                variables: {
+                    total: parsedVariables.size,
+                    implemented: Array.from(parsedVariables).filter(v => implementedVariables.has(v)).length,
+                    missing: Array.from(parsedVariables).filter(v => !implementedVariables.has(v) && !excludedVariables.has(v)).length,
+                    excluded: Array.from(parsedVariables).filter(v => excludedVariables.has(v)).length
+                }
+            };
+            
+            stats.callbacks.percent = stats.callbacks.total > 0 ? Math.round((stats.callbacks.implemented / (stats.callbacks.total - stats.callbacks.excluded)) * 100) : 0;
+            stats.functions.percent = stats.functions.total > 0 ? Math.round((stats.functions.implemented / (stats.functions.total - stats.functions.excluded)) * 100) : 0;
+            stats.variables.percent = stats.variables.total > 0 ? Math.round((stats.variables.implemented / (stats.variables.total - stats.variables.excluded)) * 100) : 0;
+
+            const dumpData = {
+                timestamp: new Date().toISOString(),
+                stats: stats,
+                callbacks: {
+                    implemented: Array.from(parsedCallbacks).filter(cb => implementedCallbacks.has(cb)).sort(),
+                    missing: Array.from(parsedCallbacks).filter(cb => !implementedCallbacks.has(cb) && !excludedCallbacks.has(cb)).sort(),
+                    excluded: Array.from(parsedCallbacks).filter(cb => excludedCallbacks.has(cb)).sort()
+                },
+                functions: {
+                    implemented: Array.from(parsedFunctions).filter(fn => implementedFunctions.has(fn)).sort(),
+                    missing: Array.from(parsedFunctions).filter(fn => !implementedFunctions.has(fn) && !excludedFunctions.has(fn)).sort(),
+                    excluded: Array.from(parsedFunctions).filter(fn => excludedFunctions.has(fn)).sort()
+                },
+                variables: {
+                    implemented: Array.from(parsedVariables).filter(v => implementedVariables.has(v)).sort(),
+                    missing: Array.from(parsedVariables).filter(v => !implementedVariables.has(v) && !excludedVariables.has(v)).sort(),
+                    excluded: Array.from(parsedVariables).filter(v => excludedVariables.has(v)).sort()
+                },
+                extras: {
+                    callbacks: Array.from(implementedCallbacks).filter(cb => !parsedCallbacks.has(cb)).sort(),
+                    functions: Array.from(implementedFunctions).filter(fn => !parsedFunctions.has(fn)).sort(),
+                    variables: Array.from(implementedVariables).filter(v => !parsedVariables.has(v)).sort()
+                }
+            };
+
+            return JSON.stringify(dumpData, null, 2);
+        }
+
+        // Modal triggers
+        const exportModal = document.getElementById('export-modal');
+        const exportText = document.getElementById('export-text');
+        
+        document.getElementById('btn-export-top').addEventListener('click', () => {
+            exportText.value = generateDump();
+            exportModal.style.display = 'flex';
+        });
+
+        document.getElementById('btn-close-modal').addEventListener('click', () => {
+            exportModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === exportModal) {
+                exportModal.style.display = 'none';
+            }
+        });
+
+        document.getElementById('btn-copy').addEventListener('click', () => {
+            exportText.select();
+            navigator.clipboard.writeText(exportText.value).then(() => {
+                const btn = document.getElementById('btn-copy');
+                const origText = btn.innerHTML;
+                btn.innerHTML = '✨ ¡Copiado!';
+                setTimeout(() => { btn.innerHTML = origText; }, 2000);
+            }).catch(() => {
+                alert('No se pudo copiar automáticamente. Por favor selecciónalo y cópialo de forma manual.');
+            });
+        });
+
+        document.getElementById('btn-download').addEventListener('click', () => {
+            const dumpText = exportText.value;
+            const blob = new Blob([dumpText], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `snakeengine_lua_coverage_dump_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    </script>
+</body>
+</html>

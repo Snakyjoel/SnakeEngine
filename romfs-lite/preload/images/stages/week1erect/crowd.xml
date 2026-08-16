@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="crowd.png" width="962" height="937">
+  <SubTexture name="idle0000" x="0" y="0"  width="655.55" height="157.5" frameX="-0" frameY="-0.7" frameWidth="655.55" frameHeight="158.2"/>
+  <SubTexture name="idle0001" x="0" y="782.25"  width="652.05" height="155.04999999999998" frameX="-3.5" frameY="-3.15" frameWidth="655.55" frameHeight="158.2"/>
+  <SubTexture name="idle0002" x="807.8" y="0" width="154.35" height="650.65" rotated="true"  frameX="-3.5" frameY="-3.15" frameWidth="655.55" frameHeight="158.2"/>
+  <SubTexture name="idle0003" x="655.55" y="0" width="152.25" height="652.75" rotated="true"  frameX="-1.4" frameY="-5.25" frameWidth="655.55" frameHeight="158.2"/>
+  <SubTexture name="idle0004" x="0" y="314.65"  width="654.15" height="152.25" frameX="-1.4" frameY="-5.25" frameWidth="655.55" frameHeight="158.2"/>
+  <SubTexture name="idle0005" x="0" y="466.9"  width="654.15" height="157.5" frameX="-1.4" frameY="-0" frameWidth="655.55" frameHeight="158.2"/>
+  <SubTexture name="idle0006" x="0" y="624.4"  width="653.4499999999999" height="157.85" frameX="-1.4" frameY="-0" frameWidth="655.55" frameHeight="158.2"/>
+  <SubTexture name="idle0007" x="0" y="157.5"  width="654.8499999999999" height="157.14999999999998" frameX="-0" frameY="-0.7" frameWidth="655.55" frameHeight="158.2"/>
+</TextureAtlas>

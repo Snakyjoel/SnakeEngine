@@ -1,0 +1,278 @@
+{
+  "categories": [
+    {
+      "id": "gameplay",
+      "name": "Gameplay Settings",
+      "description": "To change the way you play",
+      "options": [
+        {
+          "id": "downscroll",
+          "name": "Downscroll",
+          "type": "bool",
+          "default": false,
+          "description": "If checked, notes go Down instead of Up,\nsimple enough."
+        },
+        {
+          "id": "middleScroll",
+          "name": "Middlescroll",
+          "type": "bool",
+          "default": false,
+          "description": "Centers your strumline. Splits opponent\nstrumline to the far left and right."
+        },
+        {
+          "id": "opponentStrums",
+          "name": "Opponent Strums",
+          "type": "bool",
+          "default": true,
+          "description": "Show the opponent's receptors."
+        },
+        {
+          "id": "opponentNotes",
+          "name": "Opponent Notes",
+          "type": "bool",
+          "default": true,
+          "description": "Show the opponent's notes.\nRequires Opponent Strums enabled."
+        },
+        {
+          "id": "ghostTapping",
+          "name": "Ghost Tapping",
+          "type": "bool",
+          "default": true,
+          "description": "If checked, you won't get misses from\npressing keys while there are no notes able to hit."
+        },
+        {
+          "id": "disableReset",
+          "name": "Disable Reset",
+          "type": "bool",
+          "default": false,
+          "description": "If checked, you won't be able to reset\nthe song using the Start/Select shortcut."
+        },
+        {
+          "id": "hitboxEnabled",
+          "name": "Touch Hitboxes",
+          "type": "bool",
+          "default": true,
+          "description": "Enable touchscreen hitbox controls on the\nbottom screen. WARNING: Only 1 note can\nbe hit at a time (hardware limitation)."
+        },
+        {
+          "id": "hitboxMode",
+          "name": "Hitbox Vis",
+          "type": "string_list",
+          "options": [
+            "Always",
+            "On Touch",
+            "Hidden"
+          ],
+          "default": "Always",
+          "description": "When should touch hitboxes be visible?\n(Always / On Touch / Hidden)"
+        },
+        {
+          "id": "hitboxStyle",
+          "name": "Hitbox Style",
+          "type": "string_list",
+          "options": [
+            "Full Bars",
+            "Borders Only"
+          ],
+          "default": "Full Bars",
+          "description": "How should touch hitboxes be drawn?\n(Full Bars / Borders Only)"
+        },
+        {
+          "id": "botPlay",
+          "name": "Bot Play",
+          "type": "bool",
+          "default": false,
+          "description": "If checked, the game plays itself\nautomatically. Notes are auto-hit."
+        },
+        {
+          "id": "noteUnderlayAlpha",
+          "name": "Note Underlay",
+          "type": "float",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "step": 0.1,
+          "description": "Adjust the opacity of the dark background\nunder the notes strumline."
+        },
+        {
+          "id": "opponentUnderlay",
+          "name": "Opponent Underlay",
+          "type": "bool",
+          "default": true,
+          "description": "If checked, shows the dark underlay behind\nthe opponent strumline too."
+        }
+      ]
+    },
+    {
+      "id": "visuals",
+      "name": "Visuals and UI",
+      "description": "To adjust the game's visuals",
+      "options": [
+        {
+          "id": "noteColorsEnabled",
+          "name": "Note Colors",
+          "type": "bool",
+          "default": false,
+          "description": "Toggle custom note colors.\nIf disabled, default colors are used."
+        },
+        {
+          "id": "customizeCombo",
+          "name": "Customize Combo",
+          "type": "action",
+          "action": "openCustomizeCombo",
+          "description": "Adjust combo position, scale, and alpha."
+        },
+        {
+          "id": "timeBarType",
+          "name": "Time Bar",
+          "type": "string_list",
+          "options": [
+            "Time Left",
+            "Time Elapsed",
+            "Song Name",
+            "Disabled"
+          ],
+          "default": "Time Left",
+          "description": "What should the Time Bar display?"
+        },
+        {
+          "id": "healthBar",
+          "name": "Health Bar",
+          "type": "bool",
+          "default": true,
+          "description": "Toggle visibility of the health bar."
+        },
+        {
+          "id": "showRatings",
+          "name": "Rate Popups",
+          "type": "bool",
+          "default": true,
+          "description": "Show Sick!, Good!, Bad!, Shit!\npopups when hitting a note."
+        },
+        {
+          "id": "camZooms",
+          "name": "Camera Zooms",
+          "type": "bool",
+          "default": true,
+          "description": "If unchecked, the camera won't zoom\nin on a beat hit."
+        },
+        {
+          "id": "scoreZoom",
+          "name": "Score Text Zoom",
+          "type": "bool",
+          "default": true,
+          "description": "If unchecked, disables the Score text\ngrowing every time you hit a note."
+        },
+        {
+          "id": "flashing",
+          "name": "Flashing Lights",
+          "type": "bool",
+          "default": true,
+          "description": "Uncheck this if you're sensitive\nto the flashing lights!"
+        },
+        {
+          "id": "alphabetPause",
+          "name": "Alphabet Pause",
+          "type": "bool",
+          "default": true,
+          "description": "If checked, uses Alphabet font in\nthe Pause Menu instead of VCR."
+        },
+        {
+          "id": "checkForUpdates",
+          "name": "Check Updates",
+          "type": "bool",
+          "default": true,
+          "description": "If checked, checks for updates on startup."
+        }
+      ]
+    },
+    {
+      "id": "graphics",
+      "name": "Graphics Settings",
+      "description": "To improve performance",
+      "options": [
+        {
+          "id": "lowQuality",
+          "name": "Low Quality",
+          "type": "bool",
+          "default": false,
+          "description": "If checked, disables some background details,\ndecreases loading times and improves performance."
+        },
+        {
+          "id": "globalAntialiasing",
+          "name": "Antialiasing",
+          "type": "bool",
+          "default": true,
+          "description": "If unchecked, disables anti-aliasing globally,\nimproving performance at the cost of jagged visuals."
+        },
+        {
+          "id": "fastNotes",
+          "name": "Fast Notes",
+          "type": "bool",
+          "default": false,
+          "description": "Changes note rendering to use simple\ncolored arrows for a less ram usage."
+        },
+        {
+          "id": "drawGrid",
+          "name": "Draw UI Grid",
+          "type": "bool",
+          "default": true,
+          "description": "If unchecked, disables the checkerboard grid\non the bottom screen for a small performance boost."
+        },
+        {
+          "id": "debugInfo",
+          "name": "Debug Info",
+          "type": "bool",
+          "default": false,
+          "description": "Displays debug information and\nperformance stats."
+        },
+        {
+          "id": "extendedDebug",
+          "name": "Extended Debug",
+          "type": "bool",
+          "default": false,
+          "description": "If checked, PlayState debug will also\nshow model, RAM and VRAM."
+        },
+        {
+          "id": "fpsLimit",
+          "name": "FPS Limit",
+          "type": "string_list",
+          "options": [
+            "30 FPS",
+            "60 FPS"
+          ],
+          "default": "60 FPS",
+          "description": "Set the maximum frame rate.\nLowering this can save battery."
+        }
+      ]
+    },
+    {
+      "id": "controls_menu",
+      "name": "Controls",
+      "description": "To change the game controls",
+      "type": "action_category",
+      "action": "openControlsMenu"
+    },
+    {
+      "id": "note_colors_menu",
+      "name": "Note Colors",
+      "description": "To customize the colors of the notes\n(YOU MUST ACTIVATE NOTE COLORS)",
+      "type": "action_category",
+      "action": "openNoteColorsMenu"
+    },
+    {
+      "id": "reset_defaults",
+      "name": "Reset to Defaults",
+      "description": "Reset all the options",
+      "type": "action_category",
+      "action": "resetToDefaults"
+    },
+    {
+      "id": "erase_save",
+      "name": "Erase Save Data",
+      "description": "Erase highscores and achievements",
+      "type": "action_category",
+      "action": "eraseSaveData"
+    }
+  ]
+}

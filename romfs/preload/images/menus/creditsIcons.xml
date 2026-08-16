@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="creditsIcons.png" width="275" height="266">
+  <SubTexture name="baseGame instancia 10000" x="0" y="0"  width="142" height="133" frameX="-0" frameY="-0" frameWidth="142" frameHeight="133"/>
+  <SubTexture name="psychEngine instancia 10000" x="0" y="133"  width="142" height="133" frameX="-0" frameY="-0" frameWidth="142" frameHeight="133"/>
+  <SubTexture name="snakeEngine instancia 10000" x="142" y="0" width="133" height="142" rotated="true"  frameX="-0" frameY="-0" frameWidth="142" frameHeight="133"/>
+</TextureAtlas>

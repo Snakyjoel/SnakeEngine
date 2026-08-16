@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="btstsstb.png" width="1024" height="1024">
+  <SubTexture name="trees_0" x="0" y="116"  width="487" height="82" frameX="-12" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_1" x="0" y="198"  width="487" height="82" frameX="-11" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_10" x="0" y="280"  width="487" height="82" frameX="-10" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_11" x="0" y="362"  width="487" height="82" frameX="-10" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_12" x="0" y="362"  width="487" height="82" frameX="-10" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_13" x="0" y="362"  width="487" height="82" frameX="-10" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_14" x="0" y="362"  width="487" height="82" frameX="-10" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_15" x="0" y="362"  width="487" height="82" frameX="-10" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_16" x="0" y="444"  width="487" height="82" frameX="-10" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_17" x="0" y="526"  width="487" height="82" frameX="-10" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_18" x="561" y="0" width="82" height="487" rotated="true"  frameX="-10" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_19" x="0" y="608"  width="487" height="82" frameX="-10" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_2" x="643" y="0" width="82" height="487" rotated="true"  frameX="-11" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_3" x="0" y="690"  width="487" height="82" frameX="-11" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_4" x="725" y="0" width="82" height="487" rotated="true"  frameX="-11" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_5" x="0" y="772"  width="487" height="82" frameX="-11" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_6" x="807" y="0" width="82" height="487" rotated="true"  frameX="-11" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_7" x="0" y="854"  width="487" height="82" frameX="-11" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_8" x="889" y="0" width="82" height="487" rotated="true"  frameX="-10" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="trees_9" x="0" y="936"  width="487" height="82" frameX="-10" frameY="-176" frameWidth="512" frameHeight="512"/>
+  <SubTexture name="weebBackTrees" x="0" y="0"  width="561" height="34" frameX="-0" frameY="-78" frameWidth="561" frameHeight="161"/>
+  <SubTexture name="weebSchool" x="0" y="34"  width="511" height="82" frameX="-0" frameY="-31" frameWidth="511" frameHeight="161"/>
+  <SubTexture name="weebSky" x="487" y="487"  width="466" height="161" frameX="-0" frameY="-0" frameWidth="466" frameHeight="161"/>
+  <SubTexture name="weebStreet" x="487" y="648"  width="466" height="67" frameX="-0" frameY="-103" frameWidth="466" frameHeight="170"/>
+  <SubTexture name="weebTreesBack" x="487" y="715"  width="375" height="54" frameX="-31" frameY="-55" frameWidth="411" frameHeight="161"/>
+</TextureAtlas>

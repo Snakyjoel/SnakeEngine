@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="bfCheer.png" width="364" height="373">
+  <SubTexture name="cheer_0000" x="0" y="0"  width="182.28" height="193.62" frameX="-0.42" frameY="-0" frameWidth="182.7" frameHeight="194.45999999999998"/>
+  <SubTexture name="cheer_0001" x="0" y="0"  width="182.28" height="193.62" frameX="-0.42" frameY="-0" frameWidth="182.7" frameHeight="194.45999999999998"/>
+  <SubTexture name="cheer_0002" x="0" y="193.62" width="184.79999999999998" height="178.92" rotated="true"  frameX="-1.68" frameY="-9.24" frameWidth="182.7" frameHeight="194.45999999999998"/>
+  <SubTexture name="cheer_0003" x="0" y="193.62" width="184.79999999999998" height="178.92" rotated="true"  frameX="-1.68" frameY="-9.24" frameWidth="182.7" frameHeight="194.45999999999998"/>
+  <SubTexture name="cheer_0004" x="182.28" y="0"  width="181.85999999999999" height="188.16" frameX="-0" frameY="-6.3" frameWidth="182.7" frameHeight="194.45999999999998"/>
+  <SubTexture name="cheer_0005" x="182.28" y="0"  width="181.85999999999999" height="188.16" frameX="-0" frameY="-6.3" frameWidth="182.7" frameHeight="194.45999999999998"/>
+  <SubTexture name="cheer_0006" x="182.28" y="0"  width="181.85999999999999" height="188.16" frameX="-0" frameY="-6.3" frameWidth="182.7" frameHeight="194.45999999999998"/>
+  <SubTexture name="cheer_0007" x="182.28" y="0"  width="181.85999999999999" height="188.16" frameX="-0" frameY="-6.3" frameWidth="182.7" frameHeight="194.45999999999998"/>
+  <SubTexture name="cheer_0008" x="182.28" y="0"  width="181.85999999999999" height="188.16" frameX="-0" frameY="-6.3" frameWidth="182.7" frameHeight="194.45999999999998"/>
+</TextureAtlas>

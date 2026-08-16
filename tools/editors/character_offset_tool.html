@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>offset editor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #1a1a1a; color: #ccc; font-family: monospace; font-size: 13px; display: flex; height: 100vh; overflow: hidden; }
+#sidebar { width: 240px; min-width: 240px; background: #222; padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+#sidebar label { display: block; margin-bottom: 2px; color: #888; }
+#sidebar input[type=file] { width: 100%; color: #aaa; }
+select { width: 100%; background: #333; color: #ccc; border: 1px solid #444; padding: 3px; }
+button { background: #333; color: #ccc; border: 1px solid #555; padding: 4px 8px; cursor: pointer; width: 100%; }
+button:hover { background: #444; }
+#info { font-size: 12px; color: #666; }
+hr { border-color: #333; }
+#canvas-wrap { flex: 1; position: relative; overflow: hidden; }
+canvas { display: block; width: 100%; height: 100%; }
+#overlay { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.6); padding: 5px 8px; font-size: 12px; pointer-events: none; }
+.section-title { color: #5af; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
+.ref-section { border-left: 2px solid #f85; padding-left: 6px; }
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <!-- ===== MAIN CHARACTER ===== -->
+  <div class="section-title">Main Character</div>
+  <div>
+    <label>Spritesheet (PNG)</label>
+    <input type="file" id="fileImg" accept="image/*">
+  </div>
+  <div>
+    <label>XML</label>
+    <input type="file" id="fileXml" accept=".xml">
+  </div>
+  <div>
+    <label>Character JSON</label>
+    <input type="file" id="fileJson" accept=".json">
+  </div>
+  <div>
+    <label style="margin-top:4px"><input type="checkbox" id="checkPlayer"> is Player</label>
+  </div>
+  <hr>
+  <div>
+    <label>Animation</label>
+    <select id="animSelect"></select>
+  </div>
+  <div>
+    <label>Ghost</label>
+    <select id="ghostSelect"><option value="">-- none --</option></select>
+    <label style="margin-top:4px"><input type="checkbox" id="checkGhost"> show ghost</label>
+  </div>
+  <div id="info">
+    offsetX: <span id="offsetX">0</span><br>
+    offsetY: <span id="offsetY">0</span>
+  </div>
+  <div style="display:flex;gap:4px;">
+    <div style="flex:1">
+      <label>Scale</label>
+      <input type="number" id="scaleInput" step="0.1" min="0.1" value="6" style="width:100%;background:#333;color:#ccc;border:1px solid #444;padding:3px;">
+    </div>
+  </div>
+  <div>
+    <label style="color:#4cf;">Camera Offset</label>
+    <div style="display:flex;gap:4px;">
+      <div style="flex:1">
+        <label style="font-size:10px;">X</label>
+        <input type="number" id="camX" step="1" value="0" style="width:100%;background:#333;color:#4cf;border:1px solid #4cf4;padding:3px;">
+      </div>
+      <div style="flex:1">
+        <label style="font-size:10px;">Y</label>
+        <input type="number" id="camY" step="1" value="0" style="width:100%;background:#333;color:#4cf;border:1px solid #4cf4;padding:3px;">
+      </div>
+    </div>
+  </div>
+  <hr>
+
+  <!-- ===== REFERENCE CHARACTER ===== -->
+  <div class="section-title ref-section">Reference Character</div>
+  <div class="ref-section">
+    <label>Spritesheet (PNG)</label>
+    <input type="file" id="refFileImg" accept="image/*">
+  </div>
+  <div class="ref-section">
+    <label>XML</label>
+    <input type="file" id="refFileXml" accept=".xml">
+  </div>
+  <div class="ref-section">
+    <label>Character JSON</label>
+    <input type="file" id="refFileJson" accept=".json">
+  </div>
+  <div class="ref-section">
+    <label style="margin-top:4px"><input type="checkbox" id="refCheckPlayer"> is Player</label>
+    <label style="margin-top:4px"><input type="checkbox" id="refVisible" checked> visible</label>
+  </div>
+  <div class="ref-section">
+    <label>Scale</label>
+    <input type="number" id="refScaleInput" step="0.1" min="0.1" value="6" style="width:100%;background:#333;color:#f85;border:1px solid #f854;padding:3px;">
+  </div>
+  <div class="ref-section">
+    <label>Animation</label>
+    <select id="refAnimSelect"></select>
+  </div>
+  <hr>
+  <div style="color:#f85; font-size:11px;">
+    Right-drag = move reference<br>
+    <span id="refPos">refX: 0  refY: 0</span>
+  </div>
+  <hr>
+
+  <div style="color:#666;font-size:11px;">
+    arrows = move offset<br>
+    shift+arrows = x10<br>
+    i/o = zoom<br>
+    middle drag = pan<br>
+    left drag = move offset<br>
+    right drag = move reference
+  </div>
+  <hr>
+  <button id="btnExport">export JSON</button>
+  <hr>
+  <label>XML Prefixes (found):</label>
+  <div id="prefixList" style="font-size:10px; color:#888; background:#111; padding:5px; height:120px; overflow-y:auto; border:1px solid #333;"></div>
+</div>
+
+<div id="canvas-wrap">
+  <div id="overlay" style="z-index:10">load files to start</div>
+  <canvas id="canvas"></canvas>
+</div>
+
+<script>
+// ==================== MAIN CHARACTER STATE ====================
+let img = null;
+let xmlData = [];
+let jsonData = null;
+let curAnim = null;
+let ghostAnim = null;
+
+// ==================== REFERENCE CHARACTER STATE ====================
+let refImg = null;
+let refXmlData = [];
+let refJsonData = null;
+let refAnim = null;
+let refOffsetX = 200; // World-space position of reference character
+let refOffsetY = 0;
+
+// ==================== CANVAS / VIEW STATE ====================
+let scale = 1.0;
+let pivotX = 0;
+let pivotY = 0;
+let panX = -200;
+let panY = -200;
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const animSelect = document.getElementById('animSelect');
+const ghostSelect = document.getElementById('ghostSelect');
+const checkGhost = document.getElementById('checkGhost');
+const checkPlayer = document.getElementById('checkPlayer');
+const refAnimSelect = document.getElementById('refAnimSelect');
+const refCheckPlayer = document.getElementById('refCheckPlayer');
+const refVisible = document.getElementById('refVisible');
+
+checkPlayer.onchange = () => render();
+refCheckPlayer.onchange = () => render();
+refVisible.onchange = () => render();
+
+// ==================== SPARROW XML PARSER (supports rotated) ====================
+function parseSparrowXml(xmlText) {
+    const parse = new DOMParser();
+    const xml = parse.parseFromString(xmlText, "text/xml");
+    const textures = xml.getElementsByTagName('SubTexture');
+    const frames = [];
+    for (let t of textures) {
+        const rotAttr = t.getAttribute('rotated') || t.getAttribute('r');
+        const rotated = (rotAttr === 'true' || rotAttr === 'y' || rotAttr === '1');
+        const w = parseInt(t.getAttribute('width'));
+        const h = parseInt(t.getAttribute('height'));
+        frames.push({
+            name:   t.getAttribute('name'),
+            x:      parseInt(t.getAttribute('x')),
+            y:      parseInt(t.getAttribute('y')),
+            w, h,
+            frameX: parseInt(t.getAttribute('frameX'))     || 0,
+            frameY: parseInt(t.getAttribute('frameY'))     || 0,
+            frameW: parseInt(t.getAttribute('frameWidth')) || w,
+            frameH: parseInt(t.getAttribute('frameHeight'))|| h,
+            rotated
+        });
+    }
+    return frames;
+}
+
+// ==================== MAIN CHARACTER FILE INPUTS ====================
+document.getElementById('fileImg').onchange = e => {
+    const reader = new FileReader();
+    reader.onload = () => {
+        img = new Image();
+        img.onload = () => {
+            canvas.width = 1280;
+            canvas.height = 720;
+            pivotX = canvas.width / 2;
+            pivotY = canvas.height / 2 + 100;
+            render();
+        };
+        img.src = reader.result;
+    };
+    reader.readAsDataURL(e.target.files[0]);
+};
+
+document.getElementById('fileXml').onchange = e => {
+    const reader = new FileReader();
+    reader.onload = () => {
+        xmlData = parseSparrowXml(reader.result);
+        const prefixes = new Set();
+        xmlData.forEach(f => {
+            let p = f.name.replace(/[0-9]+$/, '').trim();
+            p = p.replace(/ instancia$/, '').trim();
+            p = p.replace(/ instancia [0-9]+$/, '').trim();
+            prefixes.add(p);
+        });
+        const list = document.getElementById('prefixList');
+        list.innerHTML = Array.from(prefixes).sort().map(p => `<div>${p}</div>`).join('');
+        updateAnimList();
+    };
+    reader.readAsText(e.target.files[0]);
+};
+
+document.getElementById('fileJson').onchange = e => {
+    const reader = new FileReader();
+    reader.onload = () => {
+        jsonData = JSON.parse(reader.result);
+        if (jsonData && jsonData._editor_isPlayer !== undefined) {
+            checkPlayer.checked = jsonData._editor_isPlayer;
+        } else {
+            checkPlayer.checked = false;
+        }
+        // Populate scale input from JSON
+        document.getElementById('scaleInput').value = (jsonData.scale !== undefined) ? jsonData.scale : 6;
+        // Populate camera offset inputs from JSON
+        const camOff = jsonData.camera_offset || jsonData.cameraOffset || [0, 0];
+        document.getElementById('camX').value = camOff[0] || 0;
+        document.getElementById('camY').value = camOff[1] || 0;
+        updateAnimList();
+    };
+    reader.readAsText(e.target.files[0]);
+};
+
+// Scale input: live editing → update jsonData.scale and re-render
+document.getElementById('scaleInput').oninput = e => {
+    const val = parseFloat(e.target.value);
+    if (!isNaN(val) && val > 0 && jsonData) {
+        jsonData.scale = val;
+        render();
+    }
+};
+
+// Camera offset inputs: live editing → update jsonData.camera_offset and re-render
+document.getElementById('camX').oninput = e => {
+    if (!jsonData) return;
+    if (!jsonData.camera_offset) jsonData.camera_offset = [0, 0];
+    jsonData.camera_offset[0] = parseFloat(e.target.value) || 0;
+    render();
+};
+document.getElementById('camY').oninput = e => {
+    if (!jsonData) return;
+    if (!jsonData.camera_offset) jsonData.camera_offset = [0, 0];
+    jsonData.camera_offset[1] = parseFloat(e.target.value) || 0;
+    render();
+};
+
+function updateAnimList() {
+    if (!jsonData) return;
+    animSelect.innerHTML = '';
+    ghostSelect.innerHTML = '<option value="">-- none --</option>';
+    jsonData.animations.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.anim;
+        opt.textContent = a.anim;
+        animSelect.appendChild(opt);
+        const optG = opt.cloneNode(true);
+        ghostSelect.appendChild(optG);
+    });
+    selectAnim(jsonData.animations[0].anim);
+}
+
+animSelect.onchange = e => selectAnim(e.target.value);
+ghostSelect.onchange = e => {
+    ghostAnim = jsonData.animations.find(a => a.anim === e.target.value);
+    render();
+};
+checkGhost.onchange = () => render();
+
+function selectAnim(name) {
+    curAnim = jsonData.animations.find(a => a.anim === name);
+    if (!curAnim.offsets) curAnim.offsets = [0, 0];
+    updateDisplay();
+    render();
+}
+
+// ==================== REFERENCE CHARACTER FILE INPUTS ====================
+document.getElementById('refFileImg').onchange = e => {
+    const reader = new FileReader();
+    reader.onload = () => {
+        refImg = new Image();
+        refImg.onload = () => render();
+        refImg.src = reader.result;
+    };
+    reader.readAsDataURL(e.target.files[0]);
+};
+
+document.getElementById('refFileXml').onchange = e => {
+    const reader = new FileReader();
+    reader.onload = () => {
+        refXmlData = parseSparrowXml(reader.result);
+        updateRefAnimList();
+    };
+    reader.readAsText(e.target.files[0]);
+};
+
+document.getElementById('refFileJson').onchange = e => {
+    const reader = new FileReader();
+    reader.onload = () => {
+        refJsonData = JSON.parse(reader.result);
+        // Populate ref scale input from JSON
+        document.getElementById('refScaleInput').value = (refJsonData.scale !== undefined) ? refJsonData.scale : 6;
+        updateRefAnimList();
+    };
+    reader.readAsText(e.target.files[0]);
+};
+
+// Ref scale input: live editing → update refJsonData.scale and re-render
+document.getElementById('refScaleInput').oninput = e => {
+    const val = parseFloat(e.target.value);
+    if (!isNaN(val) && val > 0 && refJsonData) {
+        refJsonData.scale = val;
+        render();
+    }
+};
+
+function updateRefAnimList() {
+    if (!refJsonData) return;
+    refAnimSelect.innerHTML = '';
+    refJsonData.animations.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.anim;
+        opt.textContent = a.anim;
+        refAnimSelect.appendChild(opt);
+    });
+    refAnim = refJsonData.animations[0];
+    render();
+}
+
+refAnimSelect.onchange = e => {
+    refAnim = refJsonData.animations.find(a => a.anim === e.target.value);
+    render();
+};
+
+// ==================== DISPLAY / OVERLAY ====================
+function updateDisplay() {
+    if (!curAnim) return;
+    document.getElementById('offsetX').textContent = curAnim.offsets[0];
+    document.getElementById('offsetY').textContent = curAnim.offsets[1];
+    document.getElementById('overlay').innerHTML =
+        `anim: ${curAnim.anim}<br>zoom: ${scale.toFixed(2)}x<br>pan: [${panX}, ${panY}]`;
+}
+
+function updateRefPos() {
+    document.getElementById('refPos').textContent = `refX: ${Math.round(refOffsetX)}  refY: ${Math.round(refOffsetY)}`;
+}
+
+// ==================== EXTRACT FRAME (handles rotated) ====================
+// Returns an OffscreenCanvas (or regular Canvas) with the frame drawn upright.
+function extractFrame(srcImg, frame) {
+    const c = document.createElement('canvas');
+    if (frame.rotated) {
+        // In atlas: width=atlasH, height=atlasW (the sprite was stored rotated 90° CW)
+        // We need to draw it rotated 90° CCW to get the logical upright image.
+        // Logical sprite size = frame.h × frame.w  (swapped)
+        c.width  = frame.h; // logical width
+        c.height = frame.w; // logical height
+        const tc = c.getContext('2d');
+        tc.save();
+        tc.translate(0, frame.w);
+        tc.rotate(-Math.PI / 2);
+        tc.drawImage(srcImg, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
+        tc.restore();
+    } else {
+        c.width  = frame.w;
+        c.height = frame.h;
+        const tc = c.getContext('2d');
+        tc.drawImage(srcImg, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
+    }
+    return c;
+}
+
+// ==================== RENDER ====================
+function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const rpx = pivotX + panX;
+    const rpy = pivotY + panY;
+
+    // Grid lines
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, rpy); ctx.lineTo(canvas.width, rpy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(rpx, 0); ctx.lineTo(rpx, canvas.height); ctx.stroke();
+
+    // Reference character (draw first = behind)
+    if (refVisible.checked && refImg && refXmlData.length > 0 && refJsonData && refAnim) {
+        drawFrameChar(refImg, refXmlData, refJsonData, refAnim, refCheckPlayer.checked,
+                      [0, 0], rpx + refOffsetX * scale, rpy + refOffsetY * scale, 0.7, '#f85');
+    }
+
+    if (!img || xmlData.length === 0) {
+        ctx.fillStyle = 'red';
+        ctx.beginPath(); ctx.arc(rpx, rpy, 3, 0, Math.PI * 2); ctx.fill();
+        return;
+    }
+
+    // Ghost
+    if (checkGhost.checked && ghostAnim) {
+        drawFrameChar(img, xmlData, jsonData, ghostAnim, checkPlayer.checked,
+                      ghostAnim.offsets || [0, 0], rpx, rpy, 0.3, null);
+    }
+
+    // Main character
+    if (curAnim) {
+        drawFrameChar(img, xmlData, jsonData, curAnim, checkPlayer.checked,
+                      curAnim.offsets || [0, 0], rpx, rpy, 1.0, null);
+    }
+
+    // Camera offset crosshair (cyan)
+    if (jsonData) {
+        const camOff = jsonData.camera_offset || jsonData.cameraOffset || [0, 0];
+        const charScaleVal = (jsonData.scale !== undefined) ? jsonData.scale : 6.0;
+        const cx = rpx + camOff[0] * charScaleVal * scale;
+        const cy = rpy + camOff[1] * charScaleVal * scale;
+        const csz = 8;
+        ctx.strokeStyle = '#4cf';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx - csz, cy); ctx.lineTo(cx + csz, cy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy - csz); ctx.lineTo(cx, cy + csz); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // Pivot dot
+    ctx.fillStyle = 'red';
+    ctx.beginPath(); ctx.arc(rpx, rpy, 3, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawFrameChar(srcImg, xmlArr, json, animData, isPlayer, offsets, px, py, alpha, tintColor) {
+    const prefix = animData.name.toLowerCase();
+    const matchingFrames = xmlArr.filter(f => {
+        const fn = f.name.toLowerCase();
+        if (!fn.startsWith(prefix)) return false;
+        if (fn.length === prefix.length) return true;
+        const rest = f.name.substring(prefix.length);
+        const next = rest.trim()[0];
+        return !isNaN(parseInt(next)) || rest.toLowerCase().includes("instancia");
+    });
+
+    if (matchingFrames.length === 0) {
+        document.getElementById('overlay').innerHTML =
+            `<span style="color:red">ERROR: Prefix not found: "${animData.name}"</span>`;
+        return;
+    }
+
+    let frame = matchingFrames[0];
+    if (animData.indices && animData.indices.length > 0) {
+        const idx = animData.indices[0];
+        if (matchingFrames[idx]) frame = matchingFrames[idx];
+    }
+
+    const charScaleVal = (json && json.scale !== undefined) ? json.scale : 6.0;
+    const rs = charScaleVal * scale;
+
+    const shouldFlip = isPlayer !== (json && json.flip_x);
+
+    // Logical dimensions (swap if rotated)
+    const logW = frame.rotated ? frame.h : frame.w;
+    const logH = frame.rotated ? frame.w : frame.h;
+
+    let dx = px + (frame.frameW / 2.0) * (1.0 - charScaleVal) * scale;
+    let dy = py + (frame.frameH / 2.0) * (1.0 - charScaleVal) * scale;
+
+    if (shouldFlip) {
+        dx += (frame.frameW + frame.frameX - offsets[0]) * rs;
+    } else {
+        dx -= (frame.frameX + offsets[0]) * rs;
+    }
+    dy -= (frame.frameY + offsets[1]) * rs;
+
+    // Extract upright frame (handles rotated flag internally)
+    const uprightCanvas = extractFrame(srcImg, frame);
+
+    ctx.globalAlpha = alpha;
+    ctx.save();
+    ctx.translate(dx, dy);
+    if (shouldFlip) ctx.scale(-1, 1);
+    ctx.drawImage(uprightCanvas, 0, 0, logW * rs, logH * rs);
+    ctx.restore();
+    ctx.globalAlpha = 1.0;
+
+    // Optional reference outline tint
+    if (tintColor) {
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.25;
+        ctx.fillStyle = tintColor;
+        ctx.translate(dx, dy);
+        if (shouldFlip) ctx.scale(-1, 1);
+        ctx.fillRect(0, 0, logW * rs, logH * rs);
+        ctx.restore();
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+// ==================== KEYBOARD ====================
+window.onkeydown = e => {
+    if (!curAnim) return;
+    const step = e.shiftKey ? 10 : 1;
+    if (e.key === 'ArrowLeft')  curAnim.offsets[0] += step;
+    if (e.key === 'ArrowRight') curAnim.offsets[0] -= step;
+    if (e.key === 'ArrowUp')    curAnim.offsets[1] += step;
+    if (e.key === 'ArrowDown')  curAnim.offsets[1] -= step;
+    if (e.key === 'i') scale += 0.05;
+    if (e.key === 'o') scale -= 0.05;
+    updateDisplay();
+    render();
+};
+
+// ==================== MOUSE ====================
+// dragMode: 0=none, 1=offset, 2=pan, 3=ref
+let dragMode = 0;
+
+canvas.onmousedown = e => {
+    if (e.button === 1)      dragMode = 2; // middle = pan
+    else if (e.button === 2) dragMode = 3; // right  = move reference
+    else                     dragMode = 1; // left   = offset
+};
+window.onmouseup = () => dragMode = 0;
+canvas.oncontextmenu = e => e.preventDefault();
+
+canvas.onmousemove = e => {
+    if (dragMode === 0) return;
+
+    if (dragMode === 1 && curAnim) {
+        const charScaleVal = (jsonData && jsonData.scale !== undefined) ? jsonData.scale : 6.0;
+        const rs = charScaleVal * scale;
+        curAnim.offsets[0] -= Math.round(e.movementX / rs);
+        curAnim.offsets[1] -= Math.round(e.movementY / rs);
+        updateDisplay();
+    } else if (dragMode === 2) {
+        panX += e.movementX;
+        panY += e.movementY;
+        updateDisplay();
+    } else if (dragMode === 3) {
+        // Move reference character in world space
+        refOffsetX += e.movementX / scale;
+        refOffsetY += e.movementY / scale;
+        updateRefPos();
+    }
+
+    render();
+};
+
+// ==================== EXPORT ====================
+document.getElementById('btnExport').onclick = () => {
+    if (!jsonData) return;
+    const blob = new Blob([JSON.stringify(jsonData, null, '\t')], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'character.json';
+    a.click();
+};
+</script>
+</body>
+</html>

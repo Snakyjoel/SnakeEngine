@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="modMenu.png" width="155" height="141">
+  <SubTexture name="arrowDown" x="53" y="50" width="31" height="48" rotated="true"  frameX="-3" frameY="-12" frameWidth="54" frameHeight="54"/>
+  <SubTexture name="arrowUp" x="84" y="50" width="31" height="48" rotated="true"  frameX="-3" frameY="-11" frameWidth="54" frameHeight="54"/>
+  <SubTexture name="convertAssets" x="0" y="0"  width="155" height="50" frameX="-4" frameY="-3" frameWidth="162" frameHeight="54"/>
+  <SubTexture name="onoff" x="0" y="50" width="53" height="50" rotated="true"  frameX="-2" frameY="-0" frameWidth="54" frameHeight="54"/>
+  <SubTexture name="play" x="115" y="50"  width="31" height="48" frameX="-12" frameY="-3" frameWidth="54" frameHeight="54"/>
+  <SubTexture name="top" x="0" y="100"  width="48" height="41" frameX="-3" frameY="-5" frameWidth="54" frameHeight="54"/>
+</TextureAtlas>

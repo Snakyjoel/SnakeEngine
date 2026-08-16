@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="bfdj.png" width="473" height="498">
+  <SubTexture name="Boyfriend DJ instancia 10000" x="0" y="340.8" width="175.60000000000002" height="157.60000000000002" rotated="true"  frameX="-0" frameY="-7.6000000000000005" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10001" x="0" y="340.8" width="175.60000000000002" height="157.60000000000002" rotated="true"  frameX="-0" frameY="-7.6000000000000005" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10002" x="180.8" y="340.40000000000003" width="172.4" height="158" rotated="true"  frameX="-0" frameY="-10.8" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10003" x="180.8" y="340.40000000000003" width="172.4" height="158" rotated="true"  frameX="-0" frameY="-10.8" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10004" x="0" y="0"  width="157.60000000000002" height="183.20000000000002" frameX="-0" frameY="-0" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10005" x="0" y="0"  width="157.60000000000002" height="183.20000000000002" frameX="-0" frameY="-0" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10006" x="157.60000000000002" y="0"  width="158" height="182.4" frameX="-0" frameY="-0.8" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10007" x="157.60000000000002" y="0"  width="158" height="182.4" frameX="-0" frameY="-0.8" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10008" x="0" y="183.20000000000002" width="180.8" height="157.60000000000002" rotated="true"  frameX="-0" frameY="-2.4000000000000004" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10009" x="0" y="183.20000000000002" width="180.8" height="157.60000000000002" rotated="true"  frameX="-0" frameY="-2.4000000000000004" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10010" x="315.6" y="0"  width="157.60000000000002" height="180.4" frameX="-0" frameY="-2.8000000000000003" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10011" x="315.6" y="0"  width="157.60000000000002" height="180.4" frameX="-0" frameY="-2.8000000000000003" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10012" x="180.8" y="182.4" width="180.4" height="158" rotated="true"  frameX="-0" frameY="-2.8000000000000003" frameWidth="158" frameHeight="183.20000000000002"/>
+  <SubTexture name="Boyfriend DJ instancia 10013" x="180.8" y="182.4" width="180.4" height="158" rotated="true"  frameX="-0" frameY="-2.8000000000000003" frameWidth="158" frameHeight="183.20000000000002"/>
+</TextureAtlas>

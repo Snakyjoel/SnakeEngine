@@ -1,0 +1,44 @@
+# Build output
+/build/
+/export/
+*.elf
+*.3dsx
+*.cia
+*.smdh
+*.map
+
+# RomFS generated files (keep source t3s, ignore converted)
+!/romfs/
+/romfs/*
+!/romfs/**/
+/romfs/**/*.t3x
+/romfs/**/*.bcfnt
+
+# devkitARM / 3DS specific
+*.agb
+*.bin
+*.o
+*.o.d
+*.o.d.*
+*.shbin
+*.shbin.h
+*.t3x.h
+
+# Tools
+tools/converters/**/__pycache__/
+tools/converters/**/bin/
+tools/converters/**/obj/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+ffmpeg.exe

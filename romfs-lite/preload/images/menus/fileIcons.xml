@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="fileIcons.png" width="44" height="42">
+  <SubTexture name="folder" x="24" y="0" width="11" height="14" rotated="true"  frameX="-0" frameY="-0" frameWidth="14" frameHeight="11"/>
+  <SubTexture name="image" x="0" y="28"  width="14" height="14" frameX="-0" frameY="-0" frameWidth="14" frameHeight="14"/>
+  <SubTexture name="json" x="0" y="0"  width="12" height="16" frameX="-0" frameY="-0" frameWidth="12" frameHeight="16"/>
+  <SubTexture name="lua" x="14" y="28" width="13" height="14" rotated="true"  frameX="-0" frameY="-0" frameWidth="14" frameHeight="13"/>
+  <SubTexture name="sound" x="24" y="14"  width="14" height="14" frameX="-0" frameY="-0" frameWidth="14" frameHeight="14"/>
+  <SubTexture name="txt" x="12" y="0"  width="12" height="16" frameX="-0" frameY="-0" frameWidth="12" frameHeight="16"/>
+  <SubTexture name="unknow" x="35" y="0"  width="9" height="13" frameX="-0" frameY="-0" frameWidth="9" frameHeight="13"/>
+  <SubTexture name="video" x="27" y="28" width="12" height="14" rotated="true"  frameX="-0" frameY="-0" frameWidth="14" frameHeight="12"/>
+  <SubTexture name="xml" x="0" y="16" width="16" height="12" rotated="true"  frameX="-0" frameY="-0" frameWidth="12" frameHeight="16"/>
+</TextureAtlas>

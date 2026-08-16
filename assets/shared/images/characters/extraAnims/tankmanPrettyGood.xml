@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="tankmanPrettyGood.png" width="680" height="743">
+  <SubTexture name="PRETTY GOOD tankman 10000" x="0.15" y="298.65" width="168.6" height="129.6" rotated="true"  frameX="-29.7" frameY="-7.8" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10001" x="169.04999999999998" y="298.65" width="168.6" height="129.6" rotated="true"  frameX="-29.7" frameY="-7.8" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10002" x="0.15" y="0.15"  width="120.89999999999999" height="176.7" frameX="-39" frameY="-0" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10003" x="121.35" y="0.15"  width="120.89999999999999" height="176.7" frameX="-39" frameY="-0" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10004" x="0.15" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10005" x="0.15" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10006" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10007" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10008" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10009" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10010" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10011" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10012" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10013" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10014" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10015" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10016" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10017" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10018" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10019" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10020" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10021" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10022" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10023" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10024" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10025" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10026" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10027" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10028" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10029" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10030" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10031" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10032" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10033" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10034" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10035" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10036" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10037" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10038" x="174.45" y="177.15" width="174" height="121.19999999999999" rotated="true"  frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10039" x="242.54999999999998" y="0.15"  width="121.19999999999999" height="174" frameX="-38.699999999999996" frameY="-2.6999999999999997" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10040" x="505.04999999999995" y="493.95" width="166.5" height="122.39999999999999" rotated="true"  frameX="-36" frameY="-9.9" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10041" x="168.45" y="616.65" width="166.5" height="122.39999999999999" rotated="true"  frameX="-36" frameY="-9.9" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10042" x="364.05" y="0.15"  width="158.1" height="168" frameX="-0" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10043" x="364.05" y="0.15"  width="158.1" height="168" frameX="-0" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10044" x="364.05" y="168.45"  width="157.2" height="168" frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10045" x="0.15" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10046" x="0.15" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10047" x="168.45" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10048" x="168.45" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10049" x="336.75" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10050" x="522.4499999999999" y="0.15"  width="156.9" height="168" frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10051" x="522.4499999999999" y="0.15"  width="156.9" height="168" frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10052" x="521.55" y="168.45"  width="157.2" height="168" frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10053" x="521.55" y="168.45"  width="157.2" height="168" frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10054" x="505.04999999999995" y="336.75" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10055" x="505.04999999999995" y="336.75" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10056" x="0.15" y="585.75" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10057" x="0.15" y="585.75" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10058" x="168.45" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10059" x="168.45" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10060" x="168.45" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10061" x="168.45" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10062" x="168.45" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10063" x="168.45" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10064" x="168.45" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10065" x="168.45" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+  <SubTexture name="PRETTY GOOD tankman 10066" x="168.45" y="428.55" width="168" height="156.9" rotated="true"  frameX="-1.5" frameY="-8.4" frameWidth="159.9" frameHeight="176.7"/>
+</TextureAtlas>

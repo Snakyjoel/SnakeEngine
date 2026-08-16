@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="rankAssets2.png" width="984" height="976">
+  <SubTexture name="Categories0000" x="550.74" y="244.55"  width="264.65000000000003" height="21.44" frameX="-0" frameY="-19.43" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0001" x="751.07" y="620.4200000000001" width="49.580000000000005" height="179.56" rotated="true"  frameX="-119.93" frameY="-0" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0002" x="550.74" y="265.99"  width="264.65000000000003" height="79.73" frameX="-34.84" frameY="-0" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0003" x="751.07" y="422.1" width="81.07000000000001" height="198.32000000000002" rotated="true"  frameX="-102.51" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0004" x="320.93" y="19.43"  width="219.76000000000002" height="113.9" frameX="-81.07000000000001" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0005" x="271.35" y="427.46000000000004"  width="196.31" height="125.96000000000001" frameX="-103.18" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0006" x="243.21" y="594.96"  width="231.15" height="149.41" frameX="-68.34" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0007" x="436.17" y="744.37" width="158.12" height="192.96" rotated="true"  frameX="-105.86" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0008" x="0" y="787.9200000000001"  width="224.45000000000002" height="187.60000000000002" frameX="-74.37" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0009" x="243.21" y="744.37"  width="192.96" height="201" frameX="-105.86" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0010" x="522.6" y="422.1"  width="228.47000000000003" height="227.13000000000002" frameX="-70.35000000000001" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0011" x="0" y="594.96" width="243.21" height="192.96" rotated="true"  frameX="-105.86" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0012" x="550.74" y="0" width="265.32" height="244.55" rotated="true"  frameX="-54.27" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0013" x="0" y="209.04000000000002" width="275.37" height="192.96" rotated="true"  frameX="-105.86" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0014" x="275.37" y="209.04000000000002" width="275.37" height="192.96" rotated="true"  frameX="-105.86" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="Categories0015" x="0" y="402" width="271.35" height="192.96" rotated="true"  frameX="-105.86" frameY="-5.36" frameWidth="300.83000000000004" frameHeight="280.73"/>
+  <SubTexture name="clearPercentText" x="594.2900000000001" y="799.98" width="105.86" height="168.17000000000002" rotated="true"  frameX="-0" frameY="-0" frameWidth="168.17000000000002" frameHeight="105.86"/>
+  <SubTexture name="diff_easy" x="594.2900000000001" y="649.23"  width="105.19000000000001" height="35.510000000000005" frameX="-0" frameY="-0" frameWidth="105.19000000000001" frameHeight="35.510000000000005"/>
+  <SubTexture name="diff_erect" x="436.17" y="937.33"  width="135.34" height="37.52" frameX="-0" frameY="-0" frameWidth="135.34" frameHeight="37.52"/>
+  <SubTexture name="diff_hard" x="700.1500000000001" y="649.23" width="35.510000000000005" height="107.87" rotated="true"  frameX="-0" frameY="-0" frameWidth="107.87" frameHeight="35.510000000000005"/>
+  <SubTexture name="diff_nightmare" x="474.36" y="427.46000000000004" width="43.550000000000004" height="220.43" rotated="true"  frameX="-0" frameY="-0" frameWidth="220.43" frameHeight="43.550000000000004"/>
+  <SubTexture name="diff_normal" x="271.35" y="553.4200000000001"  width="152.09" height="38.86" frameX="-0" frameY="-0" frameWidth="152.09" frameHeight="38.86"/>
+  <SubTexture name="DISABLED0001" x="879.0400000000001" y="916.5600000000001"  width="39.53" height="58.96" frameX="-10.05" frameY="-10.72" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="EIGHT DIGITAL0001" x="633.82" y="684.74"  width="58.96" height="79.06" frameX="-0" frameY="-0.67" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="EIGHT DIGITAL0002" x="633.82" y="684.74"  width="58.96" height="79.06" frameX="-0" frameY="-0.67" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="EIGHT DIGITAL0003" x="848.8900000000001" y="332.99"  width="43.550000000000004" height="62.980000000000004" frameX="-8.040000000000001" frameY="-8.71" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="EIGHT DIGITAL0004" x="848.8900000000001" y="332.99"  width="43.550000000000004" height="62.980000000000004" frameX="-8.040000000000001" frameY="-8.71" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="EIGHT DIGITAL0005" x="852.9100000000001" y="737"  width="39.53" height="59.63" frameX="-10.05" frameY="-10.05" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="FIVE DIGITAL0001" x="474.36" y="684.74" width="79.73" height="58.290000000000006" rotated="true"  frameX="-0.67" frameY="-0" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="FIVE DIGITAL0002" x="474.36" y="684.74" width="79.73" height="58.290000000000006" rotated="true"  frameX="-0.67" frameY="-0" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="FIVE DIGITAL0003" x="848.8900000000001" y="142.04000000000002"  width="42.88" height="63.650000000000006" frameX="-8.040000000000001" frameY="-8.040000000000001" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="FIVE DIGITAL0004" x="848.8900000000001" y="142.04000000000002"  width="42.88" height="63.650000000000006" frameX="-8.040000000000001" frameY="-8.040000000000001" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="FIVE DIGITAL0005" x="892.44" y="0"  width="39.53" height="59.63" frameX="-10.05" frameY="-10.05" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="FOUR DIGITAL0001" x="816.0600000000001" y="858.2700000000001" width="75.04" height="58.290000000000006" rotated="true"  frameX="-0.67" frameY="-2.68" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="FOUR DIGITAL0002" x="816.0600000000001" y="858.2700000000001" width="75.04" height="58.290000000000006" rotated="true"  frameX="-0.67" frameY="-2.68" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="FOUR DIGITAL0003" x="832.1400000000001" y="521.26"  width="43.550000000000004" height="61.64" frameX="-8.040000000000001" frameY="-9.38" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="FOUR DIGITAL0004" x="832.1400000000001" y="521.26"  width="43.550000000000004" height="61.64" frameX="-8.040000000000001" frameY="-9.38" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="FOUR DIGITAL0005" x="892.44" y="178.89000000000001"  width="39.53" height="58.96" frameX="-10.05" frameY="-10.72" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="GONE0001" x="892.44" y="237.85000000000002"  width="39.53" height="58.96" frameX="-10.05" frameY="-10.72" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="highscoreAnim0000" x="0" y="0"  width="396.64000000000004" height="19.43" frameX="-0" frameY="-16.75" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0001" x="0" y="152.09"  width="289.44" height="56.95" frameX="-256.61" frameY="-1.34" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0002" x="0" y="19.43"  width="320.93" height="66.33" frameX="-244.55" frameY="-0" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0003" x="0" y="85.76"  width="316.24" height="66.33" frameX="-249.24" frameY="-0" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0004" x="289.44" y="152.09"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0005" x="289.44" y="152.09"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0006" x="289.44" y="177.55"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0007" x="289.44" y="177.55"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0008" x="550.74" y="345.72"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0009" x="550.74" y="345.72"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0010" x="550.74" y="371.18"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0011" x="550.74" y="371.18"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0012" x="550.74" y="396.64000000000004"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0013" x="550.74" y="396.64000000000004"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0014" x="271.35" y="402"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0015" x="271.35" y="402"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0016" x="271.35" y="402"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0017" x="289.44" y="152.09"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0018" x="289.44" y="152.09"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0019" x="289.44" y="177.55"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0020" x="289.44" y="177.55"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0021" x="550.74" y="345.72"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0022" x="550.74" y="345.72"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0023" x="550.74" y="371.18"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0024" x="550.74" y="371.18"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0025" x="550.74" y="396.64000000000004"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0026" x="550.74" y="396.64000000000004"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0027" x="271.35" y="402"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="highscoreAnim0028" x="271.35" y="402"  width="251.25000000000003" height="25.46" frameX="-249.24" frameY="-16.080000000000002" frameWidth="565.48" frameHeight="66.33"/>
+  <SubTexture name="NINE DIGITAL0001" x="700.1500000000001" y="799.98" width="79.06" height="58.290000000000006" rotated="true"  frameX="-0.67" frameY="-0.67" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="NINE DIGITAL0002" x="700.1500000000001" y="799.98" width="79.06" height="58.290000000000006" rotated="true"  frameX="-0.67" frameY="-0.67" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="NINE DIGITAL0003" x="848.8900000000001" y="395.97"  width="42.21" height="62.980000000000004" frameX="-8.71" frameY="-8.71" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="NINE DIGITAL0004" x="848.8900000000001" y="395.97"  width="42.21" height="62.980000000000004" frameX="-8.71" frameY="-8.71" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="NINE DIGITAL0005" x="892.44" y="296.81"  width="39.53" height="58.96" frameX="-10.05" frameY="-10.72" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="number 0 0001" x="858.2700000000001" y="796.63"  width="53.6" height="59.63" frameX="-0" frameY="-0.67" frameWidth="54.27" frameHeight="60.970000000000006"/>
+  <SubTexture name="number 1 0001" x="692.7800000000001" y="757.1" width="58.290000000000006" height="41.54" rotated="true"  frameX="-4.0200000000000005" frameY="-0.67" frameWidth="54.27" frameHeight="60.970000000000006"/>
+  <SubTexture name="number 2 0001" x="873.6800000000001" y="591.61" width="58.290000000000006" height="50.25" rotated="true"  frameX="-0.67" frameY="-0.67" frameWidth="54.27" frameHeight="60.970000000000006"/>
+  <SubTexture name="number 3 0001" x="873.6800000000001" y="641.86" width="58.290000000000006" height="52.260000000000005" rotated="true"  frameX="-2.0100000000000002" frameY="-0.67" frameWidth="54.27" frameHeight="60.970000000000006"/>
+  <SubTexture name="number 4 0001" x="925.2700000000001" y="532.65"  width="52.93" height="57.620000000000005" frameX="-0.67" frameY="-1.34" frameWidth="54.27" frameHeight="60.970000000000006"/>
+  <SubTexture name="number 5 0001" x="800.6500000000001" y="684.07" width="60.300000000000004" height="52.93" rotated="true"  frameX="-1.34" frameY="-0.67" frameWidth="54.27" frameHeight="60.970000000000006"/>
+  <SubTexture name="number 6 0001" x="875.69" y="532.65"  width="49.580000000000005" height="58.96" frameX="-1.34" frameY="-1.34" frameWidth="54.27" frameHeight="60.970000000000006"/>
+  <SubTexture name="number 7 0001" x="931.97" y="58.290000000000006"  width="50.25" height="57.620000000000005" frameX="-3.35" frameY="-1.34" frameWidth="54.27" frameHeight="60.970000000000006"/>
+  <SubTexture name="number 8 0001" x="800.6500000000001" y="737"  width="52.260000000000005" height="60.300000000000004" frameX="-1.34" frameY="-0" frameWidth="54.27" frameHeight="60.970000000000006"/>
+  <SubTexture name="number 9 0001" x="931.97" y="0"  width="52.260000000000005" height="58.290000000000006" frameX="-2.0100000000000002" frameY="-1.34" frameWidth="54.27" frameHeight="60.970000000000006"/>
+  <SubTexture name="ONE DIGITAL0001" x="801.99" y="345.72"  width="46.900000000000006" height="75.71000000000001" frameX="-10.05" frameY="-2.68" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="ONE DIGITAL0002" x="801.99" y="345.72"  width="46.900000000000006" height="75.71000000000001" frameX="-10.05" frameY="-2.68" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="ONE DIGITAL0003" x="832.1400000000001" y="582.9000000000001"  width="41.54" height="61.64" frameX="-10.05" frameY="-9.38" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="ONE DIGITAL0004" x="832.1400000000001" y="582.9000000000001"  width="41.54" height="61.64" frameX="-10.05" frameY="-9.38" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="ONE DIGITAL0005" x="892.44" y="355.77000000000004"  width="39.53" height="58.96" frameX="-10.05" frameY="-10.72" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="SEVEN DIGITAL0001" x="832.1400000000001" y="0"  width="57.620000000000005" height="77.72" frameX="-1.34" frameY="-0.67" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="SEVEN DIGITAL0002" x="832.1400000000001" y="0"  width="57.620000000000005" height="77.72" frameX="-1.34" frameY="-0.67" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="SEVEN DIGITAL0003" x="832.1400000000001" y="458.95000000000005"  width="42.88" height="62.31" frameX="-8.040000000000001" frameY="-8.71" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="SEVEN DIGITAL0004" x="832.1400000000001" y="458.95000000000005"  width="42.88" height="62.31" frameX="-8.040000000000001" frameY="-8.71" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="SEVEN DIGITAL0005" x="892.44" y="414.73"  width="39.53" height="58.96" frameX="-10.05" frameY="-10.72" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="SIX DIGITAL0001" x="554.09" y="684.74" width="79.73" height="58.290000000000006" rotated="true"  frameX="-0.67" frameY="-0" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="SIX DIGITAL0002" x="554.09" y="684.74" width="79.73" height="58.290000000000006" rotated="true"  frameX="-0.67" frameY="-0" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="SIX DIGITAL0003" x="848.8900000000001" y="205.69000000000003"  width="43.550000000000004" height="63.650000000000006" frameX="-8.040000000000001" frameY="-8.040000000000001" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="SIX DIGITAL0004" x="848.8900000000001" y="205.69000000000003"  width="43.550000000000004" height="63.650000000000006" frameX="-8.040000000000001" frameY="-8.040000000000001" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="SIX DIGITAL0005" x="892.44" y="59.63"  width="39.53" height="59.63" frameX="-10.05" frameY="-10.05" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="THREE DIGITAL0001" x="700.1500000000001" y="858.2700000000001"  width="57.620000000000005" height="79.06" frameX="-1.34" frameY="-0.67" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="THREE DIGITAL0002" x="700.1500000000001" y="858.2700000000001"  width="57.620000000000005" height="79.06" frameX="-1.34" frameY="-0.67" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="THREE DIGITAL0003" x="848.8900000000001" y="77.72"  width="43.550000000000004" height="64.32000000000001" frameX="-8.040000000000001" frameY="-8.040000000000001" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="THREE DIGITAL0004" x="848.8900000000001" y="77.72"  width="43.550000000000004" height="64.32000000000001" frameX="-8.040000000000001" frameY="-8.040000000000001" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="THREE DIGITAL0005" x="800.6500000000001" y="644.5400000000001" width="60.300000000000004" height="39.53" rotated="true"  frameX="-10.05" frameY="-10.05" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="TWO DIGITAL0001" x="757.7700000000001" y="858.2700000000001"  width="58.290000000000006" height="79.06" frameX="-0.67" frameY="-0.67" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="TWO DIGITAL0002" x="757.7700000000001" y="858.2700000000001"  width="58.290000000000006" height="79.06" frameX="-0.67" frameY="-0.67" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="TWO DIGITAL0003" x="848.8900000000001" y="269.34000000000003"  width="42.88" height="63.650000000000006" frameX="-8.040000000000001" frameY="-8.040000000000001" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="TWO DIGITAL0004" x="848.8900000000001" y="269.34000000000003"  width="42.88" height="63.650000000000006" frameX="-8.040000000000001" frameY="-8.040000000000001" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="TWO DIGITAL0005" x="892.44" y="119.26"  width="39.53" height="59.63" frameX="-10.05" frameY="-10.05" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="ZERO DIGITAL0001" x="779.21" y="799.98" width="79.06" height="58.290000000000006" rotated="true"  frameX="-0.67" frameY="-0.67" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="ZERO DIGITAL0002" x="779.21" y="799.98" width="79.06" height="58.290000000000006" rotated="true"  frameX="-0.67" frameY="-0.67" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="ZERO DIGITAL0003" x="816.0600000000001" y="916.5600000000001" width="62.980000000000004" height="42.21" rotated="true"  frameX="-8.71" frameY="-8.71" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="ZERO DIGITAL0004" x="816.0600000000001" y="916.5600000000001" width="62.980000000000004" height="42.21" rotated="true"  frameX="-8.71" frameY="-8.71" frameWidth="63.650000000000006" frameHeight="83.75"/>
+  <SubTexture name="ZERO DIGITAL0005" x="892.44" y="473.69000000000005"  width="39.53" height="58.96" frameX="-10.05" frameY="-10.72" frameWidth="63.650000000000006" frameHeight="83.75"/>
+</TextureAtlas>

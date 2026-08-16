@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="bfHey.png" width="339" height="347">
+  <SubTexture name="BF HEY!!0000" x="0" y="0"  width="165.9" height="174.72" frameX="-0" frameY="-0" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0001" x="0" y="0"  width="165.9" height="174.72" frameX="-0" frameY="-0" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0002" x="0" y="174.72"  width="173.45999999999998" height="172.2" frameX="-0.42" frameY="-3.36" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0003" x="0" y="174.72"  width="173.45999999999998" height="172.2" frameX="-0.42" frameY="-3.36" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0004" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0005" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0006" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0007" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0008" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0009" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0010" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0011" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0012" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0013" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0014" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0015" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0016" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0017" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0018" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0019" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0020" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0021" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0022" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0023" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0024" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+  <SubTexture name="BF HEY!!0025" x="165.9" y="0" width="173.04" height="173.88" rotated="true"  frameX="-0.42" frameY="-2.52" frameWidth="174.29999999999998" frameHeight="175.56"/>
+</TextureAtlas>

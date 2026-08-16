@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="loopPart1.png" width="976" height="961">
+  <SubTexture name="Loop Start0000" x="402.3" y="0"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0001" x="402.3" y="0"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0002" x="402.3" y="0"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0003" x="402.3" y="0"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0004" x="402.3" y="0"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0005" x="402.3" y="0"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0006" x="402.3" y="0"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0007" x="402.3" y="192.9"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0008" x="402.3" y="192.9"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0009" x="402.3" y="192.9"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0010" x="402.3" y="385.8"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0011" x="402.3" y="385.8"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0012" x="385.5" y="769.5"  width="191.4" height="191.7" frameX="-17.4" frameY="-1.7999999999999998" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0013" x="385.5" y="769.5"  width="191.4" height="191.7" frameX="-17.4" frameY="-1.7999999999999998" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0014" x="593.6999999999999" y="192.6"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0015" x="593.6999999999999" y="192.6"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0016" x="593.6999999999999" y="384.9"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0017" x="593.6999999999999" y="384.9"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0018" x="593.6999999999999" y="384.9"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0019" x="593.6999999999999" y="577.1999999999999"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0020" x="593.6999999999999" y="577.1999999999999"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0021" x="593.6999999999999" y="577.1999999999999"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0022" x="593.6999999999999" y="577.1999999999999"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0023" x="593.6999999999999" y="577.1999999999999"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0024" x="593.6999999999999" y="577.1999999999999"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0025" x="593.6999999999999" y="577.1999999999999"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0026" x="593.6999999999999" y="577.1999999999999"  width="191.4" height="192.29999999999998" frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0027" x="0" y="769.8" width="192.29999999999998" height="191.4" rotated="true"  frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0028" x="0" y="769.8" width="192.29999999999998" height="191.4" rotated="true"  frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0029" x="0" y="769.8" width="192.29999999999998" height="191.4" rotated="true"  frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0030" x="192.29999999999998" y="769.8" width="192.29999999999998" height="191.4" rotated="true"  frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0031" x="192.29999999999998" y="769.8" width="192.29999999999998" height="191.4" rotated="true"  frameX="-17.4" frameY="-1.2" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0032" x="785.1" y="0" width="191.1" height="191.4" rotated="true"  frameX="-17.4" frameY="-2.4" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0033" x="785.1" y="0" width="191.1" height="191.4" rotated="true"  frameX="-17.4" frameY="-2.4" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0034" x="576.9" y="769.5"  width="191.4" height="191.7" frameX="-17.4" frameY="-1.7999999999999998" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0035" x="576.9" y="769.5"  width="191.4" height="191.7" frameX="-17.4" frameY="-1.7999999999999998" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0036" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0037" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0038" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0039" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0040" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0041" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0042" x="0" y="193.5"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0043" x="208.79999999999998" y="0" width="193.5" height="208.79999999999998" rotated="true"  frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0044" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0045" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0046" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0047" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0048" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0049" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0050" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0051" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0052" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0053" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0054" x="0" y="193.5"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0055" x="208.79999999999998" y="0" width="193.5" height="208.79999999999998" rotated="true"  frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0056" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0057" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0058" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0059" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0060" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0061" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0062" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0063" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0064" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0065" x="0" y="0"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0066" x="0" y="193.5"  width="208.79999999999998" height="193.5" frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0067" x="208.79999999999998" y="0" width="193.5" height="208.79999999999998" rotated="true"  frameX="-0" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0068" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0069" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0070" x="208.79999999999998" y="208.79999999999998" width="193.5" height="191.4" rotated="true"  frameX="-17.4" frameY="-0" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0071" x="0" y="387" width="193.2" height="191.4" rotated="true"  frameX="-17.4" frameY="-0.3" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0072" x="0" y="387" width="193.2" height="191.4" rotated="true"  frameX="-17.4" frameY="-0.3" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0073" x="192.9" y="578.4" width="192.6" height="191.4" rotated="true"  frameX="-17.4" frameY="-0.8999999999999999" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0074" x="192.9" y="578.4" width="192.6" height="191.4" rotated="true"  frameX="-17.4" frameY="-0.8999999999999999" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0075" x="385.5" y="578.6999999999999"  width="191.4" height="190.79999999999998" frameX="-17.4" frameY="-2.6999999999999997" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0076" x="385.5" y="578.6999999999999"  width="191.4" height="190.79999999999998" frameX="-17.4" frameY="-2.6999999999999997" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0077" x="593.6999999999999" y="0"  width="191.4" height="192.6" frameX="-17.4" frameY="-0.8999999999999999" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0078" x="593.6999999999999" y="0"  width="191.4" height="192.6" frameX="-17.4" frameY="-0.8999999999999999" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0079" x="0" y="578.4" width="192.9" height="191.4" rotated="true"  frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0080" x="0" y="578.4" width="192.9" height="191.4" rotated="true"  frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0081" x="402.3" y="192.9"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0082" x="402.3" y="192.9"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0083" x="402.3" y="192.9"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+  <SubTexture name="Loop Start0084" x="402.3" y="0"  width="191.4" height="192.9" frameX="-17.4" frameY="-0.6" frameWidth="208.79999999999998" frameHeight="193.5"/>
+</TextureAtlas>

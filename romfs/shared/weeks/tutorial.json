@@ -1,0 +1,26 @@
+{
+	"songs": [
+		[
+			"Tutorial",
+			"gfpixel",
+			[
+				165,
+				0,
+				77
+			]
+		]
+	],
+	"weekCharacters": [
+		"",
+		"bf",
+		"gf"
+	],
+	"weekBackground": "tutorial",
+	"storyName": "",
+	"album": "volume1",
+	"weekBefore": "tutorial",
+	"weekName": "Tutorial",
+	"startUnlocked": true,
+	"hideStoryMode": false,
+	"hideFreeplay": false
+}

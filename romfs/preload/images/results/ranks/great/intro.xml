@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="intro.png" width="267" height="182">
+  <SubTexture name="New animation0000" x="113.1" y="0" width="153.6" height="164.4" rotated="true"  frameX="-0" frameY="-0" frameWidth="164.4" frameHeight="285.59999999999997"/>
+  <SubTexture name="New animation0001" x="0" y="0"  width="113.1" height="181.5" frameX="-17.7" frameY="-54.9" frameWidth="164.4" frameHeight="285.59999999999997"/>
+</TextureAtlas>

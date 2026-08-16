@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?><TextureAtlas imagePath="halloween_bg.png">
+	<!-- Created using the Spritesheet and XML generator -->
+	<!-- https://uncertainprod.github.io/FNF-Spritesheet-XML-generator-Web -->
+	<SubTexture name="halloweem bg0000" x="635" y="0" width="318" height="162" frameX="1" frameY="1" frameWidth="317" frameHeight="161"/>
+	<SubTexture name="halloweem bg lightning strike0000" x="318" y="327" width="318" height="162" frameX="1" frameY="1" frameWidth="317" frameHeight="164"/>
+	<SubTexture name="halloweem bg lightning strike0001" x="635" y="162" width="318" height="151" frameX="1" frameY="1" frameWidth="317" frameHeight="164"/>
+	<SubTexture name="halloweem bg lightning strike0002" x="0" y="0" width="318" height="164" frameX="1" frameY="1" frameWidth="317" frameHeight="164"/>
+	<SubTexture name="halloweem bg lightning strike0003" x="318" y="0" width="318" height="163" frameX="1" frameY="1" frameWidth="317" frameHeight="164"/>
+	<SubTexture name="halloweem bg lightning strike0004" x="0" y="164" width="318" height="163" frameX="1" frameY="1" frameWidth="317" frameHeight="164"/>
+	<SubTexture name="halloweem bg lightning strike0005" x="318" y="164" width="318" height="163" frameX="1" frameY="1" frameWidth="317" frameHeight="164"/>
+	<SubTexture name="halloweem bg lightning strike0006" x="0" y="327" width="318" height="163" frameX="1" frameY="1" frameWidth="317" frameHeight="164"/>
+</TextureAtlas>

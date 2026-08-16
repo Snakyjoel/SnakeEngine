@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="loop.png" width="193" height="150">
+  <SubTexture name="New animation0086" x="0" y="0"  width="90.89999999999999" height="49.199999999999996" frameX="-48.9" frameY="-217.79999999999998" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0087" x="0" y="49.199999999999996"  width="87.89999999999999" height="45" frameX="-51" frameY="-220.5" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0088" x="0" y="49.199999999999996"  width="87.89999999999999" height="45" frameX="-51" frameY="-220.5" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0089" x="0" y="94.2"  width="77.1" height="55.5" frameX="-48" frameY="-216.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0090" x="0" y="94.2"  width="77.1" height="55.5" frameX="-48" frameY="-216.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0091" x="90.89999999999999" y="0" width="51.6" height="78" rotated="true"  frameX="-48.9" frameY="-218.1" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0092" x="90.89999999999999" y="0" width="51.6" height="78" rotated="true"  frameX="-48.9" frameY="-218.1" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0093" x="142.5" y="0" width="50.1" height="75.6" rotated="true"  frameX="-52.199999999999996" frameY="-219.6" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0094" x="142.5" y="0" width="50.1" height="75.6" rotated="true"  frameX="-52.199999999999996" frameY="-219.6" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0095" x="77.1" y="94.2"  width="75" height="49.5" frameX="-52.199999999999996" frameY="-219.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0096" x="77.1" y="94.2"  width="75" height="49.5" frameX="-52.199999999999996" frameY="-219.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0097" x="0" y="0"  width="90.89999999999999" height="49.199999999999996" frameX="-48.9" frameY="-217.79999999999998" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0098" x="0" y="0"  width="90.89999999999999" height="49.199999999999996" frameX="-48.9" frameY="-217.79999999999998" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0099" x="0" y="49.199999999999996"  width="87.89999999999999" height="45" frameX="-51" frameY="-220.5" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0100" x="0" y="49.199999999999996"  width="87.89999999999999" height="45" frameX="-51" frameY="-220.5" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0101" x="0" y="94.2"  width="77.1" height="55.5" frameX="-48" frameY="-216.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0102" x="0" y="94.2"  width="77.1" height="55.5" frameX="-48" frameY="-216.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0103" x="90.89999999999999" y="0" width="51.6" height="78" rotated="true"  frameX="-48.9" frameY="-218.1" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0104" x="90.89999999999999" y="0" width="51.6" height="78" rotated="true"  frameX="-48.9" frameY="-218.1" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0105" x="142.5" y="0" width="50.1" height="75.6" rotated="true"  frameX="-52.199999999999996" frameY="-219.6" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0106" x="142.5" y="0" width="50.1" height="75.6" rotated="true"  frameX="-52.199999999999996" frameY="-219.6" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0107" x="77.1" y="94.2"  width="75" height="49.5" frameX="-52.199999999999996" frameY="-219.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0108" x="77.1" y="94.2"  width="75" height="49.5" frameX="-52.199999999999996" frameY="-219.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0109" x="0" y="0"  width="90.89999999999999" height="49.199999999999996" frameX="-48.9" frameY="-217.79999999999998" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0110" x="0" y="0"  width="90.89999999999999" height="49.199999999999996" frameX="-48.9" frameY="-217.79999999999998" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0111" x="0" y="49.199999999999996"  width="87.89999999999999" height="45" frameX="-51" frameY="-220.5" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0112" x="0" y="49.199999999999996"  width="87.89999999999999" height="45" frameX="-51" frameY="-220.5" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0113" x="0" y="94.2"  width="77.1" height="55.5" frameX="-48" frameY="-216.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0114" x="0" y="94.2"  width="77.1" height="55.5" frameX="-48" frameY="-216.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0115" x="90.89999999999999" y="0" width="51.6" height="78" rotated="true"  frameX="-48.9" frameY="-218.1" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0116" x="90.89999999999999" y="0" width="51.6" height="78" rotated="true"  frameX="-48.9" frameY="-218.1" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0117" x="142.5" y="0" width="50.1" height="75.6" rotated="true"  frameX="-52.199999999999996" frameY="-219.6" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0118" x="142.5" y="0" width="50.1" height="75.6" rotated="true"  frameX="-52.199999999999996" frameY="-219.6" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0119" x="77.1" y="94.2"  width="75" height="49.5" frameX="-52.199999999999996" frameY="-219.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0120" x="77.1" y="94.2"  width="75" height="49.5" frameX="-52.199999999999996" frameY="-219.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0121" x="0" y="0"  width="90.89999999999999" height="49.199999999999996" frameX="-48.9" frameY="-217.79999999999998" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0122" x="0" y="0"  width="90.89999999999999" height="49.199999999999996" frameX="-48.9" frameY="-217.79999999999998" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0123" x="0" y="49.199999999999996"  width="87.89999999999999" height="45" frameX="-51" frameY="-220.5" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0124" x="0" y="49.199999999999996"  width="87.89999999999999" height="45" frameX="-51" frameY="-220.5" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0125" x="0" y="94.2"  width="77.1" height="55.5" frameX="-48" frameY="-216.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0126" x="0" y="94.2"  width="77.1" height="55.5" frameX="-48" frameY="-216.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0127" x="90.89999999999999" y="0" width="51.6" height="78" rotated="true"  frameX="-48.9" frameY="-218.1" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0128" x="90.89999999999999" y="0" width="51.6" height="78" rotated="true"  frameX="-48.9" frameY="-218.1" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0129" x="142.5" y="0" width="50.1" height="75.6" rotated="true"  frameX="-52.199999999999996" frameY="-219.6" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0130" x="142.5" y="0" width="50.1" height="75.6" rotated="true"  frameX="-52.199999999999996" frameY="-219.6" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0131" x="77.1" y="94.2"  width="75" height="49.5" frameX="-52.199999999999996" frameY="-219.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0132" x="77.1" y="94.2"  width="75" height="49.5" frameX="-52.199999999999996" frameY="-219.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0133" x="0" y="0"  width="90.89999999999999" height="49.199999999999996" frameX="-48.9" frameY="-217.79999999999998" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0134" x="0" y="0"  width="90.89999999999999" height="49.199999999999996" frameX="-48.9" frameY="-217.79999999999998" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0135" x="0" y="49.199999999999996"  width="87.89999999999999" height="45" frameX="-51" frameY="-220.5" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0136" x="0" y="49.199999999999996"  width="87.89999999999999" height="45" frameX="-51" frameY="-220.5" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0137" x="0" y="94.2"  width="77.1" height="55.5" frameX="-48" frameY="-216.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0138" x="0" y="94.2"  width="77.1" height="55.5" frameX="-48" frameY="-216.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0139" x="90.89999999999999" y="0" width="51.6" height="78" rotated="true"  frameX="-48.9" frameY="-218.1" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0140" x="90.89999999999999" y="0" width="51.6" height="78" rotated="true"  frameX="-48.9" frameY="-218.1" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0141" x="142.5" y="0" width="50.1" height="75.6" rotated="true"  frameX="-52.199999999999996" frameY="-219.6" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0142" x="142.5" y="0" width="50.1" height="75.6" rotated="true"  frameX="-52.199999999999996" frameY="-219.6" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0143" x="77.1" y="94.2"  width="75" height="49.5" frameX="-52.199999999999996" frameY="-219.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+  <SubTexture name="New animation0144" x="77.1" y="94.2"  width="75" height="49.5" frameX="-52.199999999999996" frameY="-219.9" frameWidth="320.09999999999997" frameHeight="354.59999999999997"/>
+</TextureAtlas>

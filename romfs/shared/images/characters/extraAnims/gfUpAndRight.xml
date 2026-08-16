@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="gfUpAndRight.png" width="897" height="823">
+  <SubTexture name="GF Right Note0000" x="0" y="406.08"  width="223.68" height="202.24" frameX="-0.64" frameY="-1.6" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0001" x="0" y="0"  width="224.96" height="202.24" frameX="-0" frameY="-1.6" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0002" x="0" y="202.24"  width="224.96" height="203.84" frameX="-0" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0003" x="449.92" y="0"  width="223.68" height="203.84" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0004" x="223.68" y="423.04"  width="223.36" height="203.84" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0005" x="0" y="608.32"  width="223.36" height="203.84" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0006" x="449.92" y="203.84"  width="223.68" height="203.84" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0007" x="449.92" y="203.84"  width="223.68" height="203.84" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0008" x="447.04" y="619.2"  width="223.36" height="203.84" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0009" x="447.04" y="619.2"  width="223.36" height="203.84" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0010" x="447.04" y="619.2"  width="223.36" height="203.84" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0011" x="447.04" y="619.2"  width="223.36" height="203.84" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0012" x="447.04" y="619.2"  width="223.36" height="203.84" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0013" x="447.04" y="619.2"  width="223.36" height="203.84" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Right Note0014" x="447.04" y="619.2"  width="223.36" height="203.84" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="203.84"/>
+  <SubTexture name="GF Up Note0000" x="673.6" y="0"  width="223.36" height="211.52" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="211.52"/>
+  <SubTexture name="GF Up Note0001" x="224.96" y="0"  width="224.96" height="211.52" frameX="-0" frameY="-0" frameWidth="224.96" frameHeight="211.52"/>
+  <SubTexture name="GF Up Note0002" x="224.96" y="211.52"  width="224.96" height="211.52" frameX="-0" frameY="-0" frameWidth="224.96" frameHeight="211.52"/>
+  <SubTexture name="GF Up Note0003" x="449.92" y="407.68"  width="223.68" height="211.52" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="211.52"/>
+  <SubTexture name="GF Up Note0004" x="673.6" y="211.52"  width="223.36" height="211.52" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="211.52"/>
+  <SubTexture name="GF Up Note0005" x="673.6" y="211.52"  width="223.36" height="211.52" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="211.52"/>
+  <SubTexture name="GF Up Note0006" x="673.6" y="211.52"  width="223.36" height="211.52" frameX="-0.64" frameY="-0" frameWidth="224.96" frameHeight="211.52"/>
+</TextureAtlas>

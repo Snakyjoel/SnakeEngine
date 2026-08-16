@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="erectAssetsPack.png" width="1024" height="1024">
+  <SubTexture name="bg" x="0" y="0"  width="1024" height="523" frameX="-0" frameY="-0" frameWidth="1024" frameHeight="523"/>
+  <SubTexture name="brightLightSmall" x="0" y="755"  width="256" height="238" frameX="-0" frameY="-0" frameWidth="256" frameHeight="238"/>
+  <SubTexture name="lightAbove" x="256" y="755"  width="256" height="227" frameX="-0" frameY="-0" frameWidth="256" frameHeight="227"/>
+  <SubTexture name="lightgreen" x="512" y="755"  width="178" height="188" frameX="-0" frameY="-0" frameWidth="178" frameHeight="188"/>
+  <SubTexture name="lightred" x="690" y="755"  width="179" height="182" frameX="-0" frameY="-0" frameWidth="179" frameHeight="182"/>
+  <SubTexture name="lights" x="0" y="523"  width="1024" height="200" frameX="-0" frameY="-0" frameWidth="1024" frameHeight="200"/>
+  <SubTexture name="orangeLight" x="0" y="723"  width="983" height="32" frameX="-41" frameY="-0" frameWidth="1024" frameHeight="32"/>
+</TextureAtlas>

@@ -1,0 +1,48 @@
+{
+	"songs": [
+		[
+			"Spookeez",
+			"spookypixel",
+			[
+				34,
+				51,
+				68
+			]
+		],
+		[
+			"South",
+			"spookypixel",
+			[
+				34,
+				51,
+				68
+			]
+		],
+		[
+			"Monster",
+			"monsterpixel",
+			[
+				34,
+				51,
+				68
+			]
+		]
+	],
+	"weekCharacters": [
+		"spooky",
+		"bf",
+		"gf"
+	],
+	"weekBackground": "week2",
+	"storyName": "Spooky Month",
+	"weekBefore": "week1",
+	"weekName": "Week 2",
+	"album": "volume1",
+	"songAlbum": {
+		"song-diff": "Monster",
+		"song": "volume2"
+	},
+	"startUnlocked": true,
+	"hideStoryMode": false,
+	"hideFreeplay": false
+}

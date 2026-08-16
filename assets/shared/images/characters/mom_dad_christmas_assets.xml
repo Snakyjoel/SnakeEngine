@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="mom_dad_christmas_assets.png" width="983" height="905">
+  <SubTexture name="Parent Christmas Idle0000" x="515.1" y="0" width="233.1" height="261.9" rotated="true"  frameX="-1.7999999999999998" frameY="-1.5" frameWidth="265.2" frameHeight="234.6"/>
+  <SubTexture name="Parent Christmas Idle0001" x="515.1" y="0" width="233.1" height="261.9" rotated="true"  frameX="-1.7999999999999998" frameY="-1.5" frameWidth="265.2" frameHeight="234.6"/>
+  <SubTexture name="Parent Christmas Idle0002" x="0" y="451.8"  width="262.8" height="227.7" frameX="-0" frameY="-6.8999999999999995" frameWidth="265.2" frameHeight="234.6"/>
+  <SubTexture name="Parent Christmas Idle0003" x="0" y="451.8"  width="262.8" height="227.7" frameX="-0" frameY="-6.8999999999999995" frameWidth="265.2" frameHeight="234.6"/>
+  <SubTexture name="Parent Christmas Idle0004" x="285.59999999999997" y="0" width="229.5" height="263.09999999999997" rotated="true"  frameX="-1.5" frameY="-5.1" frameWidth="265.2" frameHeight="234.6"/>
+  <SubTexture name="Parent Christmas Idle0005" x="285.59999999999997" y="0" width="229.5" height="263.09999999999997" rotated="true"  frameX="-1.5" frameY="-5.1" frameWidth="265.2" frameHeight="234.6"/>
+  <SubTexture name="Parent Christmas Idle0006" x="515.1" y="261.9" width="232.79999999999998" height="259.8" rotated="true"  frameX="-5.3999999999999995" frameY="-1.7999999999999998" frameWidth="265.2" frameHeight="234.6"/>
+  <SubTexture name="Parent Christmas Idle0007" x="515.1" y="261.9" width="232.79999999999998" height="259.8" rotated="true"  frameX="-5.3999999999999995" frameY="-1.7999999999999998" frameWidth="265.2" frameHeight="234.6"/>
+  <SubTexture name="Parent Down Note Dad0000" x="0" y="679.5"  width="253.2" height="225.9" frameX="-2.6999999999999997" frameY="-1.5" frameWidth="255.89999999999998" frameHeight="227.4"/>
+  <SubTexture name="Parent Down Note Dad0003" x="285.3" y="263.09999999999997" width="225" height="254.7" rotated="true"  frameX="-0" frameY="-2.4" frameWidth="255.89999999999998" frameHeight="227.4"/>
+  <SubTexture name="Parent Left Note Dad0001" x="748.1999999999999" y="0"  width="235.2" height="240.29999999999998" frameX="-2.1" frameY="-0" frameWidth="238.79999999999998" frameHeight="240.29999999999998"/>
+  <SubTexture name="Parent Left Note Dad0002" x="746.1" y="521.6999999999999" width="237.29999999999998" height="238.79999999999998" rotated="true"  frameX="-0" frameY="-3" frameWidth="238.79999999999998" frameHeight="240.29999999999998"/>
+  <SubTexture name="Parent Right Note Dad0001" x="0" y="228.29999999999998"  width="285.3" height="223.5" frameX="-2.4" frameY="-4.8" frameWidth="287.7" frameHeight="228.6"/>
+  <SubTexture name="Parent Right Note Dad0002" x="0" y="0"  width="285.59999999999997" height="228.29999999999998" frameX="-0" frameY="-0" frameWidth="287.7" frameHeight="228.6"/>
+  <SubTexture name="Parent Up Note Dad0000" x="262.8" y="517.8" width="242.1" height="235.79999999999998" rotated="true"  frameX="-3.3" frameY="-0.3" frameWidth="239.7" frameHeight="242.39999999999998"/>
+  <SubTexture name="Parent Up Note Dad0003" x="504.9" y="521.6999999999999" width="241.2" height="239.7" rotated="true"  frameX="-0" frameY="-0.8999999999999999" frameWidth="239.7" frameHeight="242.39999999999998"/>
+</TextureAtlas>

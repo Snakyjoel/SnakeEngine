@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="NoteSheetFast.png" width="63" height="62">
+  <SubTexture name="Note0000" x="0" y="0"  width="63" height="62" frameX="-0" frameY="-0" frameWidth="63" frameHeight="62"/>
+  <SubTexture name="NoteHoldEnd0000" x="21" y="45"  width="22" height="17" frameX="-0" frameY="-0" frameWidth="21" frameHeight="17"/>
+  <SubTexture name="Tail0000" x="21" y="41"  width="22" height="4" frameX="-1" frameY="-1" frameWidth="22" frameHeight="4"/>
+</TextureAtlas>

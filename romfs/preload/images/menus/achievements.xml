@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="achievements.png" width="285" height="269">
+  <SubTexture name="friday_night_play" x="72" y="0"  width="71" height="66.5" frameX="-3" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="hype" x="0" y="136"  width="71" height="66.5" frameX="-3" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="lockedachievement" x="0" y="0"  width="72" height="69.5" frameX="-3" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="oversinging" x="71" y="136"  width="71" height="66.5" frameX="-3" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="toastie" x="0" y="69.5"  width="71.5" height="66.5" frameX="-3" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="two_keys" x="142" y="136"  width="71" height="66.5" frameX="-3.5" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="ur_bad" x="143" y="0"  width="71" height="66.5" frameX="-3" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="ur_good" x="143" y="66.5"  width="71" height="66.5" frameX="-3" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="week1_nomiss" x="0" y="202.5"  width="71" height="66.5" frameX="-3" frameY="-6" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="week2_nomiss" x="71" y="202.5"  width="71" height="66.5" frameX="-3" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="week3_nomiss" x="71.5" y="69.5"  width="71.5" height="66.5" frameX="-2.5" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="week4_nomiss" x="142" y="202.5"  width="71" height="66.5" frameX="-3" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="week5_nomiss" x="214" y="0"  width="71" height="66.5" frameX="-3" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="week6_nomiss" x="213" y="133"  width="67.5" height="67.5" frameX="-4" frameY="-4" frameWidth="75" frameHeight="75"/>
+  <SubTexture name="week7_nomiss" x="214" y="66.5"  width="71" height="66.5" frameX="-3" frameY="-5.5" frameWidth="75" frameHeight="75"/>
+</TextureAtlas>

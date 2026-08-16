@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="rating.png" width="251" height="235">
+  <SubTexture name="bad" x="162.62" y="0"  width="87.89" height="57.809999999999995" frameX="-11.28" frameY="-2.3499999999999996" frameWidth="122.66999999999999" frameHeight="61.56999999999999"/>
+  <SubTexture name="good" x="0" y="65.33"  width="122.19999999999999" height="50.76" frameX="-11.75" frameY="-3.76" frameWidth="148.98999999999998" frameHeight="59.22"/>
+  <SubTexture name="num0" x="112.8" y="116.08999999999999"  width="42.769999999999996" height="52.169999999999995" frameX="-0.47" frameY="-0.94" frameWidth="44.18" frameHeight="55.93"/>
+  <SubTexture name="num1" x="162.62" y="57.809999999999995"  width="42.769999999999996" height="52.169999999999995" frameX="-1.41" frameY="-0.47" frameWidth="46.059999999999995" frameHeight="56.4"/>
+  <SubTexture name="num2" x="205.39" y="57.809999999999995"  width="42.769999999999996" height="52.169999999999995" frameX="-3.29" frameY="-3.76" frameWidth="49.349999999999994" frameHeight="60.629999999999995"/>
+  <SubTexture name="num3" x="155.57" y="109.97999999999999"  width="42.769999999999996" height="52.169999999999995" frameX="-2.3499999999999996" frameY="-3.76" frameWidth="47.94" frameHeight="62.98"/>
+  <SubTexture name="num4" x="198.33999999999997" y="109.97999999999999"  width="42.769999999999996" height="52.169999999999995" frameX="-1.41" frameY="-5.17" frameWidth="46.059999999999995" frameHeight="61.099999999999994"/>
+  <SubTexture name="num5" x="0" y="182.82999999999998"  width="42.769999999999996" height="52.169999999999995" frameX="-6.109999999999999" frameY="-6.58" frameWidth="52.169999999999995" frameHeight="63.449999999999996"/>
+  <SubTexture name="num6" x="42.769999999999996" y="182.82999999999998"  width="42.769999999999996" height="52.169999999999995" frameX="-5.64" frameY="-4.699999999999999" frameWidth="50.76" frameHeight="62.98"/>
+  <SubTexture name="num7" x="85.53999999999999" y="182.82999999999998"  width="42.769999999999996" height="52.169999999999995" frameX="-0" frameY="-0" frameWidth="42.769999999999996" frameHeight="52.169999999999995"/>
+  <SubTexture name="num8" x="128.31" y="168.26"  width="42.3" height="52.169999999999995" frameX="-0" frameY="-0" frameWidth="42.3" frameHeight="54.05"/>
+  <SubTexture name="num9" x="170.60999999999999" y="162.14999999999998"  width="42.769999999999996" height="52.169999999999995" frameX="-0" frameY="-0.47" frameWidth="42.769999999999996" frameHeight="58.279999999999994"/>
+  <SubTexture name="shit" x="0" y="116.08999999999999"  width="112.8" height="66.74" frameX="-6.109999999999999" frameY="-4.699999999999999" frameWidth="133.95" frameHeight="76.61"/>
+  <SubTexture name="sick" x="0" y="0"  width="162.62" height="65.33" frameX="-5.17" frameY="-3.29" frameWidth="189.41" frameHeight="71.44"/>
+</TextureAtlas>

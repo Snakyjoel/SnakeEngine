@@ -1,0 +1,100 @@
+{
+	"animations": [
+		{
+			"offsets": [
+				-49,
+				-71
+			],
+			"loop": false,
+			"fps": 24,
+			"anim": "singRIGHT",
+			"indices": [],
+			"name": "Pico Block Hit000"
+		},
+		{
+			"offsets": [
+				-71,
+				-74
+			],
+			"loop": false,
+			"fps": 24,
+			"anim": "singUP",
+			"indices": [],
+			"name": "Pico Dodge000"
+		},
+		{
+			"offsets": [
+				81,
+				-100
+			],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFT",
+			"indices": [],
+			"name": "Pico Punch High000"
+		},
+		{
+			"offsets": [
+				80,
+				-92
+			],
+			"loop": false,
+			"fps": 24,
+			"anim": "singDOWN",
+			"indices": [],
+			"name": "Pico Punch Low000"
+		},
+		{
+			"offsets": [
+				-55,
+				-24
+			],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFT-Alt",
+			"indices": [],
+			"name": "Pico Hit High000"
+		},
+		{
+			"offsets": [
+				-56,
+				-91
+			],
+			"loop": true,
+			"fps": 24,
+			"anim": "idle",
+			"indices": [],
+			"name": "Pico Idle"
+		},
+		{
+			"offsets": [
+				-48,
+				-27
+			],
+			"loop": false,
+			"fps": 24,
+			"anim": "Hey!",
+			"indices": [],
+			"name": "Pico Hit High000"
+		}
+	],
+	"no_antialiasing": false,
+	"image": "characters/pico-blazin",
+	"position": [
+		-150,
+		140
+	],
+	"healthicon": "pico",
+	"flip_x": true,
+	"healthbar_colors": [
+		183,
+		216,
+		85
+	],
+	"camera_position": [
+		330,
+		-50
+	],
+	"sing_duration": 6.1,
+	"scale": 5
+}

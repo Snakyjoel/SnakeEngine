@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="bfdjYEAH.png" width="630" height="500">
+  <SubTexture name="Boyfriend DJ fist pump instancia 10000" x="0" y="342.8" width="175.60000000000002" height="157.60000000000002" rotated="true"  frameX="-0" frameY="-9.600000000000001" frameWidth="157.60000000000002" frameHeight="185.20000000000002"/><!-- waiting -->
+  <SubTexture name="Boyfriend DJ fist pump instancia 10001" x="175.60000000000002" y="342.8" width="175.60000000000002" height="157.60000000000002" rotated="true"  frameX="-0" frameY="-9.600000000000001" frameWidth="157.60000000000002" frameHeight="185.20000000000002"/><!-- waiting -->
+  <SubTexture name="Boyfriend DJ fist pump instancia 10002" x="351.20000000000005" y="342.8" width="175.60000000000002" height="157.60000000000002" rotated="true"  frameX="-0" frameY="-9.600000000000001" frameWidth="157.60000000000002" frameHeight="185.20000000000002"/><!-- waiting -->
+  <SubTexture name="Boyfriend DJ fist pump instancia 10045" x="472.8" y="0"  width="157.60000000000002" height="170.8" frameX="-0" frameY="-14.4" frameWidth="157.60000000000002" frameHeight="185.20000000000002"/><!-- YEAH (start) -->
+  <SubTexture name="Boyfriend DJ fist pump instancia 10046" x="0" y="0"  width="157.60000000000002" height="185.20000000000002" frameX="-0" frameY="-0" frameWidth="157.60000000000002" frameHeight="185.20000000000002"/><!-- YEAH (start) -->
+  <SubTexture name="Boyfriend DJ fist pump instancia 10047" x="157.60000000000002" y="0"  width="157.60000000000002" height="185.20000000000002" frameX="-0" frameY="-0" frameWidth="157.60000000000002" frameHeight="185.20000000000002"/><!-- YEAH (start) -->
+  <SubTexture name="Boyfriend DJ fist pump instancia 10048" x="0" y="185.20000000000002" width="182.8" height="157.60000000000002" rotated="true"  frameX="-0" frameY="-2.4000000000000004" frameWidth="157.60000000000002" frameHeight="185.20000000000002"/><!-- YEAH (loop) -->
+  <SubTexture name="Boyfriend DJ fist pump instancia 10049" x="182.8" y="185.20000000000002" width="182.8" height="157.60000000000002" rotated="true"  frameX="-0" frameY="-2.4000000000000004" frameWidth="157.60000000000002" frameHeight="185.20000000000002"/><!-- YEAH (loop) -->
+  <SubTexture name="Boyfriend DJ fist pump instancia 10050" x="315.20000000000005" y="0"  width="157.60000000000002" height="182.8" frameX="-0" frameY="-2.4000000000000004" frameWidth="157.60000000000002" frameHeight="185.20000000000002"/><!-- YEAH (loop) -->
+</TextureAtlas>

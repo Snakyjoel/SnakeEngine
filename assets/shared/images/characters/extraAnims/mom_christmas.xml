@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="mom_christmas.png" width="776" height="697">
+  <SubTexture name="Parent Down Note Mom0001" x="285.59999999999997" y="225.9"  width="253.2" height="225.6" frameX="-2.6999999999999997" frameY="-1.7999999999999998" frameWidth="255.89999999999998" frameHeight="227.4"/>
+  <SubTexture name="Parent Down Note Mom0003" x="285.59999999999997" y="0"  width="254.7" height="225.9" frameX="-0" frameY="-1.5" frameWidth="255.89999999999998" frameHeight="227.4"/>
+  <SubTexture name="Parent Left Note Mom0001" x="540.3" y="0"  width="235.2" height="240" frameX="-2.1" frameY="-0" frameWidth="238.79999999999998" frameHeight="240"/>
+  <SubTexture name="Parent Left Note Mom0003" x="475.5" y="451.5"  width="238.79999999999998" height="237.29999999999998" frameX="-0" frameY="-2.6999999999999997" frameWidth="238.79999999999998" frameHeight="240"/>
+  <SubTexture name="Parent Right Note Mom0001" x="0" y="228.6"  width="285.3" height="224.7" frameX="-2.4" frameY="-3.9" frameWidth="287.7" frameHeight="228.9"/>
+  <SubTexture name="Parent Right Note Mom0003" x="0" y="0"  width="285.59999999999997" height="228.6" frameX="-0" frameY="-0" frameWidth="287.7" frameHeight="228.9"/>
+  <SubTexture name="Parent Up Note Mom0001" x="0" y="453.3"  width="235.79999999999998" height="243.29999999999998" frameX="-3.3" frameY="-0" frameWidth="239.7" frameHeight="243.29999999999998"/>
+  <SubTexture name="Parent Up Note Mom0003" x="235.79999999999998" y="453.3"  width="239.7" height="241.2" frameX="-0" frameY="-1.7999999999999998" frameWidth="239.7" frameHeight="243.29999999999998"/>
+</TextureAtlas>

@@ -1,0 +1,78 @@
+{
+	"animations": [
+		{
+			"offsets": [
+				3,
+				0
+			],
+			"loop": false,
+			"anim": "idle",
+			"fps": 12,
+			"name": "monster idle",
+			"indices": []
+		},
+		{
+			"offsets": [
+				4,
+				14
+			],
+			"loop": false,
+			"anim": "singUP",
+			"fps": 12,
+			"name": "monster up note",
+			"indices": []
+		},
+		{
+			"offsets": [
+				-3,
+				1
+			],
+			"loop": false,
+			"anim": "singLEFT",
+			"fps": 12,
+			"name": "Monster left note",
+			"indices": []
+		},
+		{
+			"offsets": [
+				2,
+				3
+			],
+			"loop": false,
+			"anim": "singRIGHT",
+			"fps": 12,
+			"name": "Monster Right note",
+			"indices": []
+		},
+		{
+			"offsets": [
+				-6,
+				-12
+			],
+			"loop": false,
+			"anim": "singDOWN",
+			"fps": 12,
+			"name": "monster down",
+			"indices": []
+		}
+	],
+	"no_antialiasing": false,
+	"image": "characters/Monster_Assets",
+	"position": [
+		0,
+		-150
+	],
+	"healthicon": "monster",
+	"flip_x": false,
+	"healthbar_colors": [
+		243,
+		255,
+		110
+	],
+	"camera_position": [
+		0,
+		50
+	],
+	"sing_duration": 4,
+	"scale": 4.6
+}
