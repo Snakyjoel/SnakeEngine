@@ -37,7 +37,7 @@ Avoid heavy formats like `.ogg`, `.png`, or `.mp4`. The 3DS has dedicated hardwa
 |---|---|---|---|
 | Audio | `.ogg`, `.wav`, `.mp3` | `.adp` | [`convert_to_adp.py`](convert_to_adp.py) (uses `ffmpeg.exe` included in root) |
 | Images | `.png`, `.jpg` | `.t3x` / `rawtex` | [`tools/converters/convert_assets.py`](tools/converters/convert_assets.py) |
-| Video | `.mp4` | `.snaky` | [`tools/SnakyVideoEncoder`](tools/SnakyVideoEncoder) |
+| Video | `.mp4` | `.snaky` | [`tools/SnakyVideoEncoder`](https://github.com/Snakyjoel/Snaky-Video-Encoder) |
 
 ### 2. Minimize draw calls — pack your sprites
 
