@@ -4,14 +4,89 @@ A Friday Night Funkin' engine tailored for the **Nintendo 3DS**, built natively 
 
 ---
 
-## Features
+## Psych Engine API Support
 
-- **Full Lua Scripting**: Psych Engine-compatible Lua callbacks, tweens, timers, and custom events.
-- **Custom Assets**: Support for custom character sheets, stages, note skins, rating skins, and soundfonts.
-- **Mod Support**: Load mods dynamically from the SD card (`sdmc:/SnakeEngine/mods/`).
-- **High Performance**: Optimized memory and VRAM management with texture caching, `.rawtex` fallbacks, and hardware-accelerated rendering.
-- **Dual-Screen UI**: Bottom screen touch hitboxes, pause menu, customizable combo HUD, and visualizers.
-- **Custom Shaders**: Hardware-accelerated shader post-processing pipeline.
+Snake Engine includes support for the **Psych Engine Lua API**. This is not a 1:1 implementation and some functions may behave differently or not be available. Refer to the existing mod scripts in `romfs/preload/scripts/` as a reference.
+
+---
+
+## Installing Mods
+
+Mods are loaded from the SD card at runtime. To install a mod:
+
+1. Create a folder for your mod inside `sdmc:/SnakeEngine/mods/`.
+2. Place your mod files inside it following the standard folder structure:
+   - `songs/` — song audio files (`.adp` format).
+   - `data/` — chart JSON files.
+   - `images/` — character sheets, stages, note skins, etc.
+   - `characters/` — character JSON definitions.
+   - `stages/` — stage JSON and Lua files.
+   - `scripts/` — global Lua scripts that run during gameplay.
+3. Add a `pack.json` file to the root of your mod folder with at least:
+   ```json
+   {
+     "name": "My Mod",
+     "description": "A cool mod",
+     "restart": false
+   }
+   ```
+4. Enable the mod from the **Mods** menu in-game.
+
+> Audio files must be in the `.adp` (ADPCM) format. Use the included `tools/converters/convert_assets.py` script to convert `.ogg` files.
+
+---
+
+## Using Shaders
+
+Shaders are applied to cameras via Lua scripts using `setCameraShader`. Because 3DS shaders require hardware-compiled binaries, **you cannot add new shader source files** — only the pre-compiled shaders listed below are available.
+
+### Available Shaders
+
+| Name | Parameters | Description |
+|---|---|---|
+| `grayscale` | `strength` | Desaturates the image. |
+| `invert` | `strength` | Inverts colors. |
+| `sepia` | `strength` | Applies a warm sepia tone. |
+| `gameboy` | `strength` | Green-tinted Game Boy look. |
+| `virtualboy` | `strength` | Red-tinted Virtual Boy look. |
+| `saturation` | `amount` | Boosts or reduces color saturation. |
+| `chromatic` | `offset` | RGB color fringing effect. |
+| `wave` | `amplitude`, `frequency`, `speed` | Wavy distortion. |
+| `glitch` / `skew` | `intensity`, `speed`, `offset` | Horizontal glitch skew. |
+| `crt` | `strength` | CRT scanline overlay. |
+| `blur` | `radius` | Gaussian blur. |
+| `pixelate` | `size` | Pixelation effect. |
+| `tile` / `tiling` / `kaleidoscope` | `count` | Repeating tile mirror. |
+| `tint` | `r`, `g`, `b` | Flat color tint (0–255 per channel). |
+| `vignette` | `radius`, `softness` | Dark vignette border. |
+| `mirror` | `mode` | Horizontal/vertical mirror. |
+| `scanline_roll` | `density`, `speed` | Rolling scanline bands. |
+| `vhs` | `intensity` | VHS noise and color bleed. |
+| `color_depth` | `bits` | Color depth reduction. |
+| `scroll` / `infinite_scroll` | `speedX`, `speedY`, `scale` | Infinite scrolling parallax. |
+| `drugs` | `intensity`, `speed`, `hue` | Psychedelic rainbow distortion. |
+| `bw` / `black_white` | `threshold` | Black and white posterization. |
+
+### Lua Usage
+
+```lua
+-- Apply a shader to a camera
+setCameraShader("camGame", "blur", 2.0)
+setCameraShader("camHUD",  "vignette", 0.6, 0.3)
+
+-- Stack multiple shaders on the same camera
+setCameraShader("camGame", "chromatic", 1.5)
+setCameraShader("camGame", "crt", 0.8)
+
+-- Update a specific parameter at runtime
+setShaderParam("camGame", "blur", 1, 4.0)
+
+-- Remove a specific shader
+removeCameraShader("camGame", "blur")
+
+-- Remove all shaders from a camera
+removeCameraShader("camGame")
+```
 
 ---
 
