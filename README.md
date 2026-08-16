@@ -13,6 +13,13 @@ A Friday Night Funkin' engine tailored for the **Nintendo 3DS**, built natively 
 
 Snake Engine includes support for the **Psych Engine Lua API**. This is not a 1:1 implementation and some functions may behave differently or not be available.
 
+<p align="left">
+  <img src="art/ModsMenu.png" alt="Mod Menu" width="600"/>
+</p>
+<p align="left">
+  <img src="art/ModPreview.png" alt="Sonic The Funk 3DS" width="600"/>
+</p>
+
 ---
 
 ## Installing Mods
