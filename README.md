@@ -14,15 +14,53 @@ A Friday Night Funkin' engine tailored for the **Nintendo 3DS**, built natively 
 Snake Engine includes support for the **Psych Engine Lua API**. This is not a 1:1 implementation and some functions may behave differently or not be available.
 
 <p align="left">
-  <img src="art/ModsMenu.png" alt="Mod Menu" width="600"/>
+  <img src="art/ModsMenu.png" alt="Mod Menu" width="800"/>
 </p>
 <p align="left">
-  <img src="art/ModPreview.png" alt="Sonic The Funk 3DS" width="600"/>
+  <img src="art/ModPreview.png" alt="Sonic The Funk 3DS" width="800"/>
+</p>
+<p align="left">
+  <img src="art/ModPreview2.png" alt="Blueballed" width="800"/>
 </p>
 
 ---
 
-## Installing Mods
+## ⚠️ Modding on 3DS — Read This First
+
+Even though Snake Engine exposes part of the Psych Engine Lua API, **this is not a PC engine**. The 3DS hardware is significantly more constrained, and mods that work fine on PC may run poorly or crash here. Everything needs to be handled with care.
+
+### 1. Use the right file formats
+
+Avoid heavy formats like `.ogg`, `.png`, or `.mp4`. The 3DS has dedicated hardware for specific formats — use those instead:
+
+| Asset Type | ❌ Avoid | ✅ Use instead | Tool |
+|---|---|---|---|
+| Audio | `.ogg`, `.wav`, `.mp3` | `.adp` | [`convert_to_adp.py`](convert_to_adp.py) (uses `ffmpeg.exe` included in root) |
+| Images | `.png`, `.jpg` | `.t3x` / `rawtex` | [`tools/converters/convert_assets.py`](tools/converters/convert_assets.py) |
+| Video | `.mp4` | `.snaky` | [`tools/SnakyVideoEncoder`](tools/SnakyVideoEncoder) |
+
+### 2. Minimize draw calls — pack your sprites
+
+Avoid having many separate sprite files. If you can fit multiple sprites into a single spritesheet (atlas), do it. Every individual texture draw is a draw call, and the 3DS has a very limited budget for those. Packed atlases save draw calls **and** reduce RAM usage significantly.
+
+### 3. Textures MUST be Power of Two — and max 1024×1024
+
+The 3DS GPU **does not support Non-Power-of-Two (NPOT) textures**. All texture dimensions must be a power of two: `4, 8, 16, 32, 64, 128, 256, 512, 1024`.
+
+- ✅ `512×256` → uses **512×256** of VRAM
+- ❌ `513×257` → gets padded up to **1024×512** of VRAM — 4× the cost
+
+The maximum texture size is **1024×1024**. Anything larger will not work.
+
+### 4. Keep Lua scripts lean
+
+The 3DS has very limited CPU time. Avoid heavy per-frame logic in Lua. Prefer `onCreate` / `onUpdate` patterns and cache values you'd otherwise recompute every frame.
+
+### 5. Test frequently on hardware (or a close emulator)
+
+Emulators like Citra/Lime3DS are convenient but may hide performance issues. Always validate your mod on real hardware or with the performance overlay enabled if possible.
+
+
 
 Mods are loaded from the SD card at runtime. To install a mod:
 
