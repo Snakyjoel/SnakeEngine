@@ -3,7 +3,7 @@
 A Friday Night Funkin' engine tailored for the **Nintendo 3DS**, built natively in C++ with **devkitARM**, **libctru**, and **citro2d**.
 
 <p align="center">
-  <img src="art/Logo.png" alt="Snake Engine Logo" width="400"/>
+  <img src="art/Logo.png" alt="Snake Engine Logo" width="600"/>
 </p>
 
 
