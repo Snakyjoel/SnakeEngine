@@ -3175,11 +3175,11 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             if (holdPiece.rotated) {
                 drawAngle = angleLine;
                 dsX = noteScale * n.scaleX * hudZoom;
-                dsY = pieceH_screen / holdPiece.w;
+                dsY = pieceH_screen / holdPiece.sub.width;
             } else {
                 drawAngle = angleLine - (3.14159265f / 2.0f);
                 dsX = noteScale * n.scaleX * hudZoom;
-                dsY = pieceH_screen / holdPiece.h;
+                dsY = pieceH_screen / holdPiece.sub.height;
             }
 
             float baseScaleY = noteScale * n.scaleY * hudZoom;
@@ -3227,11 +3227,11 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             if (holdEnd.rotated) {
                 endDrawAngle = angleLine + n.angle * (3.14159265f / 180.0f);
                 endDsX = noteScale * n.scaleX * hudZoom;
-                endDsY = endH_screen / holdEnd.w;
+                endDsY = endH_screen / holdEnd.sub.width;
             } else {
                 endDrawAngle = angleLine - (3.14159265f / 2.0f) + n.angle * (3.14159265f / 180.0f);
                 endDsX = noteScale * n.scaleX * hudZoom;
-                endDsY = endH_screen / holdEnd.h;
+                endDsY = endH_screen / holdEnd.sub.height;
             }
 
             float baseScaleY = noteScale * n.scaleY * hudZoom;
@@ -3872,6 +3872,12 @@ void PlayState::exitState() {
     AsyncAssetManager::get().suspend();
     
     fastNoteSheet = nullptr;
+    for (auto& pair : customNoteSheets) {
+        C2D_SpriteSheet sheet = pair.second;
+        if (sheet && !SpritesheetCache::get().contains(sheet)) {
+            C2D_SpriteSheetFree(sheet);
+        }
+    }
     customNoteSheets.clear();
 
     for (auto& pair : customNoteImages) {

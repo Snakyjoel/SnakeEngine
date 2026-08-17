@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="girl2love.png">
+    <SubTexture name="girl2loveidle0" x="0" y="0" width="43" height="75"/>
+    <SubTexture name="girl2loveidle1" x="43" y="0" width="43" height="75"/>
+    <SubTexture name="girl2loveidle2" x="86" y="0" width="43" height="75"/>
+    <SubTexture name="girl2loveidle3" x="129" y="0" width="43" height="75"/>
+    <SubTexture name="girl2loveidle4" x="86" y="0" width="43" height="75"/>
+    <SubTexture name="girl2loveidle5" x="43" y="0" width="43" height="75"/>
+</TextureAtlas>

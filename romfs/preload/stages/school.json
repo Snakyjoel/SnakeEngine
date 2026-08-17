@@ -1,0 +1,32 @@
+{
+	"directory": "week6",
+	"defaultZoom": 1.05,
+	"isPixelStage": true,
+	"stageUI": "pixel",
+	"boyfriend": [
+		970,
+		400
+	],
+	"girlfriend": [
+		580,
+		400
+	],
+	"opponent": [
+		280,
+		300
+	],
+	"hide_girlfriend": false,
+	"camera_boyfriend": [
+		-500,
+		-40
+	],
+	"camera_opponent": [
+		400,
+		240
+	],
+	"camera_girlfriend": [
+		0,
+		0
+	],
+	"camera_speed": 1
+}

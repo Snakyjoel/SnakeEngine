@@ -3,6 +3,8 @@
 #include "../backend/AudioEngine.hpp"
 #include "SparrowParser.hpp"
 #include "../backend/stb_image.h"
+#include "../backend/SpritesheetCache.hpp"
+#include "../objects/Alphabet.hpp"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -213,6 +215,8 @@ void CreditsState::init() {
             groups.push_back(modGrp);
         }
     }
+
+    SpritesheetCache::get().load("shared/images/Alphabet");
 
     curSelected = 0;
     subState = STATE_SELECTING;
@@ -489,12 +493,12 @@ void CreditsState::update(float dt) {
     if (subState == STATE_SELECTING) {
         int oldSelected = curSelected;
         
-        if (kDown & KEY_DLEFT) {
+        if (kDown & (KEY_DUP | KEY_CPAD_UP)) {
             curSelected--;
             if (curSelected < 0) curSelected = count - 1;
             AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
         }
-        if (kDown & KEY_DRIGHT) {
+        if (kDown & (KEY_DDOWN | KEY_CPAD_DOWN)) {
             curSelected++;
             if (curSelected >= count) curSelected = 0;
             AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
@@ -645,7 +649,7 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             drawCenteredBG(topBG, 400.0f, 240.0f, 0.1f, &tint);
         }
         
-        drawScrollText("CREDITS MENU", 200, 120, 0.8f, true, 3.0f, CWhite);
+        Alphabet::draw("CREDITS MENU", 200.0f, 20.0f, 1.1f, 1.0f, true, CWhite);
         
         C2D_SceneBegin(bottom);
         C2D_TargetClear(bottom, C2D_Color32(146, 113, 253, 255));
@@ -657,11 +661,9 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         }
 
         if (!groups.empty()) {
-            drawScrollText(groups[curSelected].name, 160, 40, 0.5f, true, 2.0f, CWhite, 280.0f);
-            
             int count = (int)groups.size();
             
-            auto drawIcon = [&](int idx, float x, float scale, float alpha) {
+            auto drawIcon = [&](int idx, float y, float scale, float alpha) {
                 auto& gp = groups[idx];
                 C2D_Image img;
                 const Frame* frame = nullptr;
@@ -691,33 +693,43 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 C2D_AlphaImageTint(&tint, alpha);
                 
                 if (frame) {
-                    drawFrameCentered(*frame, x, 135.0f, 0.5f, &tint, scale, scale);
+                    drawFrameCentered(*frame, 60.0f, y, 0.5f, &tint, scale, scale);
                 } else {
                     float w = img.subtex->width;
                     float h = img.subtex->height;
-                    float drawX = x - (w * scale) / 2.0f;
-                    float drawY = 135.0f - (h * scale) / 2.0f;
+                    float drawX = 60.0f - (w * scale) / 2.0f;
+                    float drawY = y - (h * scale) / 2.0f;
                     C2D_DrawImageAt(img, drawX, drawY, 0.5f, &tint, scale, scale);
                 }
             };
 
             for (int i = 0; i < count; i++) {
                 float diff = (float)i - scrollPercent;
-                while (diff < -count / 2.0f) diff += count;
-                while (diff > count / 2.0f) diff -= count;
+                // Since it's vertical now, targetY wraps around the list selection
+                float targetY = 120.0f + diff * 75.0f;
+                
+                if (targetY < -50.0f || targetY > 290.0f) continue;
 
-                if (std::abs(diff) > 2.0f) continue;
+                bool isSelected = (i == curSelected);
+                float itemAlpha = isSelected ? 1.0f : 0.6f;
+                float scale = isSelected ? 0.75f : 0.60f;
 
-                float x = 160.0f + diff * 135.0f;
-                float scale = 0.55f + (0.85f - 0.55f) * (1.0f - std::abs(diff) * 0.5f);
-                if (scale < 0.55f) scale = 0.55f;
-                if (scale > 0.85f) scale = 0.85f;
+                drawIcon(i, targetY, scale, itemAlpha);
 
-                float alpha = 1.0f - std::abs(diff) * 0.6f;
-                if (alpha < 0.3f) alpha = 0.3f;
-                if (alpha > 1.0f) alpha = 1.0f;
-
-                drawIcon(i, x, scale, alpha);
+                float textHeight = 70.0f * 1.0f * (240.0f / 720.0f);
+                CachedSpritesheet* alphabetSheet = SpritesheetCache::get().load("shared/images/Alphabet");
+                if (alphabetSheet) {
+                    for (const auto& f : alphabetSheet->frames) {
+                        if (f.name == "A0000") {
+                            textHeight = frameLogicalH(f) * 1.0f * (240.0f / 720.0f);
+                            break;
+                        }
+                    }
+                }
+                float textY = targetY - textHeight / 2.0f;
+                u32 color = C2D_Color32(255, 255, 255, (u8)(itemAlpha * 255.0f));
+                
+                Alphabet::draw(groups[i].name, 110.0f, textY, 1.0f, itemAlpha, false, color);
             }
         }
         C2D_Flush();

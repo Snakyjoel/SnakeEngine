@@ -1,9 +1,11 @@
-v2.6.7 - THE SIX SEVEN UPDATE
+v2.6.7
 - Some fixes were made
 - Game Over was finally added
 - The ogg files of the base game were converted to adp for better performance
 - Improved the audio player in debug menu
 - Improved the source files organization
+- Fixed a memory leak with NoteSkins
+- A vertical offset in the Sustains, which increased depending on the length, was corrected
 
 v2.5.7
 - Fixed a crash with change character, but not tested

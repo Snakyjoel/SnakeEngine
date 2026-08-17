@@ -5,6 +5,7 @@
         "needsVoices": true,
         "player1": "bf-pixel",
         "player2": "spirit",
+        "gfVersion": "gf-pixel",
         "arrowSkin": "NOTE_assets-pixel",
         "ratingSkin": "rating-pixel",
         "speed": 1.1,

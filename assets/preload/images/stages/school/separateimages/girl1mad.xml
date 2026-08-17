@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="girl1mad.png">
+    <SubTexture name="girl1idleleft0" x="0" y="0" width="37" height="82"/>
+    <SubTexture name="girl1idleleft1" x="37" y="0" width="37" height="82"/>
+    <SubTexture name="girl1idleleft2" x="74" y="0" width="37" height="82"/>
+
+    <SubTexture name="girl1idleright0" x="111" y="0" width="37" height="82"/>
+    <SubTexture name="girl1idleright1" x="74" y="0" width="37" height="82"/>
+    <SubTexture name="girl1idleright2" x="37" y="0" width="37" height="82"/>
+</TextureAtlas>

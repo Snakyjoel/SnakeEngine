@@ -5,8 +5,10 @@
         "needsVoices": true,
         "player1": "bf-pixel",
         "player2": "senpai-angry",
+        "gfVersion": "gf-pixel",
         "arrowSkin": "NOTE_assets-pixel",
         "ratingSkin": "rating-pixel",
+        "stage": "school",
         "speed": 1.2,
         "notes": [
             {
