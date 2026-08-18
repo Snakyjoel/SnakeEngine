@@ -418,6 +418,13 @@ private:
     int cachedMisses = -1;
     int cachedCombo = -1;
 
+    // Cache Time and Botplay Texts
+    C2D_Text timeTextObj;
+    int cachedTimeLeft = -1;
+    C2D_Text botplayTextObj;
+    C2D_TextBuf botplayTextBuf;
+    C2D_TextBuf timeTextBuf;
+
 
 
     void handleInput(float dt);

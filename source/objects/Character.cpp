@@ -148,6 +148,9 @@ bool Character::loadFromCache(const std::string& path, CharacterData* data) {
         anim.prefix = ab.prefix;
         anim.fps = ab.fps;
         anim.loop = ab.loop;
+        if (anim.name == "danceLeft" || anim.name == "danceRight" || anim.name == "idle") {
+            anim.loop = false;
+        }
         anim.offsetX = ab.offsetX;
         anim.offsetY = ab.offsetY;
         
@@ -488,6 +491,9 @@ CharacterData* Character::parseDataAsync(const std::string& charName) {
             anim.prefix = json_string_value(json_object_get(value, "name"));
             anim.fps = (int)json_integer_value(json_object_get(value, "fps"));
             anim.loop = json_boolean_value(json_object_get(value, "loop"));
+            if (anim.name == "danceLeft" || anim.name == "danceRight" || anim.name == "idle") {
+                anim.loop = false;
+            }
             
             std::vector<int> prefixIndices;
             for (int i = 0; i < (int)data->frames.size(); i++) {
@@ -711,6 +717,9 @@ void Character::loadFromPsychJson(const std::string& jsonPath) {
         anim.prefix = json_string_value(json_object_get(value, "name"));
         anim.fps = (int)json_integer_value(json_object_get(value, "fps"));
         anim.loop = json_boolean_value(json_object_get(value, "loop"));
+        if (anim.name == "danceLeft" || anim.name == "danceRight" || anim.name == "idle") {
+            anim.loop = false;
+        }
         
         json_t *indices = json_object_get(value, "indices");
         
@@ -976,6 +985,15 @@ void Character::playAnim(const std::string& animName, bool forced) {
         curAnim = animName;
         currentAnimData = &animations[animName];
         curFrame = 0; frameTimer = 0; animFinished = false;
+
+        if (curCharacterName.rfind("gf-", 0) == 0 || curCharacterName == "gf") {
+            if (animName == "singLEFT")
+                danced = true;
+            else if (animName == "singRIGHT")
+                danced = false;
+            else if (animName == "singUP" || animName == "singDOWN")
+                danced = !danced;
+        }
     }
 }
 
@@ -1023,15 +1041,20 @@ void Character::playAnimFES(const std::string& path, const std::string& animName
 void Character::update(float dt) {
     if (!currentAnimData || currentAnimData->indices.empty()) return;
     
-    if (curAnim.find("sing") != std::string::npos && curAnim.find("miss") == std::string::npos) {
+    if (curAnim.find("sing") != std::string::npos) {
         holdTimer += dt;
-        float singThreshold = (Conductor::stepCrochet * 0.0011f) * singDuration;
-        if (holdTimer >= singThreshold) {
-            dance(); 
-            holdTimer = 0;
-        }
     } else {
         holdTimer = 0;
+    }
+
+    if (!isPlayer) {
+        if (curAnim.find("sing") != std::string::npos && curAnim.find("miss") == std::string::npos) {
+            float singThreshold = (Conductor::stepCrochet * 0.0011f) * singDuration;
+            if (holdTimer >= singThreshold) {
+                dance();
+                holdTimer = 0;
+            }
+        }
     }
 
     if (curAnim.find("miss") != std::string::npos && animFinished) {

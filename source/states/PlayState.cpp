@@ -5,6 +5,7 @@
 #include "../backend/AudioEngine.hpp"
 #include "../backend/Conductor.hpp"
 #include "SongParser.hpp"
+#include "HexParser.hpp"
 #include "MainMenuState.hpp"
 #include "FreeplayState.hpp"
 #include "ShaderManager.hpp"
@@ -50,7 +51,7 @@ static void parseNoteXml(const std::string& xmlPath, C3D_Tex* tex, C2D_Image bas
 
     std::ifstream f(xmlPath);
     if (!f.is_open()) return;
-    
+
     static Tex3DS_SubTexture defaultSubtex;
     if (baseImg.subtex == nullptr) {
         defaultSubtex.width = baseImg.tex ? baseImg.tex->width : 0;
@@ -61,7 +62,7 @@ static void parseNoteXml(const std::string& xmlPath, C3D_Tex* tex, C2D_Image bas
         defaultSubtex.bottom = 1.0f;
         baseImg.subtex = &defaultSubtex;
     }
-    
+
     float nw = baseImg.subtex->right  - baseImg.subtex->left;
     float nh = baseImg.subtex->bottom - baseImg.subtex->top;
     std::string line;
@@ -101,7 +102,7 @@ static void parseNoteXml(const std::string& xmlPath, C3D_Tex* tex, C2D_Image bas
         else if (name.find("arrowDOWN") != std::string::npos) { lane = 1; slot = 1; }
         else if (name.find("arrowUP") != std::string::npos) { lane = 2; slot = 1; }
         else if (name.find("arrowRIGHT") != std::string::npos) { lane = 3; slot = 1; }
-        
+
         else if (name.find("purple") != std::string::npos && name.find("hold") == std::string::npos && name.find("press") == std::string::npos && name.find("confirm") == std::string::npos) { lane = 0; slot = 2; }
         else if (name.find("blue") != std::string::npos && name.find("hold") == std::string::npos && name.find("press") == std::string::npos && name.find("confirm") == std::string::npos) { lane = 1; slot = 2; }
         else if (name.find("green") != std::string::npos && name.find("hold") == std::string::npos && name.find("press") == std::string::npos && name.find("confirm") == std::string::npos) { lane = 2; slot = 2; }
@@ -169,7 +170,7 @@ static void parseNoteFastXml(const std::string& xmlPath, C3D_Tex* tex, C2D_Image
 
     std::ifstream f(xmlPath);
     if (!f.is_open()) return;
-    
+
     static Tex3DS_SubTexture defaultSubtex;
     if (baseImg.subtex == nullptr) {
         defaultSubtex.width = baseImg.tex ? baseImg.tex->width : 0;
@@ -180,7 +181,7 @@ static void parseNoteFastXml(const std::string& xmlPath, C3D_Tex* tex, C2D_Image
         defaultSubtex.bottom = 1.0f;
         baseImg.subtex = &defaultSubtex;
     }
-    
+
     float nw = baseImg.subtex->right  - baseImg.subtex->left;
     float nh = baseImg.subtex->bottom - baseImg.subtex->top;
     std::string line;
@@ -264,12 +265,12 @@ inline float lerp(float a, float b, float t) {
     return a + t * (b - a);
 }
 
-PlayState::PlayState(const std::string& songName, const std::string& difficulty) 
+PlayState::PlayState(const std::string& songName, const std::string& difficulty)
     : curSong(songName), currentDifficulty(difficulty) {
     isStoryMode = false;
 }
 
-PlayState::PlayState(const WeekData& week, int songIdx, const std::string& difficulty) 
+PlayState::PlayState(const WeekData& week, int songIdx, const std::string& difficulty)
     : weekData(week), curSongIdx(songIdx) {
     isStoryMode = true;
     if (songIdx >= 0 && songIdx < (int)week.songs.size()) {
@@ -317,7 +318,7 @@ void PlayState::init() {
         customOpponentStrumFlipY[i] = false;
         customOpponentStrumAntialiasing[i] = true;
     }
-    
+
     healthBarX = -9999.0f;
     healthBarY = -9999.0f;
     healthBarScaleX = 1.0f;
@@ -446,7 +447,7 @@ void PlayState::init() {
     scoreTxtColor = 0xFFFFFFFF;
     timeTxtVisible = true;
     timeTxtColor = 0xFFFFFFFF;
-    
+
     iconP1X = -9999.0f;
     iconP1Y = -9999.0f;
     iconP1Scale = 1.0f;
@@ -467,29 +468,32 @@ void PlayState::init() {
     healthBarVisible = true;
     healthBarBGVisible = true;
     endedSong = false;
+    botplayTextBuf = nullptr;
+    timeTextBuf = nullptr;
+    cachedTimeLeft = -1;
     printf("\x1b[1;1HPlayState::init start\n");
-    
+
     time_t now = time(nullptr);
     tm* ltm = localtime(&now);
     if (ltm->tm_wday == 5) Achievements::unlockAchievement("friday_night_play");
-    
+
     AsyncAssetManager::get().suspend();
-    
+
     extern C2D_Font globalVCRFont;
     vcrFont = globalVCRFont;
-    
+
     printf("\x1b[2;1H[System] Loading %s...\n", curSong.c_str());
-    
+
     PlayState::instance = this;
-    
+
     // Load song JSON early to ensure arrowSkin and ratingSkin are available
     std::string sPath = Paths::songJson(curSong, currentDifficulty);
     songData = SongParser::loadJson(sPath);
-    
+
     bool isPixelSkinGlobal =
         SongParser::arrowSkin.size() >= 6 &&
         SongParser::arrowSkin.compare(SongParser::arrowSkin.size() - 6, 6, "-pixel") == 0;
-        
+
     songNotes = songData.notes;
     for (auto& n : songNotes) {
         if (isPixelSkinGlobal) {
@@ -498,24 +502,30 @@ void PlayState::init() {
             n.antialiasing = false;
         }
     }
-    
+
     if (isPixelSkinGlobal) {
         for (int i = 0; i < 4; i++) {
             customPlayerStrumAntialiasing[i] = false;
             customOpponentStrumAntialiasing[i] = false;
         }
     }
-    
+
     showGrid = ClientPrefs::drawGrid;
     vcrFontBuf = C2D_TextBufNew(128);
+
+    botplayTextBuf = C2D_TextBufNew(32);
+    C2D_TextFontParse(&botplayTextObj, vcrFont, botplayTextBuf, "BOTPLAY");
+    C2D_TextOptimize(&botplayTextObj);
+
+    timeTextBuf = C2D_TextBufNew(32);
     lyricsTextBuf = C2D_TextBufNew(256);
     currentLyrics = "";
-    
+
     arrowSkinScaleFactor = 1.0f;
     if (!ClientPrefs::fastNotes) {
         auto* csNote = SpritesheetCache::get().load("shared/images/noteSkins/NOTE_assets");
         noteSheet = csNote ? csNote->sheet : nullptr;
-        
+
         if (noteSheet) {
             C2D_Image mainNoteImg = C2D_SpriteSheetGetImage(noteSheet, 0);
             if (mainNoteImg.tex) C3D_TexSetFilter(mainNoteImg.tex, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
@@ -594,7 +604,7 @@ void PlayState::init() {
                 (ClientPrefs::globalAntialiasing && !isPixelFast) ? GPU_LINEAR : GPU_NEAREST
             );
         }
-        
+
         static Tex3DS_SubTexture defaultFastNoteSubtex;
         if (fastNoteBaseImg.subtex == nullptr) {
             defaultFastNoteSubtex.width = fastNoteBaseImg.tex ? fastNoteBaseImg.tex->width : 0;
@@ -605,7 +615,7 @@ void PlayState::init() {
             defaultFastNoteSubtex.bottom = 1.0f;
             fastNoteBaseImg.subtex = &defaultFastNoteSubtex;
         }
-        
+
         if (fastNoteBaseImg.subtex) {
             parseNoteFastXml("romfs:/shared/images/noteSkins/NoteSheetFast.xml", fastNoteBaseImg.tex, fastNoteBaseImg, fastNoteSubtexs);
             float fastArrowW = (fastNoteSubtexs.size() > 0) ? fastNoteSubtexs[0].w : 0.0f;
@@ -622,7 +632,7 @@ void PlayState::init() {
         std::string skinName = SongParser::ratingSkin;
         std::string t3xPath = Paths::image("ratingSkins/" + skinName);
         std::string xmlPath = Paths::xml("ratingSkins/" + skinName);
-        
+
         if (Paths::fileExists(t3xPath) && Paths::fileExists(xmlPath)) {
             auto* csSkin = SpritesheetCache::get().load("images/ratingSkins/" + skinName);
             ratingSheet = csSkin ? csSkin->sheet : nullptr;
@@ -638,7 +648,7 @@ void PlayState::init() {
                          (ClientPrefs::globalAntialiasing && !isPixelRating) ? GPU_LINEAR : GPU_NEAREST
                      );
                  }
-                
+
                 static Tex3DS_SubTexture defaultRatingSubtex;
                 if (ratingBaseImage.subtex == nullptr) {
                     defaultRatingSubtex.width = ratingBaseImage.tex ? ratingBaseImage.tex->width : 0;
@@ -649,13 +659,13 @@ void PlayState::init() {
                     defaultRatingSubtex.bottom = 1.0f;
                     ratingBaseImage.subtex = &defaultRatingSubtex;
                 }
-                
+
                 if (ratingBaseImage.subtex != nullptr) {
                     std::ifstream file(xmlPath);
                     std::string line;
                     float rw = ratingBaseImage.subtex->right - ratingBaseImage.subtex->left;
                     float rh = ratingBaseImage.subtex->bottom - ratingBaseImage.subtex->top;
-                    
+
                     while (std::getline(file, line)) {
                         if (line.find("<SubTexture") != std::string::npos) {
                             auto getVal = [&](const std::string& key) {
@@ -665,19 +675,19 @@ void PlayState::init() {
                                 size_t end = line.find("\"", pos);
                                 return line.substr(pos, end - pos);
                             };
-                            
+
                             std::string nameInfo = getVal("name");
                             std::string id = "shit";
                             if (nameInfo.find("sick") != std::string::npos) id = "sick";
                             else if (nameInfo.find("good") != std::string::npos) id = "good";
                             else if (nameInfo.find("bad") != std::string::npos) id = "bad";
-                            
+
                             Tex3DS_SubTexture sub;
                             float x = atof(getVal("x").c_str());
                             float y = atof(getVal("y").c_str());
                             float w = atof(getVal("width").c_str());
                             float h = atof(getVal("height").c_str());
-                            
+
                             sub.width = (u16)w;
                             sub.height = (u16)h;
                             if (ratingBaseImage.subtex) {
@@ -686,7 +696,7 @@ void PlayState::init() {
                                 sub.right = ratingBaseImage.subtex->left + ((x + w) * rw / (float)ratingBaseImage.subtex->width);
                                 sub.bottom = ratingBaseImage.subtex->top + ((y + h) * rh / (float)ratingBaseImage.subtex->height);
                             }
-                            
+
                             ratingSubtexs[id] = sub;
                         }
                     }
@@ -703,7 +713,7 @@ void PlayState::init() {
         if (ratingSheet) {
             ratingBaseImage = C2D_SpriteSheetGetImage(ratingSheet, 0);
             if (ratingBaseImage.tex) C3D_TexSetFilter(ratingBaseImage.tex, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
-            
+
             static Tex3DS_SubTexture defaultRatingSubtex;
             if (ratingBaseImage.subtex == nullptr) {
                 defaultRatingSubtex.width = ratingBaseImage.tex ? ratingBaseImage.tex->width : 0;
@@ -714,13 +724,13 @@ void PlayState::init() {
                 defaultRatingSubtex.bottom = 1.0f;
                 ratingBaseImage.subtex = &defaultRatingSubtex;
             }
-            
+
             if (ratingBaseImage.subtex != nullptr) {
                 std::ifstream file("romfs:/shared/images/ratingSkins/rating.xml");
                 std::string line;
                 float rw = ratingBaseImage.subtex->right - ratingBaseImage.subtex->left;
                 float rh = ratingBaseImage.subtex->bottom - ratingBaseImage.subtex->top;
-            
+
                 while (std::getline(file, line)) {
                     if (line.find("<SubTexture") != std::string::npos) {
                         auto getVal = [&](const std::string& key) {
@@ -730,19 +740,19 @@ void PlayState::init() {
                             size_t end = line.find("\"", pos);
                             return line.substr(pos, end - pos);
                         };
-                        
+
                         std::string nameInfo = getVal("name");
                         std::string id = "shit";
                         if (nameInfo.find("sick") != std::string::npos) id = "sick";
                         else if (nameInfo.find("good") != std::string::npos) id = "good";
                         else if (nameInfo.find("bad") != std::string::npos) id = "bad";
-                        
+
                         Tex3DS_SubTexture sub;
                         float x = atof(getVal("x").c_str());
                         float y = atof(getVal("y").c_str());
                         float w = atof(getVal("width").c_str());
                         float h = atof(getVal("height").c_str());
-                        
+
                         sub.width = (u16)w;
                         sub.height = (u16)h;
                         if (ratingBaseImage.subtex) {
@@ -751,7 +761,7 @@ void PlayState::init() {
                             sub.right = ratingBaseImage.subtex->left + ((x + w) * rw / (float)ratingBaseImage.subtex->width);
                             sub.bottom = ratingBaseImage.subtex->top + ((y + h) * rh / (float)ratingBaseImage.subtex->height);
                         }
-                        
+
                         ratingSubtexs[id] = sub;
                     }
                 }
@@ -772,7 +782,7 @@ void PlayState::init() {
             std::string line;
             float rw = cBaseImage.subtex->right - cBaseImage.subtex->left;
             float rh = cBaseImage.subtex->bottom - cBaseImage.subtex->top;
-            
+
             while (std::getline(file, line)) {
                 if (line.find("<SubTexture") != std::string::npos) {
                     auto getVal = [&](const std::string& key) {
@@ -782,25 +792,25 @@ void PlayState::init() {
                         size_t end = line.find("\"", pos);
                         return line.substr(pos, end - pos);
                     };
-                    
+
                     std::string nameInfo = getVal("name");
                     std::string id = "go";
                     if (nameInfo.find("ready") != std::string::npos) id = "ready";
                     else if (nameInfo.find("set") != std::string::npos) id = "set";
-                    
+
                     Tex3DS_SubTexture sub;
                     float x = atof(getVal("x").c_str());
                     float y = atof(getVal("y").c_str());
                     float w = atof(getVal("width").c_str());
                     float h = atof(getVal("height").c_str());
-                    
+
                     sub.width = (u16)w;
                     sub.height = (u16)h;
                     sub.left = cBaseImage.subtex->left + (x * rw / (float)cBaseImage.subtex->width);
                     sub.top = cBaseImage.subtex->top + (y * rh / (float)cBaseImage.subtex->height);
                     sub.right = cBaseImage.subtex->left + ((x + w) * rw / (float)cBaseImage.subtex->width);
                     sub.bottom = cBaseImage.subtex->top + ((y + h) * rh / (float)cBaseImage.subtex->height);
-                    
+
                     countdownSubtexs[id] = sub;
                 }
             }
@@ -812,7 +822,7 @@ void PlayState::init() {
     if (songNotes.empty()) {
         printf("\x1b[9;1HWARN: Chart empty or not found!\n");
     }
-    
+
     printf("\x1b[5;1HSorting notes...\n");
     std::sort(songNotes.begin(), songNotes.end(), [](const Note& a, const Note& b) {
         return a.strumTime < b.strumTime;
@@ -826,7 +836,7 @@ void PlayState::init() {
     if (!AudioEngine::init(instPath.c_str(), vocPath.c_str())) {
         printf("\x1b[9;1HERROR: Could not load audio!\n");
     }
-    
+
     gf = new Character();
     gf->loadFromPsychJson(Paths::characterJson(SongParser::gfVersion));
     if (gf->curAnim.empty()) gf->loadFromPsychJson(Paths::characterJson("gf")); // fallback
@@ -834,7 +844,7 @@ void PlayState::init() {
         gf->curCharacterName = SongParser::gfVersion.empty() ? "gf" : SongParser::gfVersion;
     }
     AsyncAssetManager::get().cacheCharacter(gf->curCharacterName, gf);
-    
+
     bf = new Character();
     bf->loadFromPsychJson(Paths::characterJson(SongParser::player1));
     if (bf->curAnim.empty()) bf->loadFromPsychJson(Paths::characterJson("bf-pixel")); // fallback
@@ -853,7 +863,7 @@ void PlayState::init() {
     AsyncAssetManager::get().cacheCharacter(dad->curCharacterName, dad);
 
     currentStage = new Stage(Paths::stageJson(SongParser::stage));
-    
+
     // Set initial character positions from stage data
     if (bf) { bf->x += currentStage->bfX; bf->y += currentStage->bfY; }
     if (dad) { dad->x += currentStage->dadX; dad->y += currentStage->dadY; }
@@ -861,7 +871,7 @@ void PlayState::init() {
 
     targetZoom = currentStage->defaultZoom;
     camZoom = targetZoom;
-    
+
     if (!songData.sections.empty()) {
         curSection = 0;
         focusCamera(songData.sections[0].mustHitSection);
@@ -872,14 +882,14 @@ void PlayState::init() {
         camX = camFollowX;
         camY = camFollowY;
     }
-    
+
     nextNoteIndex = 0;
 
     receptorY = ClientPrefs::downscroll ? ScreenHeight - 60.0f : 20.0f;
     spacing = 38.0f;
     bool useFast = ClientPrefs::fastNotes && fastNoteSheet && fastNoteSubtexs.size() >= 2;
     noteScale = 0.5f * (useFast ? fastNoteSkinScaleFactor : arrowSkinScaleFactor);
-    
+
     startTimerActive = true;
     countdownTick = 0;
     countdownActive = false;
@@ -888,15 +898,15 @@ void PlayState::init() {
     countdownYOffset = 0.0f;
     countdownTimer = 0.0f;
     currentCountdownFrame = "";
-    
+
     Conductor::songPosition = -(Conductor::crochet * 5);
-    
+
     musicStarted = false;
     lastBeat = 0;
     health = 1.0f;
     vocalMuteTimer = 0.0f;
     songLength = AudioEngine::getTotalTime();
-    
+
     score = 0;
     misses = 0;
     combo = 0;
@@ -906,7 +916,7 @@ void PlayState::init() {
     iconBump = 1.0f;
     hudZoom = 1.0f;
     scoreZoom = 1.0f;
-    
+
     autoIconPosition = true;
     iconP1X = -9999.0f;
     iconP1Y = -9999.0f;
@@ -918,7 +928,7 @@ void PlayState::init() {
     iconP2Scale = 1.0f;
     iconP1Visible = true;
     iconP2Visible = true;
-    
+
     curSongDifficulties.clear();
     std::string diffStr = "";
     if (isStoryMode) {
@@ -951,12 +961,12 @@ void PlayState::init() {
     lastBeat = -1;
 
     if (Conductor::stepCrochet == 0) Conductor::stepCrochet = 1.0f; // Prevent div by zero
-    
+
     MusicBeatState::init();
     printf("\x1b[12;1HInit Base... OK\n");
     ratingName = "?";
     gridOffset = 0.0f;
-    
+
     loadHealthIcon(iconBf,  bf  ? bf->healthIcon  : "face");
     loadHealthIcon(iconDad, dad ? dad->healthIcon : "face");
 
@@ -964,7 +974,7 @@ void PlayState::init() {
     lastBeat = -1;
     pOffsetX = 0; pOffsetY = 0; eOffsetX = 0; eOffsetY = 0;
 
-    
+
     for(int i=0; i<4; i++) {
         keyPressed[i] = false; keyHeld[i] = false; keyHitRecently[i] = false;
         receptorTimer[i] = 0; receptorTimer[4+i] = 0;
@@ -995,7 +1005,7 @@ void PlayState::init() {
             s.scaleY = 1.0f;
             s.scrollX = 1.0f;
             s.scrollY = 1.0f;
-            
+
             luaSpriteIndices[tag] = luaSprites.size();
             luaSprites.push_back(s);
         };
@@ -1017,11 +1027,11 @@ void PlayState::init() {
         // 4. dadNoteUnderlayR
         createUnderlaySprite("dadNoteUnderlayR", (ClientPrefs::middleScroll && showOpp) ? ClientPrefs::noteUnderlayAlpha : 0.0f, getLaneX(2, false) - padding, (getLaneX(3, false) + spacing) - getLaneX(2, false) + 2.0f * padding, opponentUnderlayColor);
     }
-    
+
     // Use same base path as stageJson but swap extension to .lua
     std::string stageName = SongParser::stage;
     std::string luaPath = "romfs:/preload/stages/" + stageName + ".lua";
-    
+
     std::string modLuaPath = ModHandler::get().getModPath("stages/" + stageName + ".lua");
     if (!modLuaPath.empty()) {
         luaPath = modLuaPath;
@@ -1057,7 +1067,7 @@ void PlayState::init() {
     for (const auto& scriptPath : eventScripts) {
         LuaManager::get().runScript(scriptPath);
     }
-    
+
     // Load custom notes from the song chart
     std::vector<std::string> noteTypes;
     for (const auto& n : songData.notes) {
@@ -1090,7 +1100,7 @@ void PlayState::init() {
         if (rawPath.empty() && Paths::fileExists("romfs:/shared/images/" + n.texture + ".rawtex")) {
             rawPath = "romfs:/shared/images/" + n.texture + ".rawtex";
         }
-        
+
         if (Paths::fileExists(rawPath)) {
             FILE* f = fopen(rawPath.c_str(), "rb");
             if (f) {
@@ -1105,7 +1115,7 @@ void PlayState::init() {
                             if (tex->data) linearFree(tex->data);
                             tex->data = tempBuf;
                             C3D_TexFlush(tex);
-                            
+
                             bool isPixelNote =
                                 n.texture.size() >= 6 &&
                                 n.texture.compare(n.texture.size() - 6, 6, "-pixel") == 0;
@@ -1114,7 +1124,7 @@ void PlayState::init() {
                                 (ClientPrefs::globalAntialiasing && !isPixelNote) ? GPU_LINEAR : GPU_NEAREST,
                                 (ClientPrefs::globalAntialiasing && !isPixelNote) ? GPU_LINEAR : GPU_NEAREST
                             );
-                            
+
                             Tex3DS_SubTexture* sub = new Tex3DS_SubTexture();
                             sub->width = header.ow;
                             sub->height = header.oh;
@@ -1122,7 +1132,7 @@ void PlayState::init() {
                             sub->top = 1.0f;
                             sub->right = (float)header.ow / header.w;
                             sub->bottom = 1.0f - ((float)header.oh / header.h);
-                            
+
                             C2D_Image img;
                             img.tex = tex;
                             img.subtex = sub;
@@ -1207,7 +1217,7 @@ void PlayState::updateCamera(float dt) {
     if (ratingActive) {
         ratingVelY += ratingAccelY * dt;
         ratingY += ratingVelY * dt;
-        
+
         // Start fading when falling
         if (ratingVelY > 0) {
             ratingAlpha -= dt * 3.5f; // Fade during fall
@@ -1217,7 +1227,7 @@ void PlayState::updateCamera(float dt) {
 
     float camSpeedMult = 1.0f;
     if (currentStage) camSpeedMult = currentStage->cameraSpeed;
-    
+
     float camLerp = dt * 2.4f * camSpeedMult;
     if (camLerp > 1.0f) camLerp = 1.0f;
     camX = lerp(camX, camFollowX, camLerp);
@@ -1282,7 +1292,7 @@ void PlayState::updateNotesLogic(float dt) {
 
     for (size_t i = nextNoteIndex; i < logicLimit; i++) {
         Note& n = songNotes[i];
-        
+
         // Skip fully processed notes
         if (n.hit && !n.sustainActive) continue;
 
@@ -1297,16 +1307,16 @@ void PlayState::updateNotesLogic(float dt) {
             n.hit = true;
             n.wasGoodHit = true;
             if (n.sustainLength > 0.0f) n.sustainActive = true;
-            
+
             receptorTimer[n.noteData] = 0.12f;
-            
+
             Character* singer = n.isPlayer ? bf : dad;
             if (n.gfNote || (curSection >= 0 && curSection < (int)songData.sections.size() && songData.sections[curSection].gfSection))
                 singer = gf;
 
             moveChar(n.noteData, singer);
             AudioEngine::setVocalsVolume(1.0f);
-            
+
             LuaManager::get().callFunction("opponentNoteHit", {std::to_string(i), std::to_string(n.noteData), n.noteType, n.sustainLength > 0.0f ? "true" : "false"});
         }
 
@@ -1324,7 +1334,7 @@ void PlayState::updateNotesLogic(float dt) {
 
             moveChar(n.noteData, singer);
             AudioEngine::setVocalsVolume(1.0f);
-            
+
             keyHitRecently[n.noteData] = true;
 
             health += 0.023f; if (health > 2.0f) health = 2.0f;
@@ -1341,9 +1351,9 @@ void PlayState::updateNotesLogic(float dt) {
             AudioEngine::playMissSound();
             vocalMuteTimer = 0.5f;
             totalNotesHit++; accuracy = (totalNoteScore / totalNotesHit) * 100.0f;
-            
+
             LuaManager::get().callFunction("noteMiss", {std::to_string(i), std::to_string(n.noteData), n.noteType, n.sustainLength > 0.0f ? "true" : "false"});
-            
+
             Character* misser = n.isPlayer ? bf : dad;
             if (n.gfNote || (curSection >= 0 && curSection < (int)songData.sections.size() && songData.sections[curSection].gfSection))
                 misser = gf;
@@ -1507,7 +1517,7 @@ void PlayState::update(float dt) {
     if (bf && bf->curAnim.find("idle") != std::string::npos) {
         bfWentIdle = true;
     }
-    
+
     // Process deferred character cleanup — safe here because C3D_FrameBegin already
     // synced the GPU for the previous frame before update() is called.
     if (deferredClearUnused) {
@@ -1517,7 +1527,7 @@ void PlayState::update(float dt) {
         if (bf)  { activePointers.push_back(bf);  if (!bf->curCharacterName.empty())  activeNames.push_back(bf->curCharacterName); }
         if (dad) { activePointers.push_back(dad); if (!dad->curCharacterName.empty()) activeNames.push_back(dad->curCharacterName); }
         if (gf)  { activePointers.push_back(gf);  if (!gf->curCharacterName.empty())  activeNames.push_back(gf->curCharacterName); }
-        
+
         // Keep any pending swap targets alive too
         for (const auto& swap : pendingSwaps) {
             if (!swap.charName.empty()) activeNames.push_back(swap.charName);
@@ -1585,7 +1595,7 @@ void PlayState::update(float dt) {
     }
 
     if (dt > 0.05f) dt = 0.05f; // Cap at ~20 FPS to prevent huge lag spikes from skipping the countdown
-    
+
     u32 kDown = hidKeysDown();
     if (kDown & KEY_START) {
         paused = !paused;
@@ -1677,7 +1687,7 @@ void PlayState::update(float dt) {
         // Apply dead Boyfriend offsets from JSON relative to original Boyfriend position
         deadBF->x = deadBfX + deadBF->x;
         deadBF->y = deadBfY + deadBF->y;
-        
+
         // Exact FNF getGraphicMidpoint approximation
         deathCamFollowX = deadBF->x + 200.0f;
         deathCamFollowY = deadBF->y + 200.0f;
@@ -1709,19 +1719,19 @@ void PlayState::update(float dt) {
         }
     }
     handleInput(dt);
-    
+
     if (startTimerActive) {
         Conductor::songPosition += dt * 1000.0f;
-        
+
         float crochet = Conductor::crochet;
-        
+
         // Use a while loop to ensure we don't miss ticks if framerate drops
         while (countdownTick < 5 && Conductor::songPosition >= -(crochet * (4 - countdownTick))) {
             tickCountdown();
         }
-        
+
         Conductor::update(Conductor::songPosition);
-        
+
         if (Conductor::songPosition >= 0) {
             startTimerActive = false;
             AudioEngine::start();
@@ -1743,7 +1753,7 @@ void PlayState::update(float dt) {
                 AudioEngine::freeCountdownSounds();
             }
         }
-        
+
         float eased = Ease::get("cubeinout", progress);
         countdownAlpha = 1.0f - eased;
         countdownYOffset = eased * 40.0f; // Tween Y down by 40 pixels total
@@ -1771,9 +1781,9 @@ void PlayState::update(float dt) {
         lastBeat = curBeat;
         beatHit(curBeat);
     }
-    
+
     AudioEngine::update();
-    
+
     updateCamera(dt);
     updateNotesLogic(dt);
 
@@ -1805,7 +1815,7 @@ void PlayState::update(float dt) {
 
     pOffsetX = lerp(pOffsetX, 0.0f, dt * 8.0f);
     pOffsetY = lerp(pOffsetY, 0.0f, dt * 8.0f);
-    
+
     float zoomLerp = std::min(1.0f, dt * 3.1f);
     float bumpLerp = std::min(1.0f, dt * 8.0f);
     float scoreLerp = std::min(1.0f, dt * 10.0f);
@@ -2063,7 +2073,7 @@ void PlayState::update(float dt) {
         it->timer += dt;
         if (it->timer >= it->duration) {
             completedTimers.push_back(it->tag);
-            
+
             if (it->loops > 0) {
                 it->loopsLeft--;
             }
@@ -2087,7 +2097,7 @@ void PlayState::handleInput(float dt) {
     u32 kDown = hidKeysDown();
     u32 kHeld = hidKeysHeld();
     u32 mapDown[] = {KEY_DLEFT | KEY_Y, KEY_DDOWN | KEY_B, KEY_DUP | KEY_X, KEY_DRIGHT | KEY_A};
-    
+
     bool touchPressed[4] = {false, false, false, false};
     bool touchHeld[4] = {false, false, false, false};
     static int lastTouchLane = -1;
@@ -2126,58 +2136,58 @@ void PlayState::handleInput(float dt) {
                 keysUsed.push_back(i);
             }
         }
-        
+
         // Handle Head Hits
         if (keyPressed[i]) {
             receptorTimer[4+i] = 0.10f;
             float bestDiff = 166.0f;
             Note* bestNote = nullptr;
-            
+
             float pos = Conductor::songPosition;
             for(auto& n : songNotes) {
                 if (n.strumTime < pos - 350.0f) continue;
                 if (n.strumTime > pos + 350.0f) break;
-                
+
                 if (n.hit || !n.isPlayer || n.noteData != i) continue;
                 float diff = abs(n.strumTime - pos);
                 if (diff < bestDiff) { bestDiff = diff; bestNote = &n; }
             }
             if (bestNote) {
-                bestNote->hit = true; 
-                bestNote->wasGoodHit = true; 
+                bestNote->hit = true;
+                bestNote->wasGoodHit = true;
                 if (bestNote->sustainLength > 0) bestNote->sustainActive = true;
-                
-                keyHitRecently[i] = true; 
+
+                keyHitRecently[i] = true;
 
                 Character* singer = bestNote->isPlayer ? bf : dad;
                 if (bestNote->gfNote || (curSection >= 0 && curSection < (int)songData.sections.size() && songData.sections[curSection].gfSection))
                     singer = gf;
 
                 moveChar(i, singer);
-                
+
                 size_t id = bestNote - &songNotes[0];
                 LuaManager::get().callFunction("goodNoteHit", {std::to_string(id), std::to_string(bestNote->noteData), bestNote->noteType, bestNote->sustainLength > 0.0f ? "true" : "false"});
-                
+
                 totalNotesHit++;
-                if (bestDiff < 45.0f) { 
-                    score += 350; totalNoteScore += 1.0f; ratingName = "Sick!"; 
+                if (bestDiff < 45.0f) {
+                    score += 350; totalNoteScore += 1.0f; ratingName = "Sick!";
                     sicks++;
                     if (ClientPrefs::scoreZoom) scoreZoom = 1.15f;
                     currentRatingStr = "sick";
                 }
-                else if (bestDiff < 90.0f) { 
-                    score += 200; totalNoteScore += 0.75f; ratingName = "Good"; 
+                else if (bestDiff < 90.0f) {
+                    score += 200; totalNoteScore += 0.75f; ratingName = "Good";
                     goods++;
                     if (ClientPrefs::scoreZoom) scoreZoom = 1.1f;
                     currentRatingStr = "good";
                 }
-                else if (bestDiff < 135.0f) { 
-                    score += 100; totalNoteScore += 0.5f; ratingName = "Bad"; 
+                else if (bestDiff < 135.0f) {
+                    score += 100; totalNoteScore += 0.5f; ratingName = "Bad";
                     bads++;
                     currentRatingStr = "bad";
                 }
-                else { 
-                    score += 50; totalNoteScore += 0.25f; ratingName = "Shit"; 
+                else {
+                    score += 50; totalNoteScore += 0.25f; ratingName = "Shit";
                     shits++;
                     currentRatingStr = "shit";
                 }
@@ -2186,8 +2196,8 @@ void PlayState::handleInput(float dt) {
                 ratingVelY = -120.0f; // Jump
                 ratingAlpha = 1.0f;
                 ratingTimer = 0.0f;
-                ratingScale = 0.4f * ClientPrefs::comboScale; 
-                ratingX = (ScreenWidthTop - 50.0f) + ClientPrefs::comboOffsetX; 
+                ratingScale = 0.4f * ClientPrefs::comboScale;
+                ratingX = (ScreenWidthTop - 50.0f) + ClientPrefs::comboOffsetX;
                 ratingY = 35.0f + ClientPrefs::comboOffsetY;
 
                 accuracy = (totalNoteScore / totalNotesHit) * 100.0f;
@@ -2213,7 +2223,7 @@ void PlayState::handleInput(float dt) {
                 }
             }
         }
-        
+
         // Handle Sustains (Drops and Misses)
         float pos = Conductor::songPosition;
         for(auto& n : songNotes) {
@@ -2221,8 +2231,8 @@ void PlayState::handleInput(float dt) {
             if (n.strumTime > pos + 500.0f) break;
 
             if (!n.isPlayer || n.noteData != i || n.sustainLength <= 0.0f) continue;
-            if (n.ignoreNote && !n.wasGoodHit) continue; 
-            
+            if (n.ignoreNote && !n.wasGoodHit) continue;
+
             float tailEnd = n.strumTime + n.sustainLength;
             bool isInsideSustain = (pos >= n.strumTime && pos <= tailEnd);
 
@@ -2230,8 +2240,8 @@ void PlayState::handleInput(float dt) {
                 if (!keyHeld[i] && !ClientPrefs::botPlay) {
                     float releaseBuffer = 150.0f;
                     if (pos < (tailEnd - releaseBuffer)) {
-                        n.sustainActive = false; 
-                        n.ignoreNote = true; 
+                        n.sustainActive = false;
+                        n.ignoreNote = true;
                         n.wasGoodHit = false;
                         misses++; combo = 0; health -= 0.05f; if (health < 0.0f) health = 0.0f;
                         AudioEngine::setVocalsVolume(0.0f);
@@ -2239,6 +2249,26 @@ void PlayState::handleInput(float dt) {
                     }
                 } else {
                     if (bf) bf->holdTimer = 0;
+                }
+            }
+        }
+    }
+
+    // playerDance logic: return boyfriend to idle if not holding any key and holdTimer exceeded
+    if (bf) {
+        bool anyKeyHeld = false;
+        for (int lane = 0; lane < 4; lane++) {
+            if (keyHeld[lane]) {
+                anyKeyHeld = true;
+                break;
+            }
+        }
+        if (!anyKeyHeld || endedSong || ClientPrefs::botPlay) {
+            std::string anim = bf->curAnim;
+            if (anim.find("sing") != std::string::npos && anim.find("miss") == std::string::npos) {
+                float singThreshold = (Conductor::stepCrochet * 0.0011f) * bf->singDuration;
+                if (bf->holdTimer > singThreshold) {
+                    bf->dance();
                 }
             }
         }
@@ -2282,8 +2312,8 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
     float textW = 0.0f, textH = 0.0f;
     float drawX = 0.0f, drawY = 0.0f;
 
-    bool anyExtended = ShaderManager::get().isCameraExtended("camGame") || 
-                       ShaderManager::get().isCameraExtended("camHUD") || 
+    bool anyExtended = ShaderManager::get().isCameraExtended("camGame") ||
+                       ShaderManager::get().isCameraExtended("camHUD") ||
                        ShaderManager::get().isCameraExtended("camOther");
     if (showGrid && !ClientPrefs::lowQuality && !anyExtended) {
         for (float x = -gridSize; x < bw + gridSize; x += gridSize) {
@@ -2301,59 +2331,59 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
             cachedMisses = misses;
             cachedCombo = combo;
             scoreTextNeedsUpdate = false;
-            
+
             char scoreStr[256];
             sprintf(scoreStr, "Score: %d | Misses: %d | Combo: %d", score, misses, combo);
             C2D_TextFontParse(&scoreTextObj, vcrFont, vcrFontBuf, scoreStr);
             C2D_TextOptimize(&scoreTextObj);
         }
-        
+
         float baseScaleX = hdScale;
         float baseScaleY = hdScale;
         float unscaledW = 0, unscaledH = 0;
         C2D_TextGetDimensions(&scoreTextObj, baseScaleX, baseScaleY, &unscaledW, &unscaledH);
-        
+
         float sX = (scoreTxtX != -9999.0f) ? scoreTxtX : ((bw/2.0f) - (unscaledW/2.0f));
         float sY = (scoreTxtY != -9999.0f) ? scoreTxtY : (hudY - (unscaledH/2.0f));
-        
+
         float centerX = sX + unscaledW / 2.0f;
         float centerY = sY + unscaledH / 2.0f;
-        
+
         float textScaleX = hdScale * scoreTxtScaleX * hudZoom;
         float textScaleY = hdScale * scoreTxtScaleY * hudZoom;
         C2D_TextGetDimensions(&scoreTextObj, textScaleX, textScaleY, &textW, &textH);
-        
+
         float centerXT = ScreenWidthTop / 2.0f;
         float centerYT = ScreenHeight / 2.0f;
         float drawCenterX = centerXT + (centerX - centerXT) * hudZoom + shakeX;
         float drawCenterY = centerYT + (centerY - centerYT) * hudZoom + shakeY;
-        
+
         drawX = drawCenterX - (textW / 2.0f);
         drawY = drawCenterY - (textH / 2.0f);
-        
+
         u8 sa = (u8)(255 * scoreTxtAlpha * hudAlpha);
         u32 sCol = (scoreTxtColor & 0x00FFFFFF) | ((u32)sa << 24);
-        
+
         DrawTextBorderCardinal(&scoreTextObj, drawX, drawY, 0.84f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,sa));
         C2D_DrawText(&scoreTextObj, C2D_WithColor, drawX, drawY, 0.85f, textScaleX, textScaleY, sCol);
     }
 
 
-    
+
     // Draw Lyrics
     if (!currentLyrics.empty() && lyricsTextObj.width > 0) {
         float textW = 0, textH = 0;
         C2D_TextGetDimensions(&lyricsTextObj, currentLyricsSize, currentLyricsSize, &textW, &textH);
-        
+
         float centerX = bw / 2.0f + shakeX;
         float ly = (bh - textH) / 2.0f + shakeY;
-        
+
         // Semi-transparent black background with padding
         float padX = 10.0f * currentLyricsSize;
         float padY = 5.0f * currentLyricsSize;
         // Background is still drawn using the top-left logic to match the dimensions
         C2D_DrawRectSolid(centerX - (textW / 2.0f) - padX, ly - padY, 0.98f, textW + padX*2.0f, textH + padY*2.0f, C2D_Color32(0, 0, 0, 150));
-        
+
         C2D_DrawText(&lyricsTextObj, C2D_WithColor | C2D_AlignCenter, centerX, ly, 0.99f, currentLyricsSize, currentLyricsSize, currentLyricsColor);
     }
 
@@ -2367,7 +2397,7 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
         float cdScaleY = countdownScale * 1.6f * countdownScaleY;
         float cdX = (countdownX != -9999.0f) ? countdownX : ((bw / 2.0f) - (sub.width * cdScaleX / 2.0f));
         float cdY = (countdownY != -9999.0f) ? countdownY : ((bh / 2.0f) - (sub.height * cdScaleY / 2.0f) + countdownYOffset);
-        
+
         float centerXT = ScreenWidthTop / 2.0f;
         float centerYT = ScreenHeight / 2.0f;
         float drawX = centerXT + (cdX - centerXT) * hudZoom + shakeX;
@@ -2471,7 +2501,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         float progress = (songLength > 0) ? (float)(Conductor::songPosition / songLength) : 0;
         if (progress > 1.0f) progress = 1.0f;
         if (progress < 0.0f) progress = 0.0f;
-        
+
         float tbBGX = (timeBarBGX != -9999.0f) ? timeBarBGX : tbX;
         float tbBGY = (timeBarBGY != -9999.0f) ? timeBarBGY : tbY;
         float timeBarBGW = 150.0f * timeBarBGScaleX;
@@ -2511,19 +2541,21 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
 
             if (timeTxtVisible) {
                 int timeLeft = (songLength > Conductor::songPosition) ? (int)((songLength - Conductor::songPosition) / 1000) : 0;
-                char timeStr[16];
-                sprintf(timeStr, "%d:%02d", timeLeft / 60, timeLeft % 60);
+                if (timeLeft != cachedTimeLeft) {
+                    cachedTimeLeft = timeLeft;
+                    if (timeTextBuf) C2D_TextBufClear(timeTextBuf);
+                    char timeStr[16];
+                    sprintf(timeStr, "%d:%02d", timeLeft / 60, timeLeft % 60);
+                    C2D_TextFontParse(&timeTextObj, vcrFont, timeTextBuf, timeStr);
+                    C2D_TextOptimize(&timeTextObj);
+                }
 
-                C2D_Text timeObj;
-                C2D_TextFontParse(&timeObj, vcrFont, vcrFontBuf, timeStr);
-                C2D_TextOptimize(&timeObj);
-                
                 float textScale = 0.35f * hudZoom;
                 float textScaleX = textScale * timeTxtScaleX;
                 float textScaleY = textScale * timeTxtScaleY;
                 float tw, th;
-                C2D_TextGetDimensions(&timeObj, textScaleX, textScaleY, &tw, &th);
-                
+                C2D_TextGetDimensions(&timeTextObj, textScaleX, textScaleY, &tw, &th);
+
                 float dx, dy;
                 if (timeTxtX != -9999.0f) {
                     dx = centerXT + (timeTxtX - centerXT) * hudZoom + shakeX;
@@ -2538,8 +2570,8 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
                 u8 ta = (u8)(255 * timeTxtAlpha * hudAlpha);
                 u32 tCol = (timeTxtColor & 0x00FFFFFF) | ((u32)ta << 24);
 
-                DrawTextBorderCardinal(&timeObj, dx, dy, 0.72f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,ta));
-                C2D_DrawText(&timeObj, C2D_WithColor, dx, dy, 0.73f, textScaleX, textScaleY, tCol);
+                DrawTextBorderCardinal(&timeTextObj, dx, dy, 0.72f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,ta));
+                C2D_DrawText(&timeTextObj, C2D_WithColor, dx, dy, 0.73f, textScaleX, textScaleY, tCol);
             }
         }
     }
@@ -2548,7 +2580,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
     float healthBarH = 5.0f;
     float healthBarX_default = (ScreenWidthTop - healthBarW) / 2.0f;
     float healthBarY_default = ClientPrefs::downscroll ? 20.0f : ScreenHeight - 20.0f;
-    
+
     float hbX = (healthBarX != -9999.0f) ? healthBarX : healthBarX_default;
     float hbY = (healthBarY != -9999.0f) ? healthBarY : healthBarY_default;
     float hbW = healthBarW * healthBarScaleX;
@@ -2576,15 +2608,15 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         float bg_cy = hbBGY + hbBGH * 0.5f;
         float bg_w = hbBGW + 4.0f * hudZoom * healthBarBGScaleX;
         float bg_h = hbBGH + 4.0f * hudZoom * healthBarBGScaleY;
-        
+
         if (healthBarBGVisible) {
             u8 bg_a = (u8)(255 * healthBarBGAlpha * hudAlpha);
             C2D_DrawRectRotated(bg_cx, bg_cy, bg_w, bg_h, healthBarBGAngle, C2D_Color32(0, 0, 0, bg_a), 0.70f);
         }
-        
+
         float dadR = 1.0f, dadG = 0.0f, dadB = 0.0f; // Red
         float bfR = 1.0f, bfG = 1.0f, bfB = 0.0f; // Yellow
-        
+
         dadR = dad ? dad->healthbarR : 1.0f; dadG = dad ? dad->healthbarG : 0.0f; dadB = dad ? dad->healthbarB : 0.0f;
         bfR  = bf  ? bf->healthbarR  : 0.4f; bfG  = bf  ? bf->healthbarG  : 1.0f; bfB  = bf  ? bf->healthbarB  : 0.2f;
 
@@ -2595,7 +2627,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             u8 dad_a = (u8)(255 * healthBarAlpha * hudAlpha);
             u32 dadCol = C2D_Color32f(dadR, dadG, dadB, dad_a / 255.0f);
             C2D_DrawRectRotated(dad_cx, dad_cy, hbW, hbH, healthBarAngle, dadCol, 0.71f);
-            
+
             float rad = healthBarAngle * (3.14159265f / 180.0f);
             float dx = hbW * 0.5f * (1.0f - healthPerc);
             float rx = dx * cosf(rad);
@@ -2638,7 +2670,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         C2D_ImageTint tint1, tint2;
         C2D_ImageTint* tint1Ptr = nullptr;
         C2D_ImageTint* tint2Ptr = nullptr;
-        
+
         u32 col1 = iconP1Color;
         u8 r1 = (col1 >> 24) & 0xFF;
         u8 g1 = (col1 >> 16) & 0xFF;
@@ -2650,7 +2682,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             C2D_PlainImageTint(&tint1, C2D_Color32(r1, g1, b1, a1), 0.5f);
         }
         tint1Ptr = &tint1;
-        
+
         u32 col2 = iconP2Color;
         u8 r2 = (col2 >> 24) & 0xFF;
         u8 g2 = (col2 >> 16) & 0xFF;
@@ -2685,7 +2717,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             C2D_DrawImageAtRotated(iconImg, drawX1 - drawnW * 0.5f, drawY1, 0.73f, iconP1Angle * (3.14159265f / 180.0f), tint1Ptr, scX, scY);
         }
     }
-    
+
     bool useFastReceptors = ClientPrefs::fastNotes && fastNoteSheet && fastNoteSubtexs.size() >= 2;
 
     // Draw opponent receptors if enabled
@@ -2698,7 +2730,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float oppAngle = getLaneAngle(i, false) * (3.14159265f / 180.0f);
             float sx = noteScale * customOpponentStrumScaleX[i];
             float sy = noteScale * customOpponentStrumScaleY[i];
-            
+
             lx = centerXT + (lx - centerXT) * hudZoom + shakeX;
             ly = centerYT + (ly - centerYT) * hudZoom + shakeY;
             sx *= hudZoom; sy *= hudZoom;
@@ -2749,7 +2781,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             u8 r = (col >> 16) & 0xFF;
             u8 g = (col >> 8) & 0xFF;
             u8 b = col & 0xFF;
-            
+
             if (col != 0xFFFFFFFF || useFastReceptors) {
                 if (useFastReceptors) {
                     if (isHit) {
@@ -2791,7 +2823,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         float playerAngle = getLaneAngle(i, true) * (3.14159265f / 180.0f);
         float sx = noteScale * customPlayerStrumScaleX[i];
         float sy = noteScale * customPlayerStrumScaleY[i];
-        
+
         lx = centerXT + (lx - centerXT) * hudZoom + shakeX;
         ly = centerYT + (ly - centerYT) * hudZoom + shakeY;
         sx *= hudZoom; sy *= hudZoom;
@@ -2821,7 +2853,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             }
         }
 
-        if (!ns.tex) continue; 
+        if (!ns.tex) continue;
         float laneCenterX = lx + (spacing * hudZoom / 2.0f);
         float laneCenterY = ly + (spacing * hudZoom / 2.0f);
         float origW = ns.frameWidth ? ns.frameWidth : ns.w;
@@ -2969,7 +3001,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
                 }
             }
         }
-        
+
         if (!holdPiece.tex) continue;
 
         float deltaX = tailX - headX;
@@ -3008,7 +3040,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
                 b = FAST_COLORS[n.noteData % 4][2];
             }
         }
- 
+
         float aVal = baseAlpha * a_note / 255.0f;
         if (n.isPlayer && !n.sustainActive && diff <= 0) {
             aVal *= 0.5f;
@@ -3218,18 +3250,18 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
 
         float lx = targetRecX - cosf(dirRad) * dist;
         float ly = targetRecY + sinf(dirRad) * dist;
-        
+
         if (ly < -200.0f || ly > ScreenHeight + 200.0f) {
             if (ClientPrefs::downscroll && ly < -300.0f) break;
             if (!ClientPrefs::downscroll && ly > ScreenHeight + 300.0f) break;
         }
-        
+
         float sx = noteScale, sy = noteScale;
-        
+
         lx = centerXT + (lx - centerXT) * hudZoom;
         ly = centerYT + (ly - centerYT) * hudZoom;
         sx *= hudZoom; sy *= hudZoom;
-        
+
         NoteSprite ns;
         bool isCustom = false;
         if (!n.texture.empty()) {
@@ -3309,7 +3341,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
                 b = FAST_COLORS_H[n.noteData % 4][2];
             }
         }
-        
+
         float aVal = baseAlpha * a_note / 255.0f;
         if (n.ignoreNote && n.hit) {
             aVal *= 0.3f;
@@ -3343,7 +3375,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
     for (int i = 0; i < std::min((int)debugLogs.size(), maxLogs); i++) {
         float scale = 0.3f;
         float drawY = 10.0f + (i * 12.0f);
-        
+
         // Custom alpha tint (very simplified)
         u32 color = C2D_Color32(255, 255, 255, 255);
         if (debugLogs[i].timer < 1.0f) {
@@ -3354,17 +3386,17 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         C2D_Text logObj;
         C2D_TextFontParse(&logObj, vcrFont, vcrFontBuf, debugLogs[i].text.c_str());
         C2D_TextOptimize(&logObj);
-        
+
         // Manual draw to support alpha without affecting others
         float tw, th;
         C2D_TextGetDimensions(&logObj, scale, scale, &tw, &th);
-        
+
         // Border
         u32 borderColor = C2D_Color32(0, 0, 0, (u8)((color >> 24) & 0xFF));
         DrawTextBorderCardinal(&logObj, 10.0f, drawY, 0.84f, scale, scale, 1.5f, borderColor);
         C2D_DrawText(&logObj, C2D_WithColor, 10.0f, drawY, 0.85f, scale, scale, color);
     }
-    
+
     if (ClientPrefs::botPlay) {
         float playerStartX = getLaneX(0, true);
         float playerEndX = getLaneX(3, true) + spacing;
@@ -3375,10 +3407,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         strumCenterY = centerYT + (strumCenterY - centerYT) * hudZoom + shakeY;
 
         float textY = strumCenterY;
-
-        C2D_Text botplayTextObj;
-        C2D_TextFontParse(&botplayTextObj, vcrFont, vcrFontBuf, "BOTPLAY");
-        C2D_TextOptimize(&botplayTextObj);
 
         float bpScale = 0.55f * hudZoom;
         float bpW = 0.0f, bpH = 0.0f;
@@ -3411,7 +3439,7 @@ static void DrawAlignedC2DTextWithBorder(C2D_Text* textObj, u32 flags, float x, 
 void PlayState::drawLuaTextsForCamera(const std::string& camera, bool front, float shakeX, float shakeY) {
     for (auto& t : luaTexts) {
         if (!t.active || !t.visible || t.camera != camera || t.front != front) continue;
-        
+
         updateLuaText(t);
 
         float finalX = t.x + shakeX;
@@ -3425,9 +3453,9 @@ void PlayState::drawLuaTextsForCamera(const std::string& camera, bool front, flo
              float screenScale = 240.0f / 720.0f;
              float centerXT = 400.0f / 2.0f;
              float centerYT = 240.0f / 2.0f;
-             
+
              // Scroll factor 1.0 assumed for text by default
-             float scrollX = 1.0f; 
+             float scrollX = 1.0f;
              float scrollY = 1.0f;
 
              finalX = (t.x - (camX * scrollX * screenScale)) * camZoom + centerXT;
@@ -3444,7 +3472,7 @@ void PlayState::drawLuaTextsForCamera(const std::string& camera, bool front, flo
 
         float tw = 0.0f, th = 0.0f;
         C2D_TextGetDimensions(&t.c2dObj, drawScale, drawScale, &tw, &th);
-        
+
         u32 drawFlags = C2D_WithColor;
         float drawX = finalX;
         if (t.alignment == "center") {
@@ -3505,7 +3533,7 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     if (!gameOver) {
         // Layer 3: camHUD (Back)
         ShaderManager::get().beginCamera("camHUD", top);
-        
+
         drawLuaSpritesForCamera("camHUD", false, hsX, hsY);
         drawLuaTextsForCamera("camHUD", false, hsX, hsY);
 
@@ -3523,10 +3551,10 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
 
             C2D_ImageTint tint;
             C2D_AlphaImageTint(&tint, ratingAlpha * ClientPrefs::comboAlpha); // Transparency
-            
+
             float drawX = ratingX - (sub.width * ratingScale / 2.0f) + hsX;
             float drawY = ratingY - (sub.height * ratingScale / 2.0f) + hsY;
-            
+
             drawImageScaledTinted(img, drawX, drawY, 0.95f, ratingScale, ratingScale, &tint);
         }
 
@@ -3551,7 +3579,7 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         drawHUD(hsX, hsY);
         drawLuaSpritesForCamera("camBottom", true, hsX, hsY);
         drawLuaTextsForCamera("camBottom", true, hsX, hsY);
-        
+
         ShaderManager::get().endCamera("camBottom", bottom, nullptr);
     }
 
@@ -3569,7 +3597,7 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         }
         u8 a = (u8)(alpha * 255);
         C2D_DrawRectSolid(0, 0, 0.99f, ScreenWidthTop, ScreenHeight, C2D_Color32(0, 0, 0, a));
-        
+
         // Also ensure bottom screen is black (cleared to black by default, but draw just in case)
         C2D_SceneBegin(bottom);
         C2D_DrawRectSolid(0, 0, 0.99f, 320, 240, C2D_Color32(0, 0, 0, a));
@@ -3583,7 +3611,7 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         extern u32 __ctru_linear_heap_size;
         float lramTotal = (float)__ctru_linear_heap_size / (1024.0f * 1024.0f);
         float lramUsed = lramTotal - ((float)linearSpaceFree() / (1024.0f * 1024.0f));
-        
+
         char debugStr[256];
         if (!ClientPrefs::extendedDebug) {
             sprintf(debugStr, "FPS: %d | L-RAM: %.1f/%.1f MB", (int)curFPS, lramUsed, lramTotal);
@@ -3594,10 +3622,10 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             float stdRamUsed = (float)mi.uordblks / (1024.0f * 1024.0f);
             bool isNew3DS = false;
             APT_CheckNew3DS(&isNew3DS);
-            sprintf(debugStr, "FPS: %d | Model: %s\nRAM: %.1f MB | L-RAM: %.1f/%.1f MB\nVRAM: %.1f/%.1f MB", 
+            sprintf(debugStr, "FPS: %d | Model: %s\nRAM: %.1f MB | L-RAM: %.1f/%.1f MB\nVRAM: %.1f/%.1f MB",
                     (int)curFPS, isNew3DS ? "New" : "Old", stdRamUsed, lramUsed, lramTotal, vramUsed, vramTotal);
         }
-        
+
         std::vector<std::string> debugLines;
         std::string temp = "";
         for (int i = 0; debugStr[i] != '\0'; i++) {
@@ -3609,12 +3637,12 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             }
         }
         if (!temp.empty()) debugLines.push_back(temp);
-        
+
         float scale = 0.35f;
         float lineSpacing = 10.0f;
         float totalHeight = debugLines.size() * lineSpacing;
         float startY = 240.0f - totalHeight - 6.0f;
-        
+
         if (!debugTextBuf) {
             debugTextBuf = C2D_TextBufNew(512);
         } else {
@@ -3623,30 +3651,30 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         std::vector<C2D_Text> lineObjs(debugLines.size());
         std::vector<float> lineWidths(debugLines.size(), 0.0f);
         float maxLineW = 0.0f;
-        
+
         for (size_t i = 0; i < debugLines.size(); i++) {
             C2D_TextFontParse(&lineObjs[i], vcrFont, debugTextBuf, debugLines[i].c_str());
             C2D_TextOptimize(&lineObjs[i]);
-            
+
             float lineW = 0, lineH = 0;
             C2D_TextGetDimensions(&lineObjs[i], scale, scale, &lineW, &lineH);
             lineWidths[i] = lineW;
             if (lineW > maxLineW) maxLineW = lineW;
         }
-        
+
         for (size_t i = 0; i < debugLines.size(); i++) {
             float lx = 160.0f - (lineWidths[i] / 2.0f);
             float ly = startY + (float)i * lineSpacing;
-            
+
             // Draw an independent background rectangle for this line specifically
             float lineRectW = lineWidths[i] + 8.0f;
             float lineRectH = lineSpacing;
             float lineRectX = 160.0f - (lineRectW / 2.0f);
             float lineRectY = ly - 1.0f;
-            
+
             // Use depths greater than 0.999f so it renders over touchscreen hitboxes
             C2D_DrawRectSolid(lineRectX, lineRectY, 0.9992f, lineRectW, lineRectH, C2D_Color32(0, 0, 0, 180));
-            
+
             DrawTextBorderCardinal(&lineObjs[i], lx, ly, 0.9995f, scale, scale, 1.2f, C2D_Color32(0, 0, 0, 255));
             C2D_DrawText(&lineObjs[i], C2D_WithColor, lx, ly, 0.9998f, scale, scale, CWhite);
         }
@@ -3675,7 +3703,7 @@ void PlayState::drawHitboxOverlay() {
 
         u32 col = C2D_Color32(r, g, b, alpha);
         float x = i * 80.0f;
-        
+
         if (ClientPrefs::hitboxStyle == 0) { // Completa
             C2D_DrawRectSolid(x, 0.0f, 0.999f, 80.0f, 240.0f, col);
         } else { // Extremos superiores e inferiores
@@ -3720,7 +3748,7 @@ void PlayState::beatHit(int beat) {
     }
     if (dad && (beat % dad->danceEveryNumBeats == 0)) dad->dance();
     if (bf && (beat % bf->danceEveryNumBeats == 0)) bf->dance();
-    
+
     LuaManager::get().callFunction("onBeatHit", {std::to_string(beat)});
 }
 
@@ -3796,7 +3824,7 @@ void PlayState::exitState() {
     // Stop the async background thread FIRST to prevent deadlocks during teardown.
     // The thread accesses Character objects and texture data — must not run concurrently.
     AsyncAssetManager::get().suspend();
-    
+
     fastNoteSheet = nullptr;
     for (auto& pair : customNoteSheets) {
         C2D_SpriteSheet sheet = pair.second;
@@ -3835,9 +3863,9 @@ void PlayState::exitState() {
 
     LuaManager::get().close();
     PlayState::instance = nullptr;
-    
+
     AudioEngine::exit();
-    
+
     noteSheet = nullptr;
     countdownSheet = nullptr;
     AudioEngine::freeCountdownSounds();
@@ -3872,6 +3900,14 @@ void PlayState::exitState() {
 
     delete currentStage;
     if (vcrFontBuf) C2D_TextBufDelete(vcrFontBuf);
+    if (botplayTextBuf) {
+        C2D_TextBufDelete(botplayTextBuf);
+        botplayTextBuf = nullptr;
+    }
+    if (timeTextBuf) {
+        C2D_TextBufDelete(timeTextBuf);
+        timeTextBuf = nullptr;
+    }
     if (pauseSubState) {
         delete pauseSubState;
         pauseSubState = nullptr;
@@ -3882,7 +3918,7 @@ void PlayState::exitState() {
         debugTextBuf = nullptr;
     }
     if (lazyBGSheet) C2D_SpriteSheetFree(lazyBGSheet);
-    
+
     if (lazyIsRaw) {
         if (lazyRawTex) {
             C3D_TexDelete(lazyRawTex);
@@ -3903,22 +3939,22 @@ void PlayState::exitState() {
 void PlayState::drawText(C2D_Text* textObj, float x, float y, float scale, bool centered, float maxWidth) {
     float textW, textH;
     C2D_TextGetDimensions(textObj, scale, scale, &textW, &textH);
-    
+
     float actualScale = scale;
     if (maxWidth > 0 && textW > maxWidth) {
         actualScale = scale * (maxWidth / textW);
         C2D_TextGetDimensions(textObj, actualScale, actualScale, &textW, &textH);
     }
-    
+
     float drawX = centered ? x - (textW / 2.0f) : x;
     float drawY = centered ? y - (textH / 2.0f) : y;
-    
+
     C2D_DrawText(textObj, C2D_WithColor, drawX, drawY, 0.85f, actualScale, actualScale, CWhite);
 }
 
 void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, float shakeX, float shakeY) {
     float screenScale = 240.0f / 720.0f;
-    
+
     // We expect camera parameter to be exactly "camGame", "camHUD" or "camOther"
 
     std::vector<StageSprite*> sortedSprites;
@@ -3938,7 +3974,7 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
 
         C2D_Image useImg = ls.img;
         bool frameRotated = false;
-        
+
         const Frame* curFrame = nullptr;
         if (ls.animated && ls.currentAnim && !ls.currentAnim->indices.empty()) {
             int animFrame = (int)ls.curFrame;
@@ -3960,7 +3996,7 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
 
         float currentZoom = 1.0f;
         float finalX = 0, finalY = 0;
-        
+
         if (camera == "camGame" || camera == "game") {
             currentZoom = camZoom;
             finalX = (ls.x - (camX * ls.scrollX)) * currentZoom * screenScale + (ScreenWidthTop / 2.0f);
@@ -4084,7 +4120,7 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
 
         float centerX = drawX + (imgW * (ls.flipX ? -absScaleX : absScaleX)) / 2.0f;
         float centerY = drawY + (imgH * (ls.flipY ? -absScaleY : absScaleY)) / 2.0f;
-        
+
         float angleRad = ls.angle * (3.14159265f / 180.0f);
         if (frameRotated) {
             angleRad -= (3.14159265f / 2.0f);
@@ -4170,14 +4206,7 @@ void PlayState::triggerEvent(const Event& event) {
                 hexStr = event.value2.substr(0, comma);
                 currentLyricsSize = std::atof(event.value2.substr(comma + 1).c_str()) / 30.0f; // Scale rough guess for 3DS
             }
-            
-            // Trim spaces
-            hexStr.erase(remove_if(hexStr.begin(), hexStr.end(), isspace), hexStr.end());
-            
-            if (!hexStr.empty()) {
-                int col = (int)strtol(hexStr.c_str(), NULL, 16);
-                currentLyricsColor = C2D_Color32((col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF, 255);
-            }
+            currentLyricsColor = HexParser::parseStringToC2D(hexStr, C2D_Color32(255, 255, 255, 255));
         }
 
         std::string wrappedLyrics = wrapString(currentLyrics, currentLyricsSize, 300.0f);
@@ -4202,9 +4231,10 @@ void PlayState::triggerEvent(const Event& event) {
         if (event.value2 == "bf" || event.value2 == "1" || event.value2 == "boyfriend") c = bf;
         else if (event.value2 == "dad" || event.value2 == "0" || event.value2 == "") c = dad;
         else if (event.value2 == "gf" || event.value2 == "2") c = gf;
-        
+
         if (c) {
             c->playAnim(event.value1, true);
+            c->specialAnim = true;
         }
     }
     else if (event.name == "Screen Shake") {
@@ -4246,7 +4276,7 @@ void PlayState::triggerEvent(const Event& event) {
         std::string yStr = event.value2;
         xStr.erase(remove_if(xStr.begin(), xStr.end(), isspace), xStr.end());
         yStr.erase(remove_if(yStr.begin(), yStr.end(), isspace), yStr.end());
-        
+
         if (xStr.empty() && yStr.empty()) {
             camFollowLocked = false;
             // Immediately focus camera on the active character
@@ -4269,22 +4299,22 @@ void PlayState::triggerEvent(const Event& event) {
 
 std::string PlayState::wrapString(const std::string& text, float scale, float maxWidth) {
     if (text.empty()) return "";
-    
+
     std::string result = "";
     std::string line = "";
     std::string word = "";
     std::stringstream ss(text);
-    
+
     // We'll use a temporary text object to measure widths
     C2D_TextBuf tempBuf = C2D_TextBufNew(text.length() + 32);
-    
+
     while (ss >> word) {
         std::string testLine = line.empty() ? word : line + " " + word;
-        
+
         C2D_Text tempText;
         C2D_TextFontParse(&tempText, vcrFont, tempBuf, testLine.c_str());
         float w = tempText.width * scale;
-        
+
         if (w > maxWidth && !line.empty()) {
             result += line + "\n";
             line = word;
@@ -4294,7 +4324,7 @@ std::string PlayState::wrapString(const std::string& text, float scale, float ma
         C2D_TextBufClear(tempBuf);
     }
     result += line;
-    
+
     C2D_TextBufDelete(tempBuf);
     return result;
 }
@@ -4302,7 +4332,7 @@ std::string PlayState::wrapString(const std::string& text, float scale, float ma
 void PlayState::tickCountdown() {
     countdownTick++;
     AudioEngine::playCountdownSound(countdownTick - 1);
-    
+
     if (countdownTick == 2) {
         currentCountdownFrame = "ready";
         countdownActive = true;
@@ -4347,7 +4377,7 @@ void PlayState::loadHealthIcon(HealthIconData& icon, const std::string& name) {
         icon = healthIconCache[name];
         return;
     }
-    
+
     // Clear any stale pointers from previous loads to prevent duplicate references and double-free crashes
     icon.sheet = nullptr;
     icon.vramData = nullptr;
@@ -4394,7 +4424,7 @@ void PlayState::loadHealthIcon(HealthIconData& icon, const std::string& name) {
 
             fread(vramBuf, dataSize, 1, f);
             fclose(f);
-            
+
             w = header.width;
             h = header.height;
             ow = header.origW;

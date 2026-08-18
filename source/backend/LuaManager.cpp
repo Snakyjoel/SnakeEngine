@@ -7,6 +7,7 @@
 extern void logToFile(const std::string& msg);
 #include "../states/MainMenuState.hpp"
 #include "AsyncAssetManager.hpp"
+#include "HexParser.hpp"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -16,6 +17,13 @@ extern void logToFile(const std::string& msg);
 static inline bool addrIsVRAM(const void* addr) {
     uintptr_t a = (uintptr_t)addr;
     return a >= 0x1F000000 && a < (0x1F000000 + 0x600000);
+}
+
+static inline u32 getLuaColorOrHex(lua_State* L, int idx, u32 defaultColor = 0xFFFFFFFF) {
+    if (lua_type(L, idx) == LUA_TSTRING) {
+        return HexParser::parseStringToC2D(lua_tostring(L, idx), defaultColor);
+    }
+    return (u32)(long long)lua_tonumber(L, idx);
 }
 
 void LuaManager::init() {
@@ -1047,31 +1055,7 @@ int LuaManager::lua_makeGraphic(lua_State* L) {
     }
     
     // Parse color
-    u32 color = C2D_Color32(255, 255, 255, 255);
-    std::string lowerCol = colorStr;
-    std::transform(lowerCol.begin(), lowerCol.end(), lowerCol.begin(), ::tolower);
-    
-    // Clean prefix
-    if (lowerCol.rfind("0x", 0) == 0) lowerCol = lowerCol.substr(2);
-    else if (lowerCol.rfind("#", 0) == 0) lowerCol = lowerCol.substr(1);
-    
-    if (lowerCol == "black") color = C2D_Color32(0, 0, 0, 255);
-    else if (lowerCol == "white") color = C2D_Color32(255, 255, 255, 255);
-    else if (lowerCol == "red") color = C2D_Color32(255, 0, 0, 255);
-    else if (lowerCol == "green") color = C2D_Color32(0, 255, 0, 255);
-    else if (lowerCol == "blue") color = C2D_Color32(0, 0, 255, 255);
-    else if (lowerCol == "transparent") color = C2D_Color32(0, 0, 0, 0);
-    else {
-        unsigned long hexVal = std::strtoul(lowerCol.c_str(), nullptr, 16);
-        u8 a = 255;
-        if (lowerCol.length() >= 8) {
-            a = (hexVal >> 24) & 0xFF;
-        }
-        u8 r = (hexVal >> 16) & 0xFF;
-        u8 g = (hexVal >> 8) & 0xFF;
-        u8 b = hexVal & 0xFF;
-        color = C2D_Color32(r, g, b, a);
-    }
+    u32 color = HexParser::parseStringToC2D(colorStr, C2D_Color32(255, 255, 255, 255));
     
     auto it = PlayState::instance->luaSpriteIndices.find(tag);
     if (it != PlayState::instance->luaSpriteIndices.end()) {
@@ -1543,7 +1527,6 @@ int LuaManager::lua_objectPlayAnimation(lua_State* L) {
 
     if (charObj) {
         charObj->playAnim(name, force);
-        charObj->specialAnim = true;
     } else if (PlayState::instance->luaSpriteIndices.count(tag)) {
         StageSprite& s = PlayState::instance->luaSprites[PlayState::instance->luaSpriteIndices[tag]];
         if (s.animated) {
@@ -1900,8 +1883,8 @@ int LuaManager::lua_setProperty(lua_State* L) {
         else if (prop == "opponentUnderlayAlpha") PlayState::instance->opponentUnderlayAlpha = (float)luaL_checknumber(L, 2);
         else if (prop == "playerUnderlayVisible") PlayState::instance->playerUnderlayVisible = getBoolSafe(2);
         else if (prop == "opponentUnderlayVisible") PlayState::instance->opponentUnderlayVisible = getBoolSafe(2);
-        else if (prop == "playerUnderlayColor") PlayState::instance->playerUnderlayColor = (u32)lua_tonumber(L, 2);
-        else if (prop == "opponentUnderlayColor") PlayState::instance->opponentUnderlayColor = (u32)lua_tonumber(L, 2);
+        else if (prop == "playerUnderlayColor") PlayState::instance->playerUnderlayColor = getLuaColorOrHex(L, 2);
+        else if (prop == "opponentUnderlayColor") PlayState::instance->opponentUnderlayColor = getLuaColorOrHex(L, 2);
     } else {
         if (obj == "scoretxt" || obj == "scoreTxt" || obj == "timetxt" || obj == "timeTxt") {
             bool isScore = (obj == "scoretxt" || obj == "scoreTxt");
@@ -1934,8 +1917,8 @@ int LuaManager::lua_setProperty(lua_State* L) {
                 else PlayState::instance->timeTxtVisible = getBoolSafe(2);
             }
             else if (prop == "color") {
-                if (isScore) PlayState::instance->scoreTxtColor = (u32)lua_tonumber(L, 2);
-                else PlayState::instance->timeTxtColor = (u32)lua_tonumber(L, 2);
+                if (isScore) PlayState::instance->scoreTxtColor = getLuaColorOrHex(L, 2);
+                else PlayState::instance->timeTxtColor = getLuaColorOrHex(L, 2);
             }
             else if (prop == "flipX") {
                 if (isScore) PlayState::instance->scoreTxtFlipX = getBoolSafe(2);
@@ -1981,8 +1964,8 @@ int LuaManager::lua_setProperty(lua_State* L) {
                 else PlayState::instance->timeBarVisible = getBoolSafe(2);
             }
             else if (prop == "color") {
-                if (isBG) PlayState::instance->timeBarBGColor = (u32)lua_tonumber(L, 2);
-                else PlayState::instance->timeBarColor = (u32)lua_tonumber(L, 2);
+                if (isBG) PlayState::instance->timeBarBGColor = getLuaColorOrHex(L, 2);
+                else PlayState::instance->timeBarColor = getLuaColorOrHex(L, 2);
             }
             else if (prop == "flipX") {
                 if (isBG) PlayState::instance->timeBarBGFlipX = getBoolSafe(2);
@@ -2028,8 +2011,8 @@ int LuaManager::lua_setProperty(lua_State* L) {
                 else PlayState::instance->healthBarVisible = getBoolSafe(2);
             }
             else if (prop == "color") {
-                if (isBG) PlayState::instance->healthBarBGColor = (u32)lua_tonumber(L, 2);
-                else PlayState::instance->healthBarColor = (u32)lua_tonumber(L, 2);
+                if (isBG) PlayState::instance->healthBarBGColor = getLuaColorOrHex(L, 2);
+                else PlayState::instance->healthBarColor = getLuaColorOrHex(L, 2);
             }
             else if (prop == "flipX") {
                 if (isBG) PlayState::instance->healthBarBGFlipX = getBoolSafe(2);
@@ -2075,8 +2058,8 @@ int LuaManager::lua_setProperty(lua_State* L) {
                 else PlayState::instance->iconP2Angle = (float)luaL_checknumber(L, 2);
             }
             else if (prop == "color") {
-                if (isP1) PlayState::instance->iconP1Color = (u32)lua_tonumber(L, 2);
-                else PlayState::instance->iconP2Color = (u32)lua_tonumber(L, 2);
+                if (isP1) PlayState::instance->iconP1Color = getLuaColorOrHex(L, 2);
+                else PlayState::instance->iconP2Color = getLuaColorOrHex(L, 2);
             }
             else if (prop == "visible") {
                 if (isP1) PlayState::instance->iconP1Visible = getBoolSafe(2);
@@ -2104,7 +2087,7 @@ int LuaManager::lua_setProperty(lua_State* L) {
             else if (prop == "alpha") PlayState::instance->countdownAlpha = (float)luaL_checknumber(L, 2);
             else if (prop == "angle") PlayState::instance->countdownAngle = (float)luaL_checknumber(L, 2);
             else if (prop == "visible") PlayState::instance->countdownVisible = getBoolSafe(2);
-            else if (prop == "color") PlayState::instance->countdownColor = (u32)lua_tonumber(L, 2);
+            else if (prop == "color") PlayState::instance->countdownColor = getLuaColorOrHex(L, 2);
             else if (prop == "flipX") PlayState::instance->countdownFlipX = getBoolSafe(2);
             else if (prop == "flipY") PlayState::instance->countdownFlipY = getBoolSafe(2);
             else if (prop == "antialiasing") PlayState::instance->countdownAntialiasing = getBoolSafe(2);
@@ -2165,7 +2148,7 @@ int LuaManager::lua_setProperty(lua_State* L) {
             else if (prop == "angle") s.angle = (float)luaL_checknumber(L, 2);
             else if (prop == "flipX") s.flipX = getBoolSafe(2);
             else if (prop == "flipY") s.flipY = getBoolSafe(2);
-            else if (prop == "color") s.graphicColor = (u32)lua_tonumber(L, 2);
+            else if (prop == "color") s.graphicColor = getLuaColorOrHex(L, 2);
             else if (prop == "width") s.graphicWidth = (float)luaL_checknumber(L, 2);
             else if (prop == "height") s.graphicHeight = (float)luaL_checknumber(L, 2);
             else if (prop == "antialiasing") {
@@ -2393,7 +2376,7 @@ int LuaManager::lua_setPropertyFromGroup(lua_State* L) {
             else PlayState::instance->customOpponentStrumVisible[index] = val;
         }
         else if (prop == "color") {
-             u32 val = (u32)lua_tonumber(L, 4);
+             u32 val = getLuaColorOrHex(L, 4);
              if (isPlayerGroup) PlayState::instance->customPlayerStrumColor[index] = val;
              else PlayState::instance->customOpponentStrumColor[index] = val;
          }
@@ -2458,7 +2441,7 @@ int LuaManager::lua_setPropertyFromGroup(lua_State* L) {
             n.visible = lua_toboolean(L, 4);
         }
         else if (prop == "color") {
-             n.color = (u32)lua_tonumber(L, 4);
+             n.color = getLuaColorOrHex(L, 4);
          }
         else if (prop == "flipX") {
             n.flipX = lua_toboolean(L, 4);
@@ -3648,37 +3631,10 @@ int LuaManager::lua_playSound(lua_State* L) {
 }
 
 int LuaManager::lua_getColorFromHex(lua_State* L) {
-    // Parses a hex string like 'ff0000' (RGB) or 'ffff0000' (ARGB) and returns
-    // a Citro2D compatible 24-bit RGB integer (without alpha) for use with setProperty '.color'.
     const char* hexStr = luaL_checkstring(L, 1);
-    if (!hexStr) { lua_pushinteger(L, 0x00FFFFFF); return 1; }
+    if (!hexStr) { lua_pushinteger(L, 0xFFFFFFFF); return 1; }
 
-    // Skip leading '#' if present
-    if (hexStr[0] == '#') {
-        hexStr++;
-    } else if (hexStr[0] == '0' && (hexStr[1] == 'x' || hexStr[1] == 'X')) {
-        // Skip leading '0x' or '0X' if present
-        hexStr += 2;
-    }
-
-    unsigned long val = strtoul(hexStr, nullptr, 16);
-    u32 r, g, b;
-    size_t len = strlen(hexStr);
-
-    if (len <= 6) {
-        // RRGGBB
-        r = (val >> 16) & 0xFF;
-        g = (val >>  8) & 0xFF;
-        b =  val        & 0xFF;
-    } else {
-        // AARRGGBB -> extract RRGGBB
-        r = (val >> 16) & 0xFF;
-        g = (val >>  8) & 0xFF;
-        b =  val        & 0xFF;
-    }
-
-    // Pack as Citro2D RGB order (R in byte 0, G in byte 1, B in byte 2), Alpha is left as 0x00
-    u32 color = (r & 0xFF) | ((g & 0xFF) << 8) | ((b & 0xFF) << 16);
+    u32 color = HexParser::parseStringToC2D(hexStr, 0xFFFFFFFF);
     lua_pushinteger(L, (lua_Integer)color);
     return 1;
 }
@@ -3903,21 +3859,7 @@ int LuaManager::lua_setTextColor(lua_State* L) {
     if (!PlayState::instance) return 0;
     std::string tag = luaL_checkstring(L, 1);
     
-    u32 color = 0xFFFFFFFF;
-    if (lua_type(L, 2) == LUA_TNUMBER) {
-        color = (u32)lua_tonumber(L, 2);
-    } else if (lua_type(L, 2) == LUA_TSTRING) {
-        std::string s = lua_tostring(L, 2);
-        if (s == "white") color = 0xFFFFFFFF;
-        else if (s == "black") color = 0xFF000000;
-        else if (s == "red") color = 0xFFFF0000;
-        else if (s == "blue") color = 0xFF0000FF;
-        else if (s == "green") color = 0xFF00FF00;
-        else if (s.length() == 6) { // Hex parsing
-            u32 hex = (u32)std::stoul(s, nullptr, 16);
-            color = (hex & 0x00FFFFFF) | 0xFF000000;
-        }
-    }
+    u32 color = getLuaColorOrHex(L, 2, 0xFFFFFFFF);
 
     auto it = PlayState::instance->luaTextIndices.find(tag);
     if (it != PlayState::instance->luaTextIndices.end()) {
@@ -3943,21 +3885,7 @@ int LuaManager::lua_setTextBorder(lua_State* L) {
     std::string tag = luaL_checkstring(L, 1);
     float size = (float)luaL_checknumber(L, 2);
     
-    u32 color = 0xFF000000;
-    if (lua_type(L, 3) == LUA_TNUMBER) {
-        color = (u32)lua_tonumber(L, 3);
-    } else if (lua_type(L, 3) == LUA_TSTRING) {
-        std::string s = lua_tostring(L, 3);
-        if (s == "white") color = 0xFFFFFFFF;
-        else if (s == "black") color = 0xFF000000;
-        else if (s == "red") color = 0xFFFF0000;
-        else if (s == "blue") color = 0xFF0000FF;
-        else if (s == "green") color = 0xFF00FF00;
-        else if (s.length() == 6) { // Hex parsing
-            u32 hex = (u32)std::stoul(s, nullptr, 16);
-            color = (hex & 0x00FFFFFF) | 0xFF000000;
-        }
-    }
+    u32 color = getLuaColorOrHex(L, 3, 0xFF000000);
 
     auto it = PlayState::instance->luaTextIndices.find(tag);
     if (it != PlayState::instance->luaTextIndices.end()) {
