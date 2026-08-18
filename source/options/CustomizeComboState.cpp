@@ -2,6 +2,7 @@
 #include "OptionsMenuState.hpp"
 #include "../backend/AudioEngine.hpp"
 #include "../objects/Alphabet.hpp"
+#include "../objects/ButtonPrompt.hpp"
 #include <fstream>
 #include <algorithm>
 
@@ -211,9 +212,12 @@ void CustomizeComboState::init() {
     currentAlpha = ClientPrefs::comboAlpha;
     currentX = (400.0f - 50.0f) + ClientPrefs::comboOffsetX;
     currentY = 35.0f + ClientPrefs::comboOffsetY;
+
+    ButtonPrompt::init();
 }
 
 void CustomizeComboState::update(float dt) {
+    dpadTimer += dt;
     u32 kDown = hidKeysDown();
     u32 kHeld = hidKeysHeld();
     
@@ -232,12 +236,12 @@ void CustomizeComboState::update(float dt) {
     touchPosition touch;
     hidTouchRead(&touch);
     
-    // Bottom screen preview rect: 300x180 centered
-    float previewW = 300.0f;
-    float previewH = 180.0f;
+    // Bottom screen preview rect: 285x162 centered
+    float previewW = 285.0f;
+    float previewH = 162.0f;
     float previewX = (320.0f - previewW) / 2.0f;
     float previewY = (240.0f - previewH) / 2.0f;
-    float mapScale = previewW / 400.0f; // 300/400 = 0.75
+    float mapScale = previewW / 400.0f; // 285/400 = 0.7125
     
     if (kDown & KEY_TOUCH) {
         float mappedTouchX = (touch.px - previewX) / mapScale;
@@ -498,8 +502,8 @@ void CustomizeComboState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
         drawCenteredBG(bottomBG, 320.0f, 240.0f, 0.1f, &tint);
     }
 
-    float previewW = 300.0f;
-    float previewH = 180.0f;
+    float previewW = 285.0f;
+    float previewH = 162.0f;
     float previewX = (320.0f - previewW) / 2.0f;
     float previewY = (240.0f - previewH) / 2.0f;
     float mapScale = previewW / 400.0f; 
@@ -543,7 +547,15 @@ void CustomizeComboState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
         renderRatingSprite(ratingBaseImage.tex, &ri.sub, ri.rotated, ri.frameWidth, ri.frameHeight, drawX, drawY, 0.95f, &tint, scale * ri.autoScale);
     }
 
-    // UI text
-    AddTextCentered("Touch/D-Pad: Move | L/R: Scale", 160, 15, 0.4f, 1.0f, CWhite, 320.0f);
-    AddTextCentered("X/Y: Alpha | SELECT: Reset | B: Save", 160, 225, 0.4f, 1.0f, CWhite, 320.0f);
+    float uiScale = 0.45f;
+
+    // D-Pad + Move | L + R + Scale
+    std::string dpadBtn = ButtonPrompt::getAnimatedDpad(dpadTimer);
+    ButtonPrompt::drawPrompt(dpadBtn, "Move | Touch", 16.0f, 6.0f, uiScale);
+    ButtonPrompt::drawPrompt2("l", "r", "Scale", 204.0f, 6.0f, uiScale);
+
+    // B + Save | SELECT + Reset | X + Y + Alpha
+    ButtonPrompt::drawPrompt("b", "Save", 14.0f, 210.0f, uiScale);
+    ButtonPrompt::drawPrompt("select", "Reset", 108.0f, 210.0f, uiScale);
+    ButtonPrompt::drawPrompt2("x", "y", "Alpha", 212.0f, 210.0f, uiScale);
 }

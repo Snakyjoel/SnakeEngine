@@ -411,6 +411,13 @@ private:
     float fpsUpdateTimer = 0.0f;
     int lastStep = -1;
 
+    // Cache Score
+    C2D_Text scoreTextObj;
+    bool scoreTextNeedsUpdate = true;
+    int cachedScore = -1;
+    int cachedMisses = -1;
+    int cachedCombo = -1;
+
 
 
     void handleInput(float dt);

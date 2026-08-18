@@ -44,6 +44,7 @@ private:
     float currentY;
 
     float blinkTimer = 0.0f;
+    float dpadTimer = 0.0f;
     bool isOutOfBounds = false;
 
     C2D_Font vcrFont = nullptr;

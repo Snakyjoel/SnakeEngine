@@ -2132,9 +2132,14 @@ void PlayState::handleInput(float dt) {
             receptorTimer[4+i] = 0.10f;
             float bestDiff = 166.0f;
             Note* bestNote = nullptr;
+            
+            float pos = Conductor::songPosition;
             for(auto& n : songNotes) {
+                if (n.strumTime < pos - 350.0f) continue;
+                if (n.strumTime > pos + 350.0f) break;
+                
                 if (n.hit || !n.isPlayer || n.noteData != i) continue;
-                float diff = abs(n.strumTime - Conductor::songPosition);
+                float diff = abs(n.strumTime - pos);
                 if (diff < bestDiff) { bestDiff = diff; bestNote = &n; }
             }
             if (bestNote) {
@@ -2210,17 +2215,21 @@ void PlayState::handleInput(float dt) {
         }
         
         // Handle Sustains (Drops and Misses)
+        float pos = Conductor::songPosition;
         for(auto& n : songNotes) {
+            if (n.strumTime < pos - 3000.0f) continue;
+            if (n.strumTime > pos + 500.0f) break;
+
             if (!n.isPlayer || n.noteData != i || n.sustainLength <= 0.0f) continue;
             if (n.ignoreNote && !n.wasGoodHit) continue; 
             
             float tailEnd = n.strumTime + n.sustainLength;
-            bool isInsideSustain = (Conductor::songPosition >= n.strumTime && Conductor::songPosition <= tailEnd);
+            bool isInsideSustain = (pos >= n.strumTime && pos <= tailEnd);
 
             if (isInsideSustain && n.sustainActive) {
                 if (!keyHeld[i] && !ClientPrefs::botPlay) {
                     float releaseBuffer = 150.0f;
-                    if (Conductor::songPosition < (tailEnd - releaseBuffer)) {
+                    if (pos < (tailEnd - releaseBuffer)) {
                         n.sustainActive = false; 
                         n.ignoreNote = true; 
                         n.wasGoodHit = false;
@@ -2287,16 +2296,22 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
     }
 
     if (scoreTxtVisible) {
-        char scoreStr[256];
-        sprintf(scoreStr, "Score: %d | Misses: %d | Combo: %d", score, misses, combo);
-        C2D_Text scoreObj;
-        C2D_TextFontParse(&scoreObj, vcrFont, vcrFontBuf, scoreStr);
-        C2D_TextOptimize(&scoreObj);
+        if (scoreTextNeedsUpdate || score != cachedScore || misses != cachedMisses || combo != cachedCombo) {
+            cachedScore = score;
+            cachedMisses = misses;
+            cachedCombo = combo;
+            scoreTextNeedsUpdate = false;
+            
+            char scoreStr[256];
+            sprintf(scoreStr, "Score: %d | Misses: %d | Combo: %d", score, misses, combo);
+            C2D_TextFontParse(&scoreTextObj, vcrFont, vcrFontBuf, scoreStr);
+            C2D_TextOptimize(&scoreTextObj);
+        }
         
         float baseScaleX = hdScale;
         float baseScaleY = hdScale;
         float unscaledW = 0, unscaledH = 0;
-        C2D_TextGetDimensions(&scoreObj, baseScaleX, baseScaleY, &unscaledW, &unscaledH);
+        C2D_TextGetDimensions(&scoreTextObj, baseScaleX, baseScaleY, &unscaledW, &unscaledH);
         
         float sX = (scoreTxtX != -9999.0f) ? scoreTxtX : ((bw/2.0f) - (unscaledW/2.0f));
         float sY = (scoreTxtY != -9999.0f) ? scoreTxtY : (hudY - (unscaledH/2.0f));
@@ -2306,7 +2321,7 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
         
         float textScaleX = hdScale * scoreTxtScaleX * hudZoom;
         float textScaleY = hdScale * scoreTxtScaleY * hudZoom;
-        C2D_TextGetDimensions(&scoreObj, textScaleX, textScaleY, &textW, &textH);
+        C2D_TextGetDimensions(&scoreTextObj, textScaleX, textScaleY, &textW, &textH);
         
         float centerXT = ScreenWidthTop / 2.0f;
         float centerYT = ScreenHeight / 2.0f;
@@ -2319,8 +2334,8 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
         u8 sa = (u8)(255 * scoreTxtAlpha * hudAlpha);
         u32 sCol = (scoreTxtColor & 0x00FFFFFF) | ((u32)sa << 24);
         
-        DrawTextBorderCardinal(&scoreObj, drawX, drawY, 0.84f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,sa));
-        C2D_DrawText(&scoreObj, C2D_WithColor, drawX, drawY, 0.85f, textScaleX, textScaleY, sCol);
+        DrawTextBorderCardinal(&scoreTextObj, drawX, drawY, 0.84f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,sa));
+        C2D_DrawText(&scoreTextObj, C2D_WithColor, drawX, drawY, 0.85f, textScaleX, textScaleY, sCol);
     }
 
 

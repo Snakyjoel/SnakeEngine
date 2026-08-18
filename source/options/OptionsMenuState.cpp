@@ -6,6 +6,7 @@
 #include <sstream>
 #include <fstream>
 #include "../objects/Alphabet.hpp"
+#include "../objects/ButtonPrompt.hpp"
 #include "CustomizeComboState.hpp"
 #include "Highscores.hpp"
 #include "Achievements.hpp"
@@ -311,8 +312,8 @@ void OptionsMenuState::init() {
         parseNoteFastXml("romfs:/shared/images/noteSkins/NoteSheetFast.xml", baseNoteImgFast.tex, baseNoteImgFast, noteSubsFast);
     }
 
-    // Load Alphabet sheet
-    SpritesheetCache::get().load("shared/images/Alphabet");
+    // Load Button Prompt & Alphabet sheets
+    ButtonPrompt::init();
 
     menuState = STATE_MAIN;
     curSelected = 0;
@@ -833,7 +834,7 @@ void OptionsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     }
 
     if (menuState != STATE_NOTE_COLORS) {
-        AddText("B: Back", 200, 220, 0.30f, true, 1.5f, CGray, 380.0f);
+        ButtonPrompt::drawPrompt("b", "Back", 8.0f, 205.0f, 0.70f, 1.0f);
     }
 
     C2D_SceneBegin(bottom);
