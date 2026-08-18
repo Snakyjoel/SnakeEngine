@@ -83,6 +83,7 @@ class InGameVideoPlayer;
 
 class PlayState : public MusicBeatState {
     friend class LuaManager;
+    friend class PauseSubState;
 public:
     static PlayState* instance; // Quick global access for Lua logic
     InGameVideoPlayer* inGameVideo = nullptr;
@@ -423,7 +424,6 @@ private:
     void drawRating(float shakeX = 0, float shakeY = 0);
     void moveChar(int lane, Character* c);
     void focusCamera(bool isPlayer);
-    void drawPauseMenu();
     void drawHitboxOverlay();
     void drawLuaTextsForCamera(const std::string& camera, bool front, float shakeX, float shakeY);
     std::string wrapString(const std::string& text, float scale, float maxWidth);
@@ -459,22 +459,10 @@ private:
     Stage* currentStage;
     
     bool paused = false;
-    int pauseSelection = 0;
-    float pauseLerpSelection = 0.0f;
-    
-    enum PauseMenuState {
-        PAUSE_MAIN,
-        PAUSE_DIFFICULTY
-    };
-    PauseMenuState pauseMenuState = PAUSE_MAIN;
-    std::vector<std::string> pauseMenuItems;
+    class PauseSubState* pauseSubState = nullptr;
     std::vector<std::string> curSongDifficulties;
-    void setupPauseMenu(const std::vector<std::string>& items, const std::string& title = "PAUSED");
     
-    C2D_TextBuf pauseTextBuf;
     C2D_TextBuf debugTextBuf = nullptr;
-    C2D_Text pauseTitleObj;
-    C2D_Text pauseOptionsObj[15];
     
     bool keyPressed[4];
     bool keyHeld[4];

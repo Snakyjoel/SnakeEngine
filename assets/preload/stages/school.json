@@ -4,25 +4,25 @@
 	"isPixelStage": true,
 	"stageUI": "pixel",
 	"boyfriend": [
-		970,
-		400
+		1320,
+		830
 	],
 	"girlfriend": [
-		580,
-		400
+		820,
+		640
 	],
 	"opponent": [
-		280,
-		300
+		240,
+		250
 	],
 	"hide_girlfriend": false,
 	"camera_boyfriend": [
 		-500,
-		-40
+		-100
 	],
 	"camera_opponent": [
 		400,
-		240
+		260
 	],
 	"camera_girlfriend": [
 		0,

@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <fstream>
 #include <sstream>
+#include "../substates/PauseSubState.hpp"
 
 extern void makeFontPixelPerfect(C2D_Font font);
 
@@ -401,8 +402,8 @@ void PlayState::init() {
 
     countdownX = -9999.0f;
     countdownY = -9999.0f;
-    countdownScaleX = 1.0f;
-    countdownScaleY = 1.0f;
+    countdownScaleX = 0.75f;
+    countdownScaleY = 0.75f;
     countdownAngle = 0.0f;
     countdownVisible = true;
     countdownFlipX = false;
@@ -918,8 +919,6 @@ void PlayState::init() {
     iconP1Visible = true;
     iconP2Visible = true;
     
-    pauseTextBuf = C2D_TextBufNew(1024);
-    
     curSongDifficulties.clear();
     std::string diffStr = "";
     if (isStoryMode) {
@@ -948,15 +947,6 @@ void PlayState::init() {
     if (curSongDifficulties.empty()) {
         curSongDifficulties = {"Easy", "Normal", "Hard"};
     }
-    
-    std::vector<std::string> mainItems = {"Resume", "Restart Song"};
-    if (curSongDifficulties.size() >= 2) {
-        mainItems.push_back("Change Difficulty");
-    }
-    mainItems.push_back("Options");
-    mainItems.push_back("Exit to menu");
-    
-    setupPauseMenu(mainItems, "PAUSED");
 
     lastBeat = -1;
 
@@ -1599,104 +1589,25 @@ void PlayState::update(float dt) {
     u32 kDown = hidKeysDown();
     if (kDown & KEY_START) {
         paused = !paused;
-        pauseSelection = 0;
-        pauseLerpSelection = 0.0f;
         if (paused) {
-            pauseMenuState = PAUSE_MAIN;
-            std::vector<std::string> mainItems = {"Resume", "Restart Song"};
-            if (curSongDifficulties.size() >= 2) mainItems.push_back("Change Difficulty");
-            mainItems.push_back("Options");
-            mainItems.push_back("Exit to menu");
-            setupPauseMenu(mainItems, "PAUSED");
+            if (!pauseSubState) {
+                pauseSubState = new PauseSubState();
+            }
             AudioEngine::pause();
             if (inGameVideo) inGameVideo->isPaused = true;
         } else {
+            if (pauseSubState) {
+                delete pauseSubState;
+                pauseSubState = nullptr;
+            }
             AudioEngine::resume();
             if (inGameVideo) inGameVideo->isPaused = false;
         }
     }
 
     if (paused) {
-        pauseLerpSelection += (pauseSelection - pauseLerpSelection) * (dt * 15.0f);
-        int maxSel = (int)pauseMenuItems.size() - 1;
-        if (maxSel < 0) maxSel = 0;
-        if (kDown & (KEY_DUP | KEY_CPAD_UP)) { 
-            pauseSelection--; if (pauseSelection < 0) pauseSelection = maxSel; 
-        }
-        if (kDown & (KEY_DDOWN | KEY_CPAD_DOWN)) { 
-            pauseSelection++; if (pauseSelection > maxSel) pauseSelection = 0; 
-        }
-        if (kDown & KEY_B) {
-            if (pauseMenuState == PAUSE_DIFFICULTY) {
-                pauseMenuState = PAUSE_MAIN;
-                std::vector<std::string> mainItems = {"Resume", "Restart Song"};
-                if (curSongDifficulties.size() >= 2) mainItems.push_back("Change Difficulty");
-                mainItems.push_back("Options");
-                mainItems.push_back("Exit to menu");
-                setupPauseMenu(mainItems, "PAUSED");
-                pauseSelection = 0;
-                pauseLerpSelection = 0.0f;
-            } else {
-                paused = false;
-                AudioEngine::resume();
-                if (inGameVideo) inGameVideo->isPaused = false;
-            }
-            return;
-        }
-        if (kDown & KEY_A) {
-            if (pauseMenuState == PAUSE_MAIN) {
-                std::string sel = pauseMenuItems[pauseSelection];
-                if (sel == "Resume") {
-                    paused = false;
-                    AudioEngine::resume();
-                    if (inGameVideo) inGameVideo->isPaused = false;
-                } else if (sel == "Restart Song") {
-                    if (isStoryMode) MusicBeatState::switchState(new PlayState(weekData, curSongIdx, currentDifficulty));
-                    else MusicBeatState::switchState(new PlayState(curSong, currentDifficulty));
-                } else if (sel == "Change Difficulty") {
-                    pauseMenuState = PAUSE_DIFFICULTY;
-                    std::vector<std::string> diffItems = curSongDifficulties;
-                    diffItems.push_back("BACK");
-                    setupPauseMenu(diffItems, "CHANGE DIFFICULTY");
-                    pauseSelection = 0;
-                    pauseLerpSelection = 0.0f;
-                } else if (sel == "Options") {
-                    OptionsMenuState::onPlayState = true;
-                    OptionsMenuState::isStoryMode = isStoryMode;
-                    OptionsMenuState::songName = curSong;
-                    OptionsMenuState::difficultyName = currentDifficulty;
-                    if (isStoryMode) {
-                        OptionsMenuState::storyWeek = weekData;
-                        OptionsMenuState::storySongIdx = curSongIdx;
-                    }
-                    MusicBeatState::switchState(new OptionsMenuState());
-                } else if (sel == "Exit to menu") {
-                    if (isStoryMode) {
-                        MusicBeatState::switchState(new StoryMenuState());
-                    } else {
-                        MusicBeatState::switchState(new FreeplayState());
-                    }
-                }
-            } else if (pauseMenuState == PAUSE_DIFFICULTY) {
-                std::string sel = pauseMenuItems[pauseSelection];
-                if (sel == "BACK" || pauseSelection == (int)pauseMenuItems.size() - 1) {
-                    pauseMenuState = PAUSE_MAIN;
-                    std::vector<std::string> mainItems = {"Resume", "Restart Song"};
-                    if (curSongDifficulties.size() >= 2) mainItems.push_back("Change Difficulty");
-                    mainItems.push_back("Options");
-                    mainItems.push_back("Exit to menu");
-                    setupPauseMenu(mainItems, "PAUSED");
-                    pauseSelection = 0;
-                    pauseLerpSelection = 0.0f;
-                } else {
-                    if (isStoryMode) {
-                        MusicBeatState::switchState(new PlayState(weekData, curSongIdx, sel));
-                    } else {
-                        MusicBeatState::switchState(new PlayState(curSong, sel));
-                    }
-                }
-            }
-            return;
+        if (pauseSubState) {
+            pauseSubState->update(dt);
         }
         return;
     }
@@ -3650,7 +3561,7 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         C2D_SceneBegin(top);
     }
 
-    if (paused) drawPauseMenu();
+    if (paused && pauseSubState) pauseSubState->draw();
 
     if (ClientPrefs::debugInfo) {
         C2D_SceneBegin(bottom);
@@ -3946,7 +3857,10 @@ void PlayState::exitState() {
 
     delete currentStage;
     if (vcrFontBuf) C2D_TextBufDelete(vcrFontBuf);
-    if (pauseTextBuf) C2D_TextBufDelete(pauseTextBuf);
+    if (pauseSubState) {
+        delete pauseSubState;
+        pauseSubState = nullptr;
+    }
     if (lyricsTextBuf) C2D_TextBufDelete(lyricsTextBuf);
     if (debugTextBuf) {
         C2D_TextBufDelete(debugTextBuf);
@@ -3969,51 +3883,7 @@ void PlayState::exitState() {
     AsyncAssetManager::get().resume();
 }
 
-void PlayState::setupPauseMenu(const std::vector<std::string>& items, const std::string& title) {
-    if (!pauseTextBuf || !vcrFont) return;
-    pauseMenuItems = items;
-    C2D_TextBufClear(pauseTextBuf);
-    C2D_TextFontParse(&pauseTitleObj, vcrFont, pauseTextBuf, title.c_str());
-    C2D_TextOptimize(&pauseTitleObj);
-    for (size_t i = 0; i < pauseMenuItems.size() && i < 15; i++) {
-        C2D_TextFontParse(&pauseOptionsObj[i], vcrFont, pauseTextBuf, pauseMenuItems[i].c_str());
-        C2D_TextOptimize(&pauseOptionsObj[i]);
-    }
-}
 
-void PlayState::drawPauseMenu() {
-    float bw = (float)ScreenWidthTop;
-    float bh = (float)ScreenHeight;
-    
-    C2D_DrawRectSolid(0, 0, 0.99f, bw, bh, C2D_Color32(0, 0, 0, 150));
-    
-    if (ClientPrefs::alphabetPause) {
-        for (int i = 0; i < (int)pauseMenuItems.size(); i++) {
-            bool sel = (i == pauseSelection);
-            
-            // 35.0f is approx the height of alphabet text at 1.5f scale on 3DS screen
-            float targetY = (bh / 2.0f) - (35.0f / 2.0f) + (i - pauseLerpSelection) * 38.0f;
-            float targetX = 10.0f + (i - pauseLerpSelection) * 20.0f;
-            
-            float scale = 1.5f;
-            float alpha = sel ? 1.0f : 0.6f;
-            Alphabet::draw(pauseMenuItems[i], targetX, targetY, scale, alpha, false, 0xFFFFFFFF, 1.0f);
-        }
-    } else {
-        for (int i = 0; i < (int)pauseMenuItems.size() && i < 15; i++) {
-            bool sel = (i == pauseSelection);
-            
-            float targetY = (bh / 2.0f) - (35.0f / 2.0f) + (i - pauseLerpSelection) * 38.0f;
-            float targetX = 10.0f + (i - pauseLerpSelection) * 20.0f;
-            
-            float fScale = sel ? 0.85f : 0.6f;
-            u32 color = sel ? CWhite : C2D_Color32(160, 160, 160, 200);
-            
-            DrawTextBorderFull(&pauseOptionsObj[i], targetX, targetY, 0.995f, fScale, fScale, 2.0f, CBlack);
-            C2D_DrawText(&pauseOptionsObj[i], C2D_WithColor, targetX, targetY, 1.0f, fScale, fScale, color);
-        }
-    }
-}
 
 void PlayState::drawText(C2D_Text* textObj, float x, float y, float scale, bool centered, float maxWidth) {
     float textW, textH;
@@ -4443,6 +4313,20 @@ void PlayState::tickCountdown() {
 }
 
 void PlayState::loadHealthIcon(HealthIconData& icon, const std::string& name) {
+    bool isPixel = (name.find("-pixel") != std::string::npos);
+    if (!isPixel) {
+        std::string resolvedPath = Paths::healthIcon(name);
+        if (resolvedPath.find("-pixel") != std::string::npos) {
+            isPixel = true;
+        }
+    }
+
+    if (&icon == &iconBf) {
+        iconP1Antialiasing = !isPixel;
+    } else if (&icon == &iconDad) {
+        iconP2Antialiasing = !isPixel;
+    }
+
     if (icon.loaded && icon.iconName == name) return;
     if (healthIconCache.count(name) > 0 && healthIconCache[name].loaded) {
         icon = healthIconCache[name];
@@ -4542,7 +4426,8 @@ void PlayState::loadHealthIcon(HealthIconData& icon, const std::string& name) {
         icon.losingSub.bottom = v1;
 
         icon.loaded = true;
-        C3D_TexSetFilter(&icon.tex, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
+        GPU_TEXTURE_FILTER_PARAM filter = isPixel ? GPU_NEAREST : (ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
+        C3D_TexSetFilter(&icon.tex, filter, filter);
         healthIconCache[name] = icon;
     } else {
         C2D_SpriteSheet s = nullptr;
@@ -4588,7 +4473,8 @@ void PlayState::loadHealthIcon(HealthIconData& icon, const std::string& name) {
         icon.losingSub.bottom = v1;
 
         icon.loaded = true;
-        C3D_TexSetFilter(&icon.tex, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
+        GPU_TEXTURE_FILTER_PARAM filter = isPixel ? GPU_NEAREST : (ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
+        C3D_TexSetFilter(&icon.tex, filter, filter);
         healthIconCache[name] = icon;
     }
 }

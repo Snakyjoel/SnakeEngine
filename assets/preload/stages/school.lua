@@ -14,7 +14,7 @@ function onCreate()
     scaleObject('sky', 6, 6)
     addLuaSprite('sky', false)
 
-    makeAnimatedLuaSprite('school', bgpath, 390, 524) -- times 6?
+    makeAnimatedLuaSprite('school', bgpath, 450, 524) -- times 6?
     addAnimationByPrefix('school', 'school', 'weebSchool', 0, false)
     setScrollFactor('school', 0.6, 0.9)
     setProperty('school.antialiasing', false)
@@ -23,7 +23,7 @@ function onCreate()
 
     makeAnimatedLuaSprite('street', bgpath, 750, 960)
     addAnimationByPrefix('street', 'street', 'weebStreet', 0, false)
-    setScrollFactor('street', 0.95, 0.95);
+    setScrollFactor('street', 1.0, 1.0);
     setProperty('street.antialiasing', false);
     scaleObject('street', 6, 6);
     addLuaSprite('street', false);
@@ -68,49 +68,49 @@ function onCreate()
     scaleObject('trees2', 6, 6)
     addLuaSprite('trees2', false)
 
-    if not lowQuality then
-        -- petals
-        -- girls
-        local girlsframerate = 8
-        local girlsspacing = 500
-        local girlsY = 590
-        local girlsXoffset = -700
-        for i = 1, 3 do
-            makeAnimatedLuaSprite('girl1-' .. i, bgpath,
-                430 + girlsXoffset + girlsspacing * i, girlsY)
-            addAnimationByPrefix('girl1-' .. i, 'danceLeft', 'girl1idleleft',
-                girlsframerate, false)
-            addAnimationByPrefix('girl1-' .. i, 'danceRight', 'girl1idleright',
-                girlsframerate, false)
-            addAnimationByPrefix('girl1-' .. i, 'idle', 'girl1loveidle',
-                girlsframerate - 1, false)
-            setScrollFactor('girl1-' .. i, 0.9, 0.9)
-            setProperty('girl1-' .. i .. '.antialiasing', false)
-            scaleObject('girl1-' .. i, 6, 6)
-            addLuaSprite('girl1-' .. i, false)
+    --if not lowQuality then
+    -- petals
+    -- girls
+    local girlsframerate = 8
+    local girlsspacing = 500
+    local girlsY = 590
+    local girlsXoffset = -900
+    for i = 1, 3 do
+        makeAnimatedLuaSprite('girl1-' .. i, bgpath,
+            430 + girlsXoffset + girlsspacing * i, girlsY)
+        addAnimationByPrefix('girl1-' .. i, 'danceLeft', 'girl1idleleft',
+            girlsframerate, false)
+        addAnimationByPrefix('girl1-' .. i, 'danceRight', 'girl1idleright',
+            girlsframerate, false)
+        addAnimationByPrefix('girl1-' .. i, 'idle', 'girl1loveidle',
+            girlsframerate - 1, false)
+        setScrollFactor('girl1-' .. i, 0.9, 0.9)
+        setProperty('girl1-' .. i .. '.antialiasing', false)
+        scaleObject('girl1-' .. i, 6, 6)
+        addLuaSprite('girl1-' .. i, false)
 
-            makeAnimatedLuaSprite('girl2-' .. i, bgpath,
-                680 + girlsXoffset + girlsspacing * i, girlsY)
-            addAnimationByPrefix('girl2-' .. i, 'danceLeft', 'girl2idleleft',
-                girlsframerate, false)
-            addAnimationByPrefix('girl2-' .. i, 'danceRight', 'girl2idleright',
-                girlsframerate, false)
-            addAnimationByPrefix('girl2-' .. i, 'idle', 'girl2loveidle',
-                girlsframerate - 1, false)
-            setScrollFactor('girl2-' .. i, 0.9, 0.9)
-            setProperty('girl2-' .. i .. '.antialiasing', false)
-            scaleObject('girl2-' .. i, 6, 6)
-            addLuaSprite('girl2-' .. i, false)
+        makeAnimatedLuaSprite('girl2-' .. i, bgpath,
+            680 + girlsXoffset + girlsspacing * i, girlsY)
+        addAnimationByPrefix('girl2-' .. i, 'danceLeft', 'girl2idleleft',
+            girlsframerate, false)
+        addAnimationByPrefix('girl2-' .. i, 'danceRight', 'girl2idleright',
+            girlsframerate, false)
+        addAnimationByPrefix('girl2-' .. i, 'idle', 'girl2loveidle',
+            girlsframerate - 1, false)
+        setScrollFactor('girl2-' .. i, 0.9, 0.9)
+        setProperty('girl2-' .. i .. '.antialiasing', false)
+        scaleObject('girl2-' .. i, 6, 6)
+        addLuaSprite('girl2-' .. i, false)
 
-            if hasCreeps then
-                playAnim('girl1-' .. i, 'danceLeft', true)
-                playAnim('girl2-' .. i, 'danceLeft', true)
-            else
-                playAnim('girl1-' .. i, 'idle', true)
-                playAnim('girl2-' .. i, 'idle', true)
-            end
+        if hasCreeps then
+            playAnim('girl1-' .. i, 'danceLeft', true)
+            playAnim('girl2-' .. i, 'danceLeft', true)
+        else
+            playAnim('girl1-' .. i, 'idle', true)
+            playAnim('girl2-' .. i, 'idle', true)
         end
     end
+    --end
 end
 
 function onBeatHit()
