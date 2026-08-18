@@ -8,6 +8,8 @@ v2.6.7
 - A vertical offset in the Sustains, which increased depending on the length, was corrected
 - Week 6 stage was added (excep thorns)
 - Antialiasing now works on icons
+- Fixed inconsistent dance for characters
+- Improved the Hex Color parser
 
 v2.5.7
 - Fixed a crash with change character, but not tested

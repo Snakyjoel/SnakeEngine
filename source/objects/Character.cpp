@@ -793,12 +793,12 @@ void Character::dance(bool forced) {
     if (animations.count("danceLeft") && animations.count("danceRight") && 
         !animations["danceLeft"].indices.empty() && !animations["danceRight"].indices.empty()) {
         danced = !danced;
-        if (danced) playAnim("danceRight", true);
-        else playAnim("danceLeft", true);
+        if (danced) playAnim("danceRight", forced);
+        else playAnim("danceLeft", forced);
     } else if (animations.count("idle") && !animations["idle"].indices.empty()) {
-        playAnim("idle", true);
+        playAnim("idle", forced);
     } else if (animations.count("dance") && !animations["dance"].indices.empty()) {
-        playAnim("dance", true);
+        playAnim("dance", forced);
     }
 }
 
