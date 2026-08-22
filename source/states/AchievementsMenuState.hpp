@@ -17,9 +17,12 @@ public:
 private:
     void changeSelection(int change = 0);
     std::string wrapText(const std::string& text, float scale, float maxWidth);
+    void drawQuanticoText(const std::string& textStr, float x, float y, float scale, bool centered, u32 color, float depth = 0.85f, float border = 0.0f, float maxWidth = 0.0f);
+    float getQuanticoTextWidth(const std::string& textStr, float scale);
 
     int curSelected = 0;
     float lerpSelected = 0.0f;
+    float textScrollTime = 0.0f;
     
     std::vector<AchievementInfo> options;
     std::vector<int> achievementIndex;
@@ -31,6 +34,6 @@ private:
 
     CppAnimate iconAnimate;
     
-    C2D_Font vcrFont = nullptr;
-    C2D_TextBuf vcrFontBuf = nullptr;
+    C2D_Font quanticoFont = nullptr;
+    C2D_TextBuf quanticoFontBuf = nullptr;
 };

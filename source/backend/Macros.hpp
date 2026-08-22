@@ -14,16 +14,16 @@
 
 // Text
 #define DrawTextBorderCardinal(textObj, x, y, depth, scaleX, scaleY, size, color) \
-    C2D_DrawText(textObj, C2D_WithColor, x - size, y, depth, scaleX, scaleY, color); \
-    C2D_DrawText(textObj, C2D_WithColor, x + size, y, depth, scaleX, scaleY, color); \
-    C2D_DrawText(textObj, C2D_WithColor, x, y - size, depth, scaleX, scaleY, color); \
-    C2D_DrawText(textObj, C2D_WithColor, x, y + size, depth, scaleX, scaleY, color)
+    C2D_DrawText(textObj, C2D_WithColor, (x) - (size), (y), depth, scaleX, scaleY, color); \
+    C2D_DrawText(textObj, C2D_WithColor, (x) + (size), (y), depth, scaleX, scaleY, color); \
+    C2D_DrawText(textObj, C2D_WithColor, (x), (y) - (size), depth, scaleX, scaleY, color); \
+    C2D_DrawText(textObj, C2D_WithColor, (x), (y) + (size), depth, scaleX, scaleY, color)
 
 #define DrawTextBorderDiagonal(textObj, x, y, depth, scaleX, scaleY, size, color) \
-    C2D_DrawText(textObj, C2D_WithColor, x - size, y - size, depth, scaleX, scaleY, color); \
-    C2D_DrawText(textObj, C2D_WithColor, x + size, y - size, depth, scaleX, scaleY, color); \
-    C2D_DrawText(textObj, C2D_WithColor, x - size, y + size, depth, scaleX, scaleY, color); \
-    C2D_DrawText(textObj, C2D_WithColor, x + size, y + size, depth, scaleX, scaleY, color)
+    C2D_DrawText(textObj, C2D_WithColor, (x) - (size), (y) - (size), depth, scaleX, scaleY, color); \
+    C2D_DrawText(textObj, C2D_WithColor, (x) + (size), (y) - (size), depth, scaleX, scaleY, color); \
+    C2D_DrawText(textObj, C2D_WithColor, (x) - (size), (y) + (size), depth, scaleX, scaleY, color); \
+    C2D_DrawText(textObj, C2D_WithColor, (x) + (size), (y) + (size), depth, scaleX, scaleY, color)
 
 #define DrawTextBorderFull(textObj, x, y, depth, scaleX, scaleY, size, color) \
     DrawTextBorderCardinal(textObj, x, y, depth, scaleX, scaleY, size, color); \
@@ -45,7 +45,7 @@
         float dx = (centered) ? (float)(x) - (tw / 2.0f) : (float)(x); \
         float dy = (centered) ? (float)(y) - (th / 2.0f) : (float)(y); \
         dx = std::round(dx); dy = std::round(dy); \
-        if ((border) > 0.0f) { DrawTextBorderFull(&gText, dx, dy, (depth) - 0.01f, actualScale, actualScale, border, CBlack); } \
+        if ((border) > 0.0f) { DrawTextBorderFull(&gText, dx, dy, (depth) - 0.01f, actualScale, actualScale, border, C2D_Color32(0, 0, 0, ((color) >> 24) & 0xFF)); } \
         C2D_DrawText(&gText, C2D_WithColor, dx, dy, (depth), actualScale, actualScale, color); \
         C2D_Flush(); \
     } while(0)
@@ -71,14 +71,15 @@
         dx = std::round(dx); dy = std::round(dy); \
         u32 flags = C2D_WithColor | C2D_AlignCenter; \
         if ((border) > 0.0f) { \
-            C2D_DrawText(&gText, flags, dx - (border), dy, (depth) - 0.01f, actualScale, actualScale, CBlack); \
-            C2D_DrawText(&gText, flags, dx + (border), dy, (depth) - 0.01f, actualScale, actualScale, CBlack); \
-            C2D_DrawText(&gText, flags, dx, dy - (border), (depth) - 0.01f, actualScale, actualScale, CBlack); \
-            C2D_DrawText(&gText, flags, dx, dy + (border), (depth) - 0.01f, actualScale, actualScale, CBlack); \
-            C2D_DrawText(&gText, flags, dx - (border), dy - (border), (depth) - 0.01f, actualScale, actualScale, CBlack); \
-            C2D_DrawText(&gText, flags, dx + (border), dy - (border), (depth) - 0.01f, actualScale, actualScale, CBlack); \
-            C2D_DrawText(&gText, flags, dx - (border), dy + (border), (depth) - 0.01f, actualScale, actualScale, CBlack); \
-            C2D_DrawText(&gText, flags, dx + (border), dy + (border), (depth) - 0.01f, actualScale, actualScale, CBlack); \
+            u32 borderColor = C2D_Color32(0, 0, 0, ((color) >> 24) & 0xFF); \
+            C2D_DrawText(&gText, flags, dx - (border), dy, (depth) - 0.01f, actualScale, actualScale, borderColor); \
+            C2D_DrawText(&gText, flags, dx + (border), dy, (depth) - 0.01f, actualScale, actualScale, borderColor); \
+            C2D_DrawText(&gText, flags, dx, dy - (border), (depth) - 0.01f, actualScale, actualScale, borderColor); \
+            C2D_DrawText(&gText, flags, dx, dy + (border), (depth) - 0.01f, actualScale, actualScale, borderColor); \
+            C2D_DrawText(&gText, flags, dx - (border), dy - (border), (depth) - 0.01f, actualScale, actualScale, borderColor); \
+            C2D_DrawText(&gText, flags, dx + (border), dy - (border), (depth) - 0.01f, actualScale, actualScale, borderColor); \
+            C2D_DrawText(&gText, flags, dx - (border), dy + (border), (depth) - 0.01f, actualScale, actualScale, borderColor); \
+            C2D_DrawText(&gText, flags, dx + (border), dy + (border), (depth) - 0.01f, actualScale, actualScale, borderColor); \
         } \
         C2D_DrawText(&gText, flags, dx, dy, (depth), actualScale, actualScale, color); \
         C2D_Flush(); \

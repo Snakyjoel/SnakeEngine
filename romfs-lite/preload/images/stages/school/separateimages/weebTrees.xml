@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="weebTrees.png">
+    <SubTexture name="weebTrees_0" x="0" y="0" width="101" height="82"/>
+    <SubTexture name="weebTrees_1" x="101" y="0" width="101" height="82"/>
+    <SubTexture name="weebTrees_2" x="202" y="0" width="101" height="82"/>
+    <SubTexture name="weebTrees_3" x="303" y="0" width="101" height="82"/>
+    <SubTexture name="weebTrees_4" x="404" y="0" width="101" height="82"/>
+    <SubTexture name="weebTrees_5" x="505" y="0" width="101" height="82"/>
+    <SubTexture name="weebTrees_6" x="606" y="0" width="101" height="82"/>
+</TextureAtlas>

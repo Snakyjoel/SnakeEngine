@@ -1,6 +1,7 @@
 #include "ButtonPrompt.hpp"
 #include "Alphabet.hpp"
 #include "../backend/SpritesheetCache.hpp"
+#include "../backend/savedata/ClientPrefs.hpp"
 #include <algorithm>
 #include <cstring>
 #include <strings.h>
@@ -10,6 +11,7 @@ ButtonPrompt::ButtonPrompt(const std::string& button, const std::string& text, f
     : button(button), text(text), x(x), y(y), scale(scale), alpha(alpha), textColor(textColor), depth(depth) {}
 
 void ButtonPrompt::init() {
+    if (!ClientPrefs::buttonPrompts) return;
     SpritesheetCache::get().load("shared/images/buttons");
     SpritesheetCache::get().load("shared/images/Alphabet");
 }
@@ -104,27 +106,40 @@ float ButtonPrompt::getButtonHeight(const std::string& button, float scale) {
     return h * scale;
 }
 
-void ButtonPrompt::drawPrompt(const std::string& button, const std::string& text, float x, float y, float scale, float alpha, u32 textColor, float depth) {
+void ButtonPrompt::drawPrompt(const std::string& button, const std::string& text, float x, float y, float scale, float alpha, u32 textColor, float depth, float textScaleMultiplier, bool buttonOnRight) {
+    if (!ClientPrefs::buttonPrompts) return;
     float btnScale = scale * 0.75f;
     float btnW = getButtonWidth(button, btnScale);
     float btnH = getButtonHeight(button, btnScale);
 
-    float textScale = scale * 1.25f;
-    float fontScreenScale = (240.0f / 720.0f) * 1.25f;
+    float textScale = scale * 1.25f * textScaleMultiplier;
+    float fontScreenScale = (240.0f / 720.0f) * 1.25f * textScaleMultiplier;
     float textVisualH = 50.0f * textScale * fontScreenScale;
     float promptH = std::max(btnH, textVisualH);
 
-    float btnY = y + (promptH - btnH) * 0.5f;
-    drawButton(button, x, btnY, btnScale, alpha, depth);
-
     float spacing = 6.0f * (scale / 0.55f);
-    float textX = x + btnW + spacing;
-    float textY = y + (promptH - textVisualH) * 0.5f;
 
-    Alphabet::draw(text, textX, textY, textScale, alpha, false, textColor, depth);
+    if (buttonOnRight) {
+        float textX = x;
+        float textY = y + (promptH - textVisualH) * 0.5f + (7.0f * scale * textScaleMultiplier);
+        Alphabet::draw(text, textX, textY, textScale, alpha, false, textColor, depth);
+
+        float textW = Alphabet::getTextWidth(text, textScale);
+        float btnX = x + textW + spacing;
+        float btnY = y + (promptH - btnH) * 0.5f;
+        drawButton(button, btnX, btnY, btnScale, alpha, depth);
+    } else {
+        float btnY = y + (promptH - btnH) * 0.5f;
+        drawButton(button, x, btnY, btnScale, alpha, depth);
+
+        float textX = x + btnW + spacing;
+        float textY = y + (promptH - textVisualH) * 0.5f + (7.0f * scale * textScaleMultiplier);
+        Alphabet::draw(text, textX, textY, textScale, alpha, false, textColor, depth);
+    }
 }
 
-void ButtonPrompt::drawPrompt2(const std::string& btn1, const std::string& btn2, const std::string& text, float x, float y, float scale, float alpha, u32 textColor, float depth) {
+void ButtonPrompt::drawPrompt2(const std::string& btn1, const std::string& btn2, const std::string& text, float x, float y, float scale, float alpha, u32 textColor, float depth, float textScaleMultiplier) {
+    if (!ClientPrefs::buttonPrompts) return;
     float btnScale = scale * 0.75f;
     float btn1W = getButtonWidth(btn1, btnScale);
     float btn1H = getButtonHeight(btn1, btnScale);
@@ -132,8 +147,8 @@ void ButtonPrompt::drawPrompt2(const std::string& btn1, const std::string& btn2,
     float btn2H = getButtonHeight(btn2, btnScale);
     float maxBtnH = std::max(btn1H, btn2H);
 
-    float textScale = scale * 1.25f;
-    float fontScreenScale = (240.0f / 720.0f) * 1.25f;
+    float textScale = scale * 1.25f * textScaleMultiplier;
+    float fontScreenScale = (240.0f / 720.0f) * 1.25f * textScaleMultiplier;
     float textVisualH = 50.0f * textScale * fontScreenScale;
     float promptH = std::max(maxBtnH, textVisualH);
 
@@ -147,36 +162,36 @@ void ButtonPrompt::drawPrompt2(const std::string& btn1, const std::string& btn2,
 
     float textGap = 6.0f * (scale / 0.55f);
     float textX = btn2X + btn2W + textGap;
-    float textY = y + (promptH - textVisualH) * 0.5f;
+    float textY = y + (promptH - textVisualH) * 0.5f + (7.0f * scale * textScaleMultiplier);
 
     Alphabet::draw(text, textX, textY, textScale, alpha, false, textColor, depth);
 }
 
-float ButtonPrompt::getPromptWidth(const std::string& button, const std::string& text, float scale) {
+float ButtonPrompt::getPromptWidth(const std::string& button, const std::string& text, float scale, float textScaleMultiplier) {
     float btnScale = scale * 0.75f;
     float btnW = getButtonWidth(button, btnScale);
     float spacing = 6.0f * (scale / 0.55f);
-    float textScale = scale * 1.25f;
+    float textScale = scale * 1.25f * textScaleMultiplier;
     float textW = Alphabet::getTextWidth(text, textScale);
     return btnW + spacing + textW;
 }
 
-float ButtonPrompt::getPrompt2Width(const std::string& btn1, const std::string& btn2, const std::string& text, float scale) {
+float ButtonPrompt::getPrompt2Width(const std::string& btn1, const std::string& btn2, const std::string& text, float scale, float textScaleMultiplier) {
     float btnScale = scale * 0.75f;
     float btn1W = getButtonWidth(btn1, btnScale);
     float btn2W = getButtonWidth(btn2, btnScale);
     float btnGap = 4.0f * (scale / 0.55f);
     float textGap = 6.0f * (scale / 0.55f);
-    float textScale = scale * 1.25f;
+    float textScale = scale * 1.25f * textScaleMultiplier;
     float textW = Alphabet::getTextWidth(text, textScale);
     return btn1W + btnGap + btn2W + textGap + textW;
 }
 
-float ButtonPrompt::getPromptHeight(const std::string& button, const std::string& text, float scale) {
+float ButtonPrompt::getPromptHeight(const std::string& button, const std::string& text, float scale, float textScaleMultiplier) {
     float btnScale = scale * 0.75f;
     float btnH = getButtonHeight(button, btnScale);
-    float textScale = scale * 1.25f;
-    float fontScreenScale = (240.0f / 720.0f) * 1.25f;
+    float textScale = scale * 1.25f * textScaleMultiplier;
+    float fontScreenScale = (240.0f / 720.0f) * 1.25f * textScaleMultiplier;
     float textVisualH = 50.0f * textScale * fontScreenScale;
     return std::max(btnH, textVisualH);
 }

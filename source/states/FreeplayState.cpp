@@ -6,6 +6,7 @@
 #include "../backend/AudioEngine.hpp"
 #include "Highscores.hpp"
 #include "../objects/Alphabet.hpp"
+#include "../objects/ButtonPrompt.hpp"
 #include <cmath>
 #include <algorithm>
 #include <sstream>
@@ -1595,6 +1596,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             }
         }
     }
+    ButtonPrompt::drawPrompt("y", "Favorite", 8.0f, 210.0f, 0.60f, 1.0f);
 }
 
 void FreeplayState::exitState() {
@@ -1770,6 +1772,7 @@ C2D_Image FreeplayState::getIconImage(const std::string& name) {
     static std::unordered_map<std::string, Tex3DS_SubTexture> customIconSubtexs;
     if (iconCache.count(name)) {
         iconCache[name].lastAccessFrame = cacheFrameCount;
+        if (!iconCache[name].sheet) return {nullptr, nullptr};
         C2D_Image img = C2D_SpriteSheetGetImage(iconCache[name].sheet, 0);
         if (img.tex) C3D_TexSetFilter(img.tex, GPU_NEAREST, GPU_NEAREST);
         if (customIconSubtexs.count(name) > 0) {
@@ -1778,6 +1781,7 @@ C2D_Image FreeplayState::getIconImage(const std::string& name) {
         return img;
     }
 
+    // Debounce: don't search the SD card if we are scrolling fast
     if (timeSinceSelectionChange < 0.10f) {
         return {nullptr, nullptr};
     }
@@ -1842,6 +1846,10 @@ C2D_Image FreeplayState::getIconImage(const std::string& name) {
             return img;
         }
     }
+    
+    // Cache the failure so we don't query the SD card again
+    enforceLRUCache(iconCache, 30);
+    iconCache[name] = {nullptr, cacheFrameCount};
     return {nullptr, nullptr};
 }
 
@@ -1853,9 +1861,11 @@ C2D_Image FreeplayState::getAlbumImage(const std::string& name) {
 
     if (albumCache.count(targetName)) {
         albumCache[targetName].lastAccessFrame = cacheFrameCount;
+        if (!albumCache[targetName].sheet) return {nullptr, nullptr};
         return C2D_SpriteSheetGetImage(albumCache[targetName].sheet, 0);
     }
 
+    // Debounce: don't search the SD card if we are scrolling fast
     if (timeSinceSelectionChange < 0.10f) {
         return {nullptr, nullptr};
     }
@@ -1949,6 +1959,10 @@ C2D_Image FreeplayState::getAlbumImage(const std::string& name) {
         
         return img;
     }
+
+    // Cache the failure
+    enforceLRUCache(albumCache, 5);
+    albumCache[targetName] = {nullptr, cacheFrameCount};
     return {nullptr, nullptr};
 }
 
@@ -1962,13 +1976,15 @@ C2D_Image FreeplayState::getAlbumTextImage(const std::string& name) {
     
     if (albumTextCache.count(targetName)) {
         albumTextCache[targetName].lastAccessFrame = cacheFrameCount;
+        if (!albumTextCache[targetName].sheet) return {nullptr, nullptr};
         return C2D_SpriteSheetGetImage(albumTextCache[targetName].sheet, 0);
     }
     
+    // Debounce: don't search the SD card if we are scrolling fast
     if (timeSinceSelectionChange < 0.10f) {
         return {nullptr, nullptr};
     }
-    
+
     std::string path = Paths::image("freeplay/album/" + lookupName);
     if (Paths::fileExists(path)) {
         C2D_SpriteSheet s = C2D_SpriteSheetLoad(path.c_str());
@@ -1981,6 +1997,9 @@ C2D_Image FreeplayState::getAlbumTextImage(const std::string& name) {
             return img;
         }
     }
+
+    enforceLRUCache(albumTextCache, 5);
+    albumTextCache[targetName] = {nullptr, cacheFrameCount};
     return {nullptr, nullptr};
 }
 
@@ -2209,7 +2228,7 @@ Frame FreeplayState::getLetterFrame(const std::string& categoryName) {
 
 Frame FreeplayState::getRatingFrame(const std::string& rating) {
     std::string prefix = rating;
-    if (prefix == "P") prefix = "p";
+    if (prefix == "P" || prefix == "GP") prefix = "p";
     else if (prefix == "E") prefix = "e";
     else if (prefix == "G" || prefix == "g") prefix = "g";
     else if (prefix == "L") prefix = "l";
@@ -2223,6 +2242,7 @@ Frame FreeplayState::getRatingFrame(const std::string& rating) {
 }
 
 u32 FreeplayState::getRatingColor(const std::string& rating, u8 alpha) {
+    if (rating == "GP") return C2D_Color32(0xFF, 0xD7, 0x00, alpha); // Gold
     if (rating == "P") return C2D_Color32(0xFF, 0xA8, 0xFF, alpha); // ffa8ff
     if (rating == "E") return C2D_Color32(0xFF, 0xFF, 0xB9, alpha); // ffffb9
     if (rating == "G") return C2D_Color32(0xEF, 0xFD, 0xFF, alpha); // effdff (great)

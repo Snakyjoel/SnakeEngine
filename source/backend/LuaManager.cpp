@@ -322,6 +322,13 @@ void LuaManager::syncGlobals() {
 
 
 }
+
+void LuaManager::setVar(const std::string& varName, const std::string& val) {
+    if (L) {
+        lua_pushstring(L, val.c_str());
+        lua_setglobal(L, varName.c_str());
+    }
+}
 void LuaManager::registerFunctions(lua_State* L) {
     if (!L) return;
 
@@ -1513,6 +1520,25 @@ int LuaManager::lua_objectPlayAnimation(lua_State* L) {
     std::string name = luaL_checkstring(L, 2);
     bool force = lua_toboolean(L, 3);
 
+    auto slotsMatch = [](const std::string& type1, const std::string& type2) {
+        auto normalize = [](std::string s) -> std::string {
+            std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+            if (s == "opponent" || s == "0" || s == "dad") return "dad";
+            if (s == "boyfriend" || s == "1" || s == "player" || s == "bf") return "bf";
+            if (s == "girlfriend" || s == "2" || s == "gf") return "gf";
+            return s;
+        };
+        return normalize(type1) == normalize(type2);
+    };
+
+    // If there is a pending swap for this slot, cache the animation so it gets played once loaded
+    for (auto& swap : PlayState::instance->pendingSwaps) {
+        if (slotsMatch(swap.charType, tag)) {
+            swap.pendingAnim = name;
+            swap.pendingAnimForce = force;
+        }
+    }
+
     std::string lowerTag = tag;
     for (auto& c : lowerTag) c = std::tolower(c);
 
@@ -1757,6 +1783,10 @@ int LuaManager::lua_getProperty(lua_State* L) {
                 else if (prop == "scale.x" || prop == "scale.y" || prop == "scale") lua_pushnumber(L, c->charScale);
                 else if (prop == "visible") lua_pushboolean(L, c->visible);
                 else if (prop == "angle") lua_pushnumber(L, c->angle);
+                else if (prop == "curCharacter" || prop == "curCharacterName") lua_pushstring(L, c->curCharacterName.c_str());
+                else if (prop == "healthIcon") lua_pushstring(L, c->healthIcon.c_str());
+                else if (prop == "holdTimer") lua_pushnumber(L, c->holdTimer);
+                else if (prop == "singDuration") lua_pushnumber(L, c->singDuration);
                 else lua_pushnil(L);
             } else {
                 lua_pushnil(L);

@@ -81,6 +81,11 @@ public:
     void resume()  { suspended = false; }
     bool isSuspended() const { return suspended; }
 
+    // Asset loading progress tracking
+    std::string loadingAssetName = "";
+    int loadingAssetPercent = 0;
+    bool isLoadingAsset = false;
+
 private:
     AsyncAssetManager() = default;
     ~AsyncAssetManager() = default;

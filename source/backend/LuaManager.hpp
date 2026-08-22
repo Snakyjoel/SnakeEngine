@@ -27,6 +27,7 @@ public:
     bool runScript(const std::string& scriptPath);
     bool callFunction(const std::string& funcName, const std::vector<std::string>& args = {});
     void syncGlobals();
+    void setVar(const std::string& varName, const std::string& val);
 
 
     // Scaling to FunkinLua macros/systems

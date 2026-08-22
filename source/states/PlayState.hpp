@@ -398,6 +398,8 @@ private:
     struct PendingCharSwap {
         std::string charType; // "dad", "bf", "gf"
         std::string charName; // character to swap to
+        std::string pendingAnim = "";
+        bool pendingAnimForce = false;
     };
     std::vector<PendingCharSwap> pendingSwaps;
     

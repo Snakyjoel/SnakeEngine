@@ -8,6 +8,7 @@
 #include "backend/MusicBeatState.hpp"
 #include "backend/AudioEngine.hpp"
 #include "Highscores.hpp"
+#include "Achievements.hpp"
 #include "backend/AsyncAssetManager.hpp"
 #include "states/TitleState.hpp"
 #include "states/PlayState.hpp"
@@ -113,6 +114,7 @@ int main(int argc, char* argv[]) {
 
     ClientPrefs::loadSettings();
     Highscores::load();
+    Achievements::loadAchievements();
 
     AsyncAssetManager::get().init();
 

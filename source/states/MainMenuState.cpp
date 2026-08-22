@@ -7,6 +7,7 @@
 #include "CreditsState.hpp"
 #include "TitleState.hpp"
 #include "AchievementsMenuState.hpp"
+#include "../objects/ButtonPrompt.hpp"
 #include "../backend/ModHandler.hpp"
 #include "WeekParser.hpp"
 #include "../backend/AudioEngine.hpp"
@@ -263,6 +264,9 @@ void MainMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         item.animate.drawCentered(item.x, item.y, 0.5f, 1.0f, 1.0f, tintPtr);
     }
 
+    u32 textCol = C2D_Color32(255, 255, 255, (u8)(drawAlpha * 255.0f));
+    AddText("Snake Engine v2.6.7", 8, 225, 0.38f, false, 1.5f, textCol, 0.0f);
+
     C2D_SceneBegin(bottom);
     C2D_TargetClear(bottom, C2D_Color32(253, 232, 113, 255)); // fde871
 
@@ -298,10 +302,9 @@ void MainMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         item.animate.drawCentered(item.x, item.y, 0.5f, 1.0f, 1.0f, tintPtr);
     }
 
-    u32 textCol = C2D_Color32(255, 255, 255, (u8)(drawAlpha * 255.0f));
-    bool showBorder = (introTimer > 0.99f && !isTransitioningToFreeplay);
-    AddTextCentered("Snake Engine v2.6.7", 160, 10, 0.38f, showBorder ? 1.5f : 0.0f, textCol, 0.0f);
-    AddTextCentered("Based on Psych Engine v0.6.3", 160, 27, 0.38f, showBorder ? 1.5f : 0.0f, textCol, 0.0f);
+    ButtonPrompt::drawPrompt("y", "Achievements", 8.0f, 210.0f, 0.60f, drawAlpha);
+    float xPromptWidth = ButtonPrompt::getPromptWidth("x", "Options", 0.60f);
+    ButtonPrompt::drawPrompt("x", "Options", 320.0f - 8.0f - xPromptWidth, 210.0f, 0.60f, drawAlpha, 0xFFFFFFFF, 0.95f, 1.0f, true);
 }
 
 void MainMenuState::exitState() {

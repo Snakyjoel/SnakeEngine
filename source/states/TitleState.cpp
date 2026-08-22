@@ -3,6 +3,7 @@
 #include "../debug/DebugMenuState.hpp"
 #include "../backend/ModHandler.hpp"
 #include "../backend/AudioEngine.hpp"
+#include "../backend/savedata/Achievements.hpp"
 #include <citro2d.h>
 #include "../objects/Alphabet.hpp"
 #include <cmath>
@@ -11,6 +12,43 @@
 #include "VideoState.hpp"
 #include "OutdatedState.hpp"
 #include "../backend/UpdateChecker.hpp"
+#include "../objects/ButtonPrompt.hpp"
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846f
+#endif
+
+static void drawProgressRing(float cx, float cy, float r_in, float r_out, float progress, u32 color, float depth = 0.9f) {
+    if (progress <= 0.0f) return;
+    if (progress > 1.0f) progress = 1.0f;
+
+    const int maxSegments = 40;
+    int segmentsToDraw = (int)(progress * maxSegments);
+    if (segmentsToDraw < 1) segmentsToDraw = 1;
+
+    for (int i = 0; i < segmentsToDraw; i++) {
+        float theta1 = -M_PI / 2.0f + ((float)i * 2.0f * M_PI / (float)maxSegments);
+        float theta2 = -M_PI / 2.0f + (((float)i + 1.0f) * 2.0f * M_PI / (float)maxSegments);
+
+        float cos1 = cosf(theta1);
+        float sin1 = sinf(theta1);
+        float cos2 = cosf(theta2);
+        float sin2 = sinf(theta2);
+
+        float ix1 = cx + r_in * cos1;
+        float iy1 = cy + r_in * sin1;
+        float ix2 = cx + r_in * cos2;
+        float iy2 = cy + r_in * sin2;
+
+        float ox1 = cx + r_out * cos1;
+        float oy1 = cy + r_out * sin1;
+        float ox2 = cx + r_out * cos2;
+        float oy2 = cy + r_out * sin2;
+
+        C2D_DrawTriangle(ox1, oy1, color, ix1, iy1, color, ix2, iy2, color, depth);
+        C2D_DrawTriangle(ox1, oy1, color, ix2, iy2, color, ox2, oy2, color, depth);
+    }
+}
 
 static bool titleInitialized = false;
 static const std::vector<std::pair<std::string, std::string>> defaultWackyTexts = {
@@ -32,6 +70,8 @@ void TitleState::init() {
     promoFadingOut = false;
     promoFadeTime = 0.0f;
     promoChosenVideo = "";
+    exitProgress = 0.0f;
+    ringAlpha = 0.0f;
 
     logo.loadSheet("preload/images/logoBumpin");
     logo.addAnim("bump", "default", 24.0f, true);
@@ -77,6 +117,9 @@ void TitleState::init() {
     gf.antialiasing = ClientPrefs::globalAntialiasing;
 
     SpritesheetCache::get().load("shared/images/Alphabet");
+    AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.0f);
+    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.0f);
+    AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.0f);
 
     // Start menu music
     if (!MusicPlayer::isPlaying()) {
@@ -210,13 +253,39 @@ void TitleState::update(float dt) {
                 if (ClientPrefs::checkForUpdates && UpdateChecker::isFinished() && !UpdateChecker::getOnlineVersion().empty()) {
                     int comp = UpdateChecker::compareVersions(UpdateChecker::getCurrentVersion(), UpdateChecker::getOnlineVersion());
                     if (comp != 0) {
+                        Achievements::unlockAchievement("startgame");
                         switchState(new OutdatedState(comp, UpdateChecker::getOnlineVersion()));
                         return;
                     }
                 }
+                Achievements::unlockAchievement("startgame");
                 switchState(new MainMenuState());
             }
         }
+    }
+
+    // B hold to exit
+    bool isHoldingExit = false;
+    if (skippedIntro && !transitioning) {
+        u32 kHeld = hidKeysHeld();
+        isHoldingExit = (kHeld & KEY_B);
+    }
+
+    if (isHoldingExit) {
+        ringAlpha += dt * 4.0f;
+        if (ringAlpha > 1.0f) ringAlpha = 1.0f;
+
+        exitProgress += dt / 3.0f;
+        if (exitProgress >= 1.0f) {
+            exitProgress = 1.0f;
+            exit(0);
+        }
+    } else {
+        ringAlpha -= dt * 4.0f;
+        if (ringAlpha < 0.0f) ringAlpha = 0.0f;
+
+        exitProgress -= dt * 2.5f;
+        if (exitProgress < 0.0f) exitProgress = 0.0f;
     }
 
     // Key presses
@@ -332,6 +401,22 @@ void TitleState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     } else {
         titleEnter.drawCentered(160.0f, 108.0f, 0.8f, 0.85f, 0.85f);
         titleEnter2.drawCentered(160.0f, 138.0f, 0.8f, 0.85f, 0.85f);
+
+        if (ringAlpha > 0.0f) {
+            float cx = 285.0f;
+            float cy = 205.0f;
+            float r_in = 12.0f;
+            float r_out = 16.0f;
+
+            u8 alphaBack = (u8)(ringAlpha * 100.0f);
+            u8 alphaFront = (u8)(ringAlpha * 255.0f);
+
+            u32 colorBack = C2D_Color32(0, 0, 0, alphaBack);
+            drawProgressRing(cx, cy, r_in, r_out, 1.0f, colorBack, 0.9f);
+
+            u32 colorFront = C2D_Color32(255, 255, 255, alphaFront);
+            drawProgressRing(cx, cy, r_in, r_out, exitProgress, colorFront, 0.91f);
+        }
         
         drawFlash(bottomScreen);
     }

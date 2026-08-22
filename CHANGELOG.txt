@@ -10,6 +10,11 @@ v2.6.7
 - Antialiasing now works on icons
 - Fixed inconsistent dance for characters
 - Improved the Hex Color parser
+- A stutter on the title screen when performing the action to go to the main menu has been fixed
+- The Playstate text buffer was expanded from 512 to 2048 (Or in other words, you can now have up to 2048 letters from a font)
+- Another fix with songs charts speed
+- Gold P rank was added
+- Official achievements were added (Psych ones were removed)
 
 v2.5.7
 - Fixed a crash with change character, but not tested

@@ -162,6 +162,10 @@ void Alphabet::draw(const std::string& text, float x, float y, float scale, floa
 
             float lx = curX - foundFrame->frameX * drawScale;
             float ly = curY - foundFrame->frameY * drawScale;
+            
+            if (c == '.') {
+                ly += 30.0f * drawScale;
+            }
 
             if (usingMult) C2D_SetTintMode(C2D_TintMult);
 

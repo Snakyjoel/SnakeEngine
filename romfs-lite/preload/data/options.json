@@ -58,7 +58,11 @@
           "id": "hitboxMode",
           "name": "Hitbox Vis",
           "type": "string_list",
-          "options": ["Always", "On Touch", "Hidden"],
+          "options": [
+            "Always",
+            "On Touch",
+            "Hidden"
+          ],
           "default": "Always",
           "description": "When should touch hitboxes be visible?\n(Always / On Touch / Hidden)"
         },
@@ -66,7 +70,10 @@
           "id": "hitboxStyle",
           "name": "Hitbox Style",
           "type": "string_list",
-          "options": ["Full Bars", "Borders Only"],
+          "options": [
+            "Full Bars",
+            "Borders Only"
+          ],
           "default": "Full Bars",
           "description": "How should touch hitboxes be drawn?\n(Full Bars / Borders Only)"
         },
@@ -119,7 +126,12 @@
           "id": "timeBarType",
           "name": "Time Bar",
           "type": "string_list",
-          "options": ["Time Left", "Time Elapsed", "Song Name", "Disabled"],
+          "options": [
+            "Time Left",
+            "Time Elapsed",
+            "Song Name",
+            "Disabled"
+          ],
           "default": "Time Left",
           "description": "What should the Time Bar display?"
         },
@@ -171,6 +183,13 @@
           "type": "bool",
           "default": true,
           "description": "If checked, checks for updates on startup."
+        },
+        {
+          "id": "buttonPrompts",
+          "name": "Button Prompts",
+          "type": "bool",
+          "default": true,
+          "description": "If checked, shows button prompts\nat the bottom of screens."
         }
       ]
     },
@@ -225,7 +244,10 @@
           "id": "fpsLimit",
           "name": "FPS Limit",
           "type": "string_list",
-          "options": ["30 FPS", "60 FPS"],
+          "options": [
+            "30 FPS",
+            "60 FPS"
+          ],
           "default": "60 FPS",
           "description": "Set the maximum frame rate.\nLowering this can save battery."
         }

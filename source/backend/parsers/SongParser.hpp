@@ -31,6 +31,7 @@ struct SongData {
 class SongParser {
 public:
     static float songSpeed;
+    static float originalSongSpeed;
     static std::string player1;
     static std::string player2;
     static std::string gfVersion;

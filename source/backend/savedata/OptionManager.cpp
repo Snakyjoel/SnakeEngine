@@ -512,6 +512,7 @@ void OptionManager::syncToClientPrefs() {
     ClientPrefs::flashing          = getBool("flashing", true);
     ClientPrefs::alphabetPause     = getBool("alphabetPause", true);
     ClientPrefs::checkForUpdates   = getBool("checkForUpdates", true);
+    ClientPrefs::buttonPrompts     = getBool("buttonPrompts", true);
 
     ClientPrefs::lowQuality        = getBool("lowQuality", false);
     ClientPrefs::globalAntialiasing= getBool("globalAntialiasing", true);
@@ -559,6 +560,7 @@ void OptionManager::syncFromClientPrefs() {
     setBool("flashing", ClientPrefs::flashing);
     setBool("alphabetPause", ClientPrefs::alphabetPause);
     setBool("checkForUpdates", ClientPrefs::checkForUpdates);
+    setBool("buttonPrompts", ClientPrefs::buttonPrompts);
 
     setBool("lowQuality", ClientPrefs::lowQuality);
     setBool("globalAntialiasing", ClientPrefs::globalAntialiasing);

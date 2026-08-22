@@ -1,0 +1,77 @@
+-startgame
+Name: 
+I Said Funkin' 
+Desc: Start the game for the first time.
+-tutorial
+Name:
+ That's How You Do It! 
+Desc: Beat Tutorial in Story Mode (on any difficulty).
+-week1
+Name: 
+More Like Daddy Queerest
+Desc: Beat Week 1 in Story Mode (on any difficulty).
+
+-week2
+Name: IT IS THE SPOOKY MONTH
+Desc: Beat Week 2 in Story Mode (on any difficulty).
+-week3
+Name: Pico Funny 
+Desc: Beat Week 3 in Story Mode (on any difficulty).
+-week4
+Name: Mommy Must Murder
+Desc: Beat Week 4 in Story Mode (on any difficulty).
+-week5
+Name: Yule Tide Joy
+Desc: Beat Week 5 in Story Mode (on any difficulty).
+-week6
+Name: A Visual Novelty
+Desc: Beat Week 6 in Story Mode (on any difficulty).
+-week7
+Name: 
+I <3 JohnnyUtah
+Desc: Beat Week 7 in Story Mode (on any difficulty).
+-weekend1
+Name: Yo, Really Think So?
+Desc: Beat Weekend 1 in Story Mode (on any difficulty) and unlock Pico as a playable character in Freeplay.
+State: Not Avalible
+-charSelect
+Name: Stay Funky
+Desc: Press SELECT in Freeplay and unlock your first character.
+State: Not Avalible
+-picoMix
+Name: A Challenger Appears
+Desc: Beat any Pico remix in Freeplay (on any difficulty).
+State: Not Avalible
+-stressPico
+Name: De-Stressing
+Desc: Beat Stress (Pico Mix) in Freeplay (on any difficulty).
+State: Not Avalible
+-loss
+Name: L
+Desc: Earn a Loss rating on any song (on any difficulty).
+-PerfectRatingHard
+Name: Getting Freaky
+Desc: Earn a Perfect rating on any song on Hard difficulty.
+-beatErectOrNightmare
+Name: Harder Than Hard
+Desc: Beat any Erect remix in Freeplay on Erect or Nightmare difficulty.
+-perfectHard
+Name: You Should Drink More Water
+Desc: Earn a Gold Perfect rating on any song on Hard difficulty.
+Note: A new rank needs to be added; it's the same as PERFECT, but this one requires ALL notes to be Sick! and 0 misses. In freeplay, it's also a P, but a gold one.
+-perfectNightmare
+Name: The Rap God
+Desc: Earn a Gold Perfect rating on any song on Nightmare difficulty.
+-justlikethegame
+Name: Just like the game!
+Desc: Get freaky on a Friday.
+-69
+Name: Nice
+Desc: Earn a rating of EXACTLY 69% (good luck)
+State: Secret (What it means? It will use the lock icon and its description will instead say "Unlock to view details." and also the name Will change to Secret Medal. You need to unlock the achievement for its icon, name, and description to be revealed.)
+-collab1
+Name: Eat It Up!
+Desc: Beat Collab 1 in Story Mode (on any difficulty).
+State: Not Avalible
+
+If a song is Not Available, it will be displayed in the menu with 50% transparency and darkened.

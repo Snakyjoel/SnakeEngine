@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="achievementsAssets.png" width="405" height="470">
+  <SubTexture name="69" x="2" y="235"  width="97" height="74" frameX="-1" frameY="-12" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="beatErectOrNightmare" x="191" y="182"  width="59" height="92" frameX="-20" frameY="-3" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="charSelect" x="103" y="283"  width="82" height="86" frameX="-9" frameY="-7" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="collab1" x="256" y="2" width="76" height="89" rotated="true"  frameX="-8" frameY="-8" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="justlikethegame" x="2" y="78"  width="100" height="100" frameX="-0" frameY="-0" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="lock" x="106" y="78"  width="100" height="100" frameX="-0" frameY="-0" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="loss" x="256" y="370"  width="54" height="66" frameX="-21" frameY="-14" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="perfectHard" x="85" y="392" width="79" height="76" rotated="true"  frameX="-9" frameY="-7" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="perfectNightmare" x="189" y="283"  width="63" height="86" frameX="-20" frameY="-7" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="PerfectRatingHard" x="2" y="392" width="79" height="76" rotated="true"  frameX="-7" frameY="-12" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="picoMix" x="254" y="95" width="77" height="89" rotated="true"  frameX="-6" frameY="-11" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="startgame" x="104" y="182" width="83" height="97" rotated="true"  frameX="-1" frameY="-6" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="stressPico" x="254" y="188" width="64" height="89" rotated="true"  frameX="-7" frameY="-18" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="template" x="2" y="2"  width="250" height="72" frameX="-0" frameY="-0" frameWidth="250" frameHeight="72"/>
+  <SubTexture name="tutorial" x="336" y="2" width="67" height="76" rotated="true"  frameX="-10" frameY="-15" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="week1" x="2" y="313" width="87" height="75" rotated="true"  frameX="-13" frameY="-4" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="week2" x="336" y="82" width="56" height="74" rotated="true"  frameX="-13" frameY="-21" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="week3" x="322" y="188"  width="81" height="67" frameX="-11" frameY="-14" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="week4" x="322" y="259" width="81" height="74" rotated="true"  frameX="-13" frameY="-9" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="week5" x="256" y="281" width="56" height="85" rotated="true"  frameX="-8" frameY="-23" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="week6" x="2" y="182" width="98" height="49" rotated="true"  frameX="-25" frameY="-1" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="week7" x="314" y="404"  width="65" height="54" frameX="-19" frameY="-23" frameWidth="100" frameHeight="100"/>
+  <SubTexture name="weekend1" x="316" y="337"  width="72" height="63" frameX="-14" frameY="-18" frameWidth="100" frameHeight="100"/>
+</TextureAtlas>

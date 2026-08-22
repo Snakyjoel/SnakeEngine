@@ -8,6 +8,7 @@ struct AchievementInfo {
     std::string description;
     std::string saveTag;
     bool hidden;
+    bool notAvailable;
 };
 
 class Achievements {

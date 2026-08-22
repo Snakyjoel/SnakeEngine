@@ -25,12 +25,12 @@ public:
 
     // Static utilities for easy one-line calls across any state
     static void init();
-    static void drawPrompt(const std::string& button, const std::string& text, float x, float y, float scale = 0.55f, float alpha = 1.0f, u32 textColor = 0xFFFFFFFF, float depth = 0.95f);
-    static void drawPrompt2(const std::string& btn1, const std::string& btn2, const std::string& text, float x, float y, float scale = 0.55f, float alpha = 1.0f, u32 textColor = 0xFFFFFFFF, float depth = 0.95f);
+    static void drawPrompt(const std::string& button, const std::string& text, float x, float y, float scale = 0.55f, float alpha = 1.0f, u32 textColor = 0xFFFFFFFF, float depth = 0.95f, float textScaleMultiplier = 1.0f, bool buttonOnRight = false);
+    static void drawPrompt2(const std::string& btn1, const std::string& btn2, const std::string& text, float x, float y, float scale = 0.55f, float alpha = 1.0f, u32 textColor = 0xFFFFFFFF, float depth = 0.95f, float textScaleMultiplier = 1.0f);
     static void drawButton(const std::string& button, float x, float y, float scale = 0.45f, float alpha = 1.0f, float depth = 0.95f);
-    static float getPromptWidth(const std::string& button, const std::string& text, float scale = 0.55f);
-    static float getPrompt2Width(const std::string& btn1, const std::string& btn2, const std::string& text, float scale = 0.55f);
-    static float getPromptHeight(const std::string& button, const std::string& text, float scale = 0.55f);
+    static float getPromptWidth(const std::string& button, const std::string& text, float scale = 0.55f, float textScaleMultiplier = 1.0f);
+    static float getPrompt2Width(const std::string& btn1, const std::string& btn2, const std::string& text, float scale = 0.55f, float textScaleMultiplier = 1.0f);
+    static float getPromptHeight(const std::string& button, const std::string& text, float scale = 0.55f, float textScaleMultiplier = 1.0f);
     static float getButtonWidth(const std::string& button, float scale = 0.45f);
     static float getButtonHeight(const std::string& button, float scale = 0.45f);
     static std::string normalizeButtonName(const std::string& btn);

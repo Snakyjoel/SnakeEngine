@@ -33,6 +33,7 @@ float ClientPrefs::comboScale = 1.0f;
 float ClientPrefs::comboAlpha = 1.0f;
 bool ClientPrefs::alphabetPause = true;
 bool ClientPrefs::checkForUpdates = true;
+bool ClientPrefs::buttonPrompts = true;
 
 bool ClientPrefs::hitboxEnabled = false;
 int ClientPrefs::hitboxMode = 0;
@@ -180,6 +181,9 @@ void ClientPrefs::loadSettings() {
     val = json_object_get(root, "checkForUpdates");
     if (val && json_is_boolean(val)) checkForUpdates = json_is_true(val);
     
+    val = json_object_get(root, "buttonPrompts");
+    if (val && json_is_boolean(val)) buttonPrompts = json_is_true(val);
+    
     val = json_object_get(root, "hitboxEnabled");
     if (val && json_is_boolean(val)) hitboxEnabled = json_is_true(val);
     
@@ -247,6 +251,7 @@ void ClientPrefs::saveSettings() {
     json_object_set_new(root, "comboAlpha", json_real(comboAlpha));
     json_object_set_new(root, "alphabetPause", alphabetPause ? json_true() : json_false());
     json_object_set_new(root, "checkForUpdates", checkForUpdates ? json_true() : json_false());
+    json_object_set_new(root, "buttonPrompts", buttonPrompts ? json_true() : json_false());
     json_object_set_new(root, "hitboxEnabled", hitboxEnabled ? json_true() : json_false());
     json_object_set_new(root, "hitboxMode", json_integer(hitboxMode));
     json_object_set_new(root, "hitboxStyle", json_integer(hitboxStyle));

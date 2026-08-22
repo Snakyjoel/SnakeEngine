@@ -548,14 +548,35 @@ void CustomizeComboState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
     }
 
     float uiScale = 0.45f;
+    float textMult = 1.45f; // Extra size for button prompt texts in this state
 
-    // D-Pad + Move | L + R + Scale
+    // Calculate Y centers to perfectly align prompts vertically in their gaps
+    // Top gap is 37.0f high (0.0f to 37.0f)
+    float topPromptH = ButtonPrompt::getPromptHeight("dUp", "Move | Touch", uiScale, textMult);
+    float topY = (37.0f - topPromptH) * 0.5f;
+
+    // Bottom gap is 37.0f high (203.0f to 240.0f)
+    float bottomPromptH = ButtonPrompt::getPromptHeight("b", "Save", uiScale, textMult);
+    float bottomY = 203.0f + (37.0f - bottomPromptH) * 0.5f;
+
+    // Top prompts horizontal alignment (D-pad on the left, L+R mirrored on the right)
     std::string dpadBtn = ButtonPrompt::getAnimatedDpad(dpadTimer);
-    ButtonPrompt::drawPrompt(dpadBtn, "Move | Touch", 16.0f, 6.0f, uiScale);
-    ButtonPrompt::drawPrompt2("l", "r", "Scale", 204.0f, 6.0f, uiScale);
+    float scaleW = ButtonPrompt::getPrompt2Width("l", "r", "Scale", uiScale, textMult);
 
-    // B + Save | SELECT + Reset | X + Y + Alpha
-    ButtonPrompt::drawPrompt("b", "Save", 14.0f, 210.0f, uiScale);
-    ButtonPrompt::drawPrompt("select", "Reset", 108.0f, 210.0f, uiScale);
-    ButtonPrompt::drawPrompt2("x", "y", "Alpha", 212.0f, 210.0f, uiScale);
+    ButtonPrompt::drawPrompt(dpadBtn, "Move | Touch", 16.0f, topY, uiScale, 1.0f, CWhite, 0.95f, textMult);
+    ButtonPrompt::drawPrompt2("l", "r", "Scale", 320.0f - 16.0f - scaleW, topY, uiScale, 1.0f, CWhite, 0.95f, textMult);
+
+    // Bottom prompts horizontal alignment (distribute them evenly matching left/right margins)
+    float w1 = ButtonPrompt::getPromptWidth("b", "Save", uiScale, textMult);
+    float w2 = ButtonPrompt::getPromptWidth("select", "Reset", uiScale, textMult);
+    float w3 = ButtonPrompt::getPrompt2Width("x", "y", "Alpha", uiScale, textMult);
+
+    float x1 = 16.0f;
+    float x3 = 320.0f - 16.0f - w3;
+    float remaining = x3 - (x1 + w1);
+    float x2 = x1 + w1 + (remaining - w2) * 0.5f;
+
+    ButtonPrompt::drawPrompt("b", "Save", x1, bottomY, uiScale, 1.0f, CWhite, 0.95f, textMult);
+    ButtonPrompt::drawPrompt("select", "Reset", x2, bottomY, uiScale, 1.0f, CWhite, 0.95f, textMult);
+    ButtonPrompt::drawPrompt2("x", "y", "Alpha", x3, bottomY, uiScale, 1.0f, CWhite, 0.95f, textMult);
 }

@@ -250,6 +250,10 @@ static bool readChunked(FILE* f, void* buffer, size_t size) {
         }
         ptr += toRead;
         remaining -= toRead;
+        
+        size_t loaded = size - remaining;
+        AsyncAssetManager::get().loadingAssetPercent = (int)((loaded * 100) / size);
+
         if (remaining > 0) {
             svcSleepThread(1000000LL); // 1ms yield
         }
@@ -276,12 +280,21 @@ void AsyncAssetManager::threadMain(void* arg) {
         if (!mgr->pendingIcons.empty()) {
             targetIcon = mgr->pendingIcons.front();
             mgr->pendingIcons.erase(mgr->pendingIcons.begin());
+            mgr->loadingAssetName = "icon: " + targetIcon;
+            mgr->loadingAssetPercent = 0;
+            mgr->isLoadingAsset = true;
         } else if (!mgr->pendingCharacters.empty()) {
             targetChar = mgr->pendingCharacters.front();
             mgr->pendingCharacters.erase(mgr->pendingCharacters.begin());
+            mgr->loadingAssetName = "char: " + targetChar;
+            mgr->loadingAssetPercent = 0;
+            mgr->isLoadingAsset = true;
         } else if (!mgr->pendingImages.empty()) {
             targetImage = mgr->pendingImages.front();
             mgr->pendingImages.erase(mgr->pendingImages.begin());
+            mgr->loadingAssetName = "img: " + targetImage;
+            mgr->loadingAssetPercent = 0;
+            mgr->isLoadingAsset = true;
         }
         LightLock_Unlock(&mgr->queueLock);
         
@@ -486,6 +499,14 @@ void AsyncAssetManager::threadMain(void* arg) {
             // Sleep slightly if queue is empty to avoid CPU spinning
             svcSleepThread(10000000LL); // 10ms
             mgr->isSleeping = false;
+        }
+
+        if (!targetChar.empty() || !targetImage.empty() || !targetIcon.empty()) {
+            LightLock_Lock(&mgr->queueLock);
+            mgr->isLoadingAsset = false;
+            mgr->loadingAssetName = "";
+            mgr->loadingAssetPercent = 0;
+            LightLock_Unlock(&mgr->queueLock);
         }
     }
     mgr->isSleeping = true;

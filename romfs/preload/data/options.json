@@ -183,6 +183,13 @@
           "type": "bool",
           "default": true,
           "description": "If checked, checks for updates on startup."
+        },
+        {
+          "id": "buttonPrompts",
+          "name": "Button Prompts",
+          "type": "bool",
+          "default": true,
+          "description": "If checked, shows button prompts\nat the bottom of screens."
         }
       ]
     },

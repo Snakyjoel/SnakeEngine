@@ -132,7 +132,10 @@ ResultState::ResultState(bool isStoryMode, bool fromDebug, const std::string& na
     percentage = roundf(percentage);
 
     // Final rating
-    if (misses == 0 && bads == 0 && shits == 0) {
+    bool isGoldPerfect = (misses == 0 && bads == 0 && shits == 0 && goods == 0);
+    if (isGoldPerfect) {
+        finalRating = "GP"; // Gold Perfect
+    } else if (misses == 0 && bads == 0 && shits == 0) {
         finalRating = "P"; // Perfect
     } else if (percentage >= 90.0f) {
         finalRating = "E"; // Excellent
@@ -144,7 +147,9 @@ ResultState::ResultState(bool isStoryMode, bool fromDebug, const std::string& na
         finalRating = "L"; // Loss
     }
 
-    if (misses == 0 && bads == 0 && shits == 0) {
+    if (isGoldPerfect) {
+        rank = "GOLD PERFECT";
+    } else if (misses == 0 && bads == 0 && shits == 0) {
         rank = "PERFECT";
     } else if (misses == 0) {
         rank = "FULL COMBO";
@@ -159,6 +164,44 @@ ResultState::ResultState(bool isStoryMode, bool fromDebug, const std::string& na
         ratingKey = "g"; // lowercase g for Good
     }
     Highscores::saveRating(name, ratingKey, difficulty, percentage);
+
+    if (!ClientPrefs::botPlay) {
+        std::string lowerDiff = difficulty;
+        std::transform(lowerDiff.begin(), lowerDiff.end(), lowerDiff.begin(), ::tolower);
+        
+        // 69% rating check
+        if (percentage == 69.0f) {
+            Achievements::unlockAchievement("69");
+        }
+
+        // Loss rating check
+        if (finalRating == "L") {
+            Achievements::unlockAchievement("loss");
+        }
+
+        // Perfect rating checks
+        if (finalRating == "P" || finalRating == "GP") {
+            if (lowerDiff == "hard") {
+                Achievements::unlockAchievement("PerfectRatingHard");
+            }
+        }
+
+        // Gold Perfect checks
+        if (isGoldPerfect) {
+            if (lowerDiff == "hard") {
+                Achievements::unlockAchievement("perfectHard");
+            } else if (lowerDiff == "nightmare") {
+                Achievements::unlockAchievement("perfectNightmare");
+            }
+        }
+
+        // Beat Erect/Nightmare in Freeplay check
+        if (!isStoryMode) {
+            if (lowerDiff == "erect" || lowerDiff == "nightmare") {
+                Achievements::unlockAchievement("beatErectOrNightmare");
+            }
+        }
+    }
 }
 
 void ResultState::init() {
@@ -167,13 +210,13 @@ void ResultState::init() {
     
     // Load achievements spritesheet if needed
     if (!Achievements::sessionUnlocks.empty()) {
-        std::string achSheetPath = "romfs:/preload/images/menus/achievements.t3x";
-        if (!Paths::fileExists(achSheetPath)) achSheetPath = "romfs:/preload/images/menus/achievements.png";
+        std::string achSheetPath = "romfs:/preload/images/menus/achievementsAssets.t3x";
+        if (!Paths::fileExists(achSheetPath)) achSheetPath = "romfs:/preload/images/menus/achievementsAssets.png";
         achievementsSheet = C2D_SpriteSheetLoad(achSheetPath.c_str());
         if (achievementsSheet) {
             achievementsImage = C2D_SpriteSheetGetImage(achievementsSheet, 0);
             if (achievementsImage.tex) applyAntialiasing(achievementsSheet);
-            SparrowParser::parseXml("romfs:/preload/images/menus/achievements.xml", achievementsFrames);
+            SparrowParser::parseXml("romfs:/preload/images/menus/achievementsAssets.xml", achievementsFrames);
             
             float rw = achievementsImage.subtex->right - achievementsImage.subtex->left;
             float rh = achievementsImage.subtex->bottom - achievementsImage.subtex->top;
@@ -295,7 +338,7 @@ void ResultState::init() {
     // Find the correct background scrolling text frame based on rating
     std::string scrollTargetName = "rankScrollGOOD"; // default fallback
     std::string scrollTextTargetName = "rankTextGOOD";
-    if (finalRating == "P") {
+    if (finalRating == "P" || finalRating == "GP") {
         scrollTargetName = "rankScrollPERFECT";
         scrollTextTargetName = "rankTextPERFECT";
     } else if (finalRating == "E") {
@@ -377,7 +420,7 @@ void ResultState::init() {
     lossOffsetY = 0.0f;
     lossBaseH = 0.0f;
 
-    if (finalRating == "P") {
+    if (finalRating == "P" || finalRating == "GP") {
         rankAnim.scale = 1.2f;
         rankAnim.offsetY = 20.0f;
         rankAnim.fps = 24.0f;
@@ -709,13 +752,13 @@ void ResultState::update(float dt) {
     if (scoreDisplayValue < score) allStatsDone = false;
  
     bool shouldPlayMusic = true;
-    if (finalRating == "P" && (!allStatsDone || !pctAnimDone)) {
+    if ((finalRating == "P" || finalRating == "GP") && (!allStatsDone || !pctAnimDone)) {
         shouldPlayMusic = false;
     }
 
     if (shouldPlayMusic && !musicStarted) {
         musicStarted = true;
-        if (finalRating == "P") {
+        if (finalRating == "P" || finalRating == "GP") {
             if (!musicLoopPath.empty()) {
                 MusicPlayer::play(musicLoopPath.c_str(), 0.7f);
                 musicLoopPlaying = true;
@@ -772,7 +815,7 @@ void ResultState::update(float dt) {
                 flashAlpha = 1.0f;
                 flashTriggered = true;
  
-                if (finalRating == "P") {
+                if (finalRating == "P" || finalRating == "GP") {
                     if (!musicLoopPath.empty() && !musicLoopPlaying) {
                         MusicPlayer::play(musicLoopPath.c_str(), 0.7f);
                         musicLoopPlaying = true;
@@ -869,7 +912,7 @@ void ResultState::update(float dt) {
             }
         }
 
-        if (finalRating == "P" && !rankAnim.introPlaying) {
+        if ((finalRating == "P" || finalRating == "GP") && !rankAnim.introPlaying) {
             heartsTimer += dt;
             heartsFrameTimer += dt;
             while (heartsFrameTimer >= 1.0f / heartsFps) {
@@ -1132,7 +1175,7 @@ void ResultState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         }
     }
 
-    if (finalRating == "P" && !rankAnim.introPlaying && heartsSheet && !heartsSheet->frames.empty() && !heartsFrames.empty()) {
+    if ((finalRating == "P" || finalRating == "GP") && !rankAnim.introPlaying && heartsSheet && !heartsSheet->frames.empty() && !heartsFrames.empty()) {
         int fi = heartsFrame % (int)heartsFrames.size();
         const Frame& hf = heartsSheet->frames[heartsFrames[fi]];
         float hScale = heartsScale;

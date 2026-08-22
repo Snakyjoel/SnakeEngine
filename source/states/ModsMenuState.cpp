@@ -4,6 +4,7 @@
 #include "AdpcmEncoder.hpp"
 #include "../backend/AudioEngine.hpp"
 #include "../backend/SpritesheetCache.hpp"
+#include "../objects/ButtonPrompt.hpp"
 #include <tremor/ivorbisfile.h>
 #include <dirent.h>
 #include <stdio.h>
@@ -72,136 +73,204 @@ void ModsMenuState::init() {
 }
 
 void ModsMenuState::reloadIcons() {
-    for (auto sheet : iconSheets) C2D_SpriteSheetFree(sheet);
-    iconSheets.clear();
-    
-    for (auto tex : manualTexes) {
-        C3D_TexDelete(tex);
-        delete tex;
+    for (auto& pair : modIconCache) {
+        if (pair.second.sheet) C2D_SpriteSheetFree(pair.second.sheet);
+        if (pair.second.manualTex) {
+            C3D_TexDelete(pair.second.manualTex);
+            delete pair.second.manualTex;
+        }
+        if (pair.second.manualSub) delete pair.second.manualSub;
     }
-    manualTexes.clear();
-    for (auto sub : manualSubtexes) delete sub;
-    manualSubtexes.clear();
-    
-    icons.clear();
+    modIconCache.clear();
+}
 
-    auto& mods = getActiveList();
-    for (const auto& mod : mods) {
-        std::string basePath = std::string("sdmc:/SnakeEngine/") + mod.folder + "/pack";
-        std::string rawPath = basePath + ".rawtex";
-        std::string t3xPath = basePath + ".t3x";
-        std::string pngPath = basePath + ".png";
-        std::string fallbackPath = "romfs:/preload/images/menus/noIcon.t3x";
-        std::string loadPngPath = "";
+C2D_Image ModsMenuState::getFallbackIcon() {
+    if (fallbackIcon.tex != nullptr) return fallbackIcon;
 
-        C2D_Image icon = {nullptr, nullptr};
-
-        if (Paths::fileExists(rawPath)) {
-            FILE* f = fopen(rawPath.c_str(), "rb");
-            if (f) {
-                RawTexHeader header;
-                if (fread(&header, sizeof(RawTexHeader), 1, f) == 1 && strncmp(header.magic, "RWTX", 4) == 0) {
-                    C3D_Tex* tex = new C3D_Tex();
-                    if (C3D_TexInit(tex, header.width, header.height, GPU_RGBA8)) {
-                        C3D_TexSetFilter(tex, GPU_LINEAR, GPU_LINEAR);
-                        
-                        size_t dataSize = (size_t)header.width * header.height * 4;
-                        void* data = linearAlloc(dataSize);
-                        if (data) {
-                            fread(data, dataSize, 1, f);
-                            C3D_TexUpload(tex, data);
-                            C3D_TexFlush(tex);
-                            linearFree(data);
-                            
-                            Tex3DS_SubTexture* sub = new Tex3DS_SubTexture();
-                            sub->width = header.origW; sub->height = header.origH;
-                            sub->left = 0.0f; sub->top = 1.0f;
-                            sub->right = (float)header.origW / header.width;
-                            sub->bottom = 1.0f - ((float)header.origH / header.height);
-                            
-                            manualTexes.push_back(tex);
-                            manualSubtexes.push_back(sub);
-                            icon = {tex, sub};
-                        } else {
-                            delete tex;
-                        }
-                    } else {
-                        delete tex;
-                    }
-                }
-                fclose(f);
-            }
-        } else if (Paths::fileExists(t3xPath)) {
-            C2D_SpriteSheet s = C2D_SpriteSheetLoad(t3xPath.c_str());
-            if (s) {
-                iconSheets.push_back(s);
-                icon = C2D_SpriteSheetGetImage(s, 0);
-            }
-        } else if (Paths::fileExists(pngPath)) {
-            loadPngPath = pngPath;
-        } else if (Paths::fileExists(fallbackPath)) {
-            loadPngPath = fallbackPath;
+    std::string fallbackPath = "romfs:/preload/images/menus/noIcon.t3x";
+    if (Paths::fileExists(fallbackPath)) {
+        fallbackSheet = C2D_SpriteSheetLoad(fallbackPath.c_str());
+        if (fallbackSheet) {
+            fallbackIcon = C2D_SpriteSheetGetImage(fallbackSheet, 0);
         }
+    }
+    return fallbackIcon;
+}
 
-        if (!loadPngPath.empty() && !icon.tex) {
-            int w, h, c;
-            unsigned char* data = stbi_load(loadPngPath.c_str(), &w, &h, &c, 4);
-            if (data) {
-                int pw = 1, ph = 1;
-                while(pw < w) pw *= 2;
-                while(ph < h) ph *= 2;
-
-                C3D_Tex* tex = new C3D_Tex();
-                if (C3D_TexInit(tex, pw, ph, GPU_RGBA8)) {
-                    C3D_TexSetFilter(tex, GPU_LINEAR, GPU_LINEAR);
-                    
-                    uint32_t* swizzled = (uint32_t*)linearAlloc(pw * ph * 4);
-                    if (swizzled) {
-                        memset(swizzled, 0, pw * ph * 4);
-                        
-                        for(int y=0; y<h; y++) {
-                            for(int x=0; x<w; x++) {
-                                int src = (y*w+x)*4;
-                                uint32_t px = (data[src]<<24)|(data[src+1]<<16)|(data[src+2]<<8)|data[src+3];
-                                uint32_t i = (x & 7) | ((y & 7) << 8);
-                                i = (i ^ (i << 2)) & 0x1313;
-                                i = (i ^ (i << 1)) & 0x1515;
-                                
-                                uint32_t tx = x >> 3;
-                                uint32_t ty = y >> 3;
-                                uint32_t tile_start = (ty * (pw >> 3) + tx) << 6;
-                                uint32_t local_idx = (i & 0xFF) | (((i >> 8) & 0xFF) << 1);
-                                
-                                swizzled[tile_start + local_idx] = px;
-                            }
-                        }
-                        C3D_TexUpload(tex, swizzled);
-                        C3D_TexFlush(tex);
-                        linearFree(swizzled);
-
-                        Tex3DS_SubTexture* sub = new Tex3DS_SubTexture();
-                        sub->width = w; sub->height = h;
-                        sub->left = 0.0f; sub->top = 1.0f;
-                        sub->right = (float)w / pw; sub->bottom = 1.0f - ((float)h / ph);
-
-                        manualTexes.push_back(tex);
-                        manualSubtexes.push_back(sub);
-                        icon = {tex, sub};
-                    } else {
-                        delete tex;
-                    }
-                } else {
-                    delete tex;
-                }
-                stbi_image_free(data);
+void ModsMenuState::enforceLRUCache(std::unordered_map<std::string, ModIconEntry>& cache, size_t maxSize) {
+    if (cache.size() > maxSize) {
+        auto oldest = cache.begin();
+        for (auto it = cache.begin(); it != cache.end(); ++it) {
+            if (it->second.lastAccessFrame < oldest->second.lastAccessFrame) {
+                oldest = it;
             }
         }
-        
-        icons.push_back(icon);
+        if (oldest->second.sheet) {
+            C2D_SpriteSheetFree(oldest->second.sheet);
+        }
+        if (oldest->second.manualTex) {
+            C3D_TexDelete(oldest->second.manualTex);
+            delete oldest->second.manualTex;
+        }
+        if (oldest->second.manualSub) {
+            delete oldest->second.manualSub;
+        }
+        cache.erase(oldest);
     }
 }
 
+C2D_Image ModsMenuState::getModIcon(int idx) {
+    auto& mods = getActiveList();
+    if (idx < 0 || idx >= (int)mods.size()) return getFallbackIcon();
+
+    std::string folder = mods[idx].folder;
+    if (modIconCache.count(folder)) {
+        modIconCache[folder].lastAccessFrame = cacheFrameCount;
+        return modIconCache[folder].image;
+    }
+
+    std::string basePath = std::string("sdmc:/SnakeEngine/") + folder + "/pack";
+    std::string rawPath = basePath + ".rawtex";
+    std::string t3xPath = basePath + ".t3x";
+    std::string pngPath = basePath + ".png";
+
+    std::string targetPath = "";
+    bool isPng = false;
+    bool isT3x = false;
+    bool isRaw = false;
+
+    if (Paths::fileExists(rawPath)) {
+        targetPath = rawPath;
+        isRaw = true;
+    } else if (Paths::fileExists(t3xPath)) {
+        targetPath = t3xPath;
+        isT3x = true;
+    } else if (Paths::fileExists(pngPath)) {
+        targetPath = pngPath;
+        isPng = true;
+    }
+
+    if (targetPath.empty()) {
+        ModIconEntry fallbackEntry;
+        fallbackEntry.image = getFallbackIcon();
+        fallbackEntry.lastAccessFrame = cacheFrameCount;
+        // Don't enforce LRU heavily on fallbacks since they share the same texture, but we add it to cache to avoid SD checks
+        modIconCache[folder] = fallbackEntry;
+        return fallbackEntry.image;
+    }
+
+    ModIconEntry entry;
+    entry.lastAccessFrame = cacheFrameCount;
+
+    if (isRaw) {
+        FILE* f = fopen(targetPath.c_str(), "rb");
+        if (f) {
+            RawTexHeader header;
+            if (fread(&header, sizeof(RawTexHeader), 1, f) == 1 && strncmp(header.magic, "RWTX", 4) == 0) {
+                entry.manualTex = new C3D_Tex();
+                if (C3D_TexInit(entry.manualTex, header.width, header.height, GPU_RGBA8)) {
+                    C3D_TexSetFilter(entry.manualTex, GPU_LINEAR, GPU_LINEAR);
+                    
+                    size_t dataSize = (size_t)header.width * header.height * 4;
+                    void* data = linearAlloc(dataSize);
+                    if (data) {
+                        fread(data, dataSize, 1, f);
+                        C3D_TexUpload(entry.manualTex, data);
+                        C3D_TexFlush(entry.manualTex);
+                        linearFree(data);
+                        
+                        entry.manualSub = new Tex3DS_SubTexture();
+                        entry.manualSub->width = header.origW; entry.manualSub->height = header.origH;
+                        entry.manualSub->left = 0.0f; entry.manualSub->top = 1.0f;
+                        entry.manualSub->right = (float)header.origW / header.width;
+                        entry.manualSub->bottom = 1.0f - ((float)header.origH / header.height);
+                        
+                        entry.image = {entry.manualTex, entry.manualSub};
+                    } else {
+                        delete entry.manualTex;
+                        entry.manualTex = nullptr;
+                    }
+                } else {
+                    delete entry.manualTex;
+                    entry.manualTex = nullptr;
+                }
+            }
+            fclose(f);
+        }
+    } else if (isT3x) {
+        entry.sheet = C2D_SpriteSheetLoad(targetPath.c_str());
+        if (entry.sheet) {
+            entry.image = C2D_SpriteSheetGetImage(entry.sheet, 0);
+        }
+    } else if (isPng) {
+        int w, h, c;
+        unsigned char* data = stbi_load(targetPath.c_str(), &w, &h, &c, 4);
+        if (data) {
+            int pw = 1, ph = 1;
+            while(pw < w) pw *= 2;
+            while(ph < h) ph *= 2;
+
+            entry.manualTex = new C3D_Tex();
+            if (C3D_TexInit(entry.manualTex, pw, ph, GPU_RGBA8)) {
+                C3D_TexSetFilter(entry.manualTex, GPU_LINEAR, GPU_LINEAR);
+                
+                uint32_t* swizzled = (uint32_t*)linearAlloc(pw * ph * 4);
+                if (swizzled) {
+                    memset(swizzled, 0, pw * ph * 4);
+                    
+                    for(int y=0; y<h; y++) {
+                        for(int x=0; x<w; x++) {
+                            int src = (y*w+x)*4;
+                            uint32_t px = (data[src]<<24)|(data[src+1]<<16)|(data[src+2]<<8)|data[src+3];
+                            uint32_t i = (x & 7) | ((y & 7) << 8);
+                            i = (i ^ (i << 2)) & 0x1313;
+                            i = (i ^ (i << 1)) & 0x1515;
+                            
+                            uint32_t tx = x >> 3;
+                            uint32_t ty = y >> 3;
+                            uint32_t tile_start = (ty * (pw >> 3) + tx) << 6;
+                            uint32_t local_idx = (i & 0xFF) | (((i >> 8) & 0xFF) << 1);
+                            
+                            swizzled[tile_start + local_idx] = px;
+                        }
+                    }
+                    C3D_TexUpload(entry.manualTex, swizzled);
+                    C3D_TexFlush(entry.manualTex);
+                    linearFree(swizzled);
+
+                    entry.manualSub = new Tex3DS_SubTexture();
+                    entry.manualSub->width = w; entry.manualSub->height = h;
+                    entry.manualSub->left = 0.0f; entry.manualSub->top = 1.0f;
+                    entry.manualSub->right = (float)w / pw; entry.manualSub->bottom = 1.0f - ((float)h / ph);
+
+                    entry.image = {entry.manualTex, entry.manualSub};
+                } else {
+                    delete entry.manualTex;
+                    entry.manualTex = nullptr;
+                }
+            } else {
+                delete entry.manualTex;
+                entry.manualTex = nullptr;
+            }
+            stbi_image_free(data);
+        }
+    }
+
+    if (entry.image.tex != nullptr) {
+        enforceLRUCache(modIconCache, 10); // Max 10 loaded icons in RAM at a time
+        modIconCache[folder] = entry;
+        return entry.image;
+    }
+
+    ModIconEntry fallbackEntry;
+    fallbackEntry.image = getFallbackIcon();
+    fallbackEntry.lastAccessFrame = cacheFrameCount;
+    modIconCache[folder] = fallbackEntry;
+    return fallbackEntry.image;
+}
+
 void ModsMenuState::update(float dt) {
+    cacheFrameCount++;
     gridOffset += dt * 32.0f;
     u32 kDown = hidKeysDown();
     auto& mods = getActiveList();
@@ -436,18 +505,17 @@ void ModsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             float targetScale = (idx == curSelected) ? 0.5f : 0.4f;
             float scale = targetScale;
 
-            if (idx >= 0 && idx < (int)icons.size()) {
-                if (icons[idx].tex != nullptr && icons[idx].subtex != nullptr) {
-                    float iw = 150 * scale;
-                    float ih = 150 * scale;
-                    
-                    if (idx == curSelected) {
-                        C2D_DrawImageAt(icons[idx], iconX - (iw/2), itemY - (ih/2), 0.5f, NULL, scale, scale);
-                    } else {
-                        C2D_ImageTint tint;
-                        C2D_PlainImageTint(&tint, C2D_Color32(0, 0, 0, 255), 0.5f); 
-                        C2D_DrawImageAt(icons[idx], iconX - (iw/2), itemY - (ih/2), 0.5f, &tint, scale, scale);
-                    }
+            C2D_Image iconImg = getModIcon(idx);
+            if (iconImg.tex != nullptr && iconImg.subtex != nullptr) {
+                float iw = 150 * scale;
+                float ih = 150 * scale;
+                
+                if (idx == curSelected) {
+                    C2D_DrawImageAt(iconImg, iconX - (iw/2), itemY - (ih/2), 0.5f, NULL, scale, scale);
+                } else {
+                    C2D_ImageTint tint;
+                    C2D_PlainImageTint(&tint, C2D_Color32(0, 0, 0, 255), 0.5f); 
+                    C2D_DrawImageAt(iconImg, iconX - (iw/2), itemY - (ih/2), 0.5f, &tint, scale, scale);
                 }
             }
         }
@@ -534,22 +602,21 @@ void ModsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         drawBtnBG(260, 200, 58, 58, statusColor);
         drawBtn(btnOnOff, 260, 200, 0.51f);
     }
+    ButtonPrompt::drawPrompt("b", "Back", 8.0f, 8.0f, 0.70f, 1.0f);
 }
 
 void ModsMenuState::exitState() {
     ModHandler::get().saveConfig();
-    for (auto sheet : iconSheets) C2D_SpriteSheetFree(sheet);
+    reloadIcons();
+
+    if (fallbackSheet) {
+        C2D_SpriteSheetFree(fallbackSheet);
+        fallbackSheet = nullptr;
+    }
+    fallbackIcon = {nullptr, nullptr};
 
     if (sheetMenuBG) C2D_SpriteSheetFree(sheetMenuBG);
     if (sheetMenuBGB) C2D_SpriteSheetFree(sheetMenuBGB);
-
-    for (auto tex : manualTexes) {
-        C3D_TexDelete(tex);
-        delete tex;
-    }
-    manualTexes.clear();
-    for (auto sub : manualSubtexes) delete sub;
-    manualSubtexes.clear();
 
     C2D_TextBufDelete(vcrFontBuf);
 }

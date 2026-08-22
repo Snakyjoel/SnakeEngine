@@ -4,6 +4,7 @@
 #include "VideoState.hpp"
 #include "../backend/ModHandler.hpp"
 #include "../backend/AudioEngine.hpp"
+#include "../objects/ButtonPrompt.hpp"
 #include <cmath>
 #include <sstream>
 #include <algorithm>
@@ -381,6 +382,7 @@ void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             }
         }
     }
+    ButtonPrompt::drawPrompt("b", "Back", 8.0f, 205.0f, 0.70f, 1.0f);
 }
 
 

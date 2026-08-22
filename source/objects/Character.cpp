@@ -1,4 +1,5 @@
 #include "Character.hpp"
+#include "../backend/AsyncAssetManager.hpp"
 #include "../states/PlayState.hpp"
 #include "../backend/ModHandler.hpp"
 #include "../backend/Conductor.hpp"
@@ -92,6 +93,10 @@ static bool readChunked(FILE* f, void* buffer, size_t size) {
         }
         ptr += toRead;
         remaining -= toRead;
+        
+        size_t loaded = size - remaining;
+        AsyncAssetManager::get().loadingAssetPercent = (int)((loaded * 100) / size);
+
         if (remaining > 0) {
             svcSleepThread(1000000LL);
         }

@@ -16,6 +16,8 @@ public:
 private:
     float timer = 0.0f;
     int curBeat = -1;
+    float exitProgress = 0.0f;
+    float ringAlpha = 0.0f;
 
     // Intro text sequence
     bool skippedIntro = false;

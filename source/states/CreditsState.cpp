@@ -5,6 +5,7 @@
 #include "../backend/stb_image.h"
 #include "../backend/SpritesheetCache.hpp"
 #include "../objects/Alphabet.hpp"
+#include "../objects/ButtonPrompt.hpp"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -732,6 +733,7 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 Alphabet::draw(groups[i].name, 110.0f, textY, 1.0f, itemAlpha, false, color);
             }
         }
+        ButtonPrompt::drawPrompt("b", "Back", 8.0f, 205.0f, 0.70f, 1.0f);
         C2D_Flush();
     }
     else if (subState == STATE_SCROLLING) {
@@ -827,6 +829,7 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             }
             currentY += entryHeight;
         }
+        ButtonPrompt::drawPrompt("b", "Back", 8.0f, 205.0f, 0.70f, 1.0f);
         C2D_Flush();
     }
 }

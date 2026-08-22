@@ -35,6 +35,7 @@ public:
     
     static bool alphabetPause;
     static bool checkForUpdates;
+    static bool buttonPrompts;
     
     static bool hitboxEnabled;
     static int hitboxMode;

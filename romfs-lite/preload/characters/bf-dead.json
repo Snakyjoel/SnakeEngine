@@ -6,7 +6,7 @@
 				11
 			],
 			"loop": false,
-			"fps": 24,
+			"fps": 12,
 			"anim": "firstDeath",
 			"indices": [],
 			"name": "BF dies"
@@ -28,7 +28,7 @@
 				69
 			],
 			"loop": false,
-			"fps": 24,
+			"fps": 12,
 			"anim": "deathConfirm",
 			"indices": [],
 			"name": "BF Dead confirm"

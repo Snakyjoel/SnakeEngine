@@ -3,13 +3,22 @@
 #include "../backend/ModHandler.hpp"
 #include <vector>
 #include <citro2d.h>
+#include <unordered_map>
+#include <string>
 
 #include "../objects/Alphabet.hpp"
-
 
 struct MenuButton {
     Frame frame = {};
     bool hasValue = false;
+};
+
+struct ModIconEntry {
+    C2D_SpriteSheet sheet = nullptr;
+    C3D_Tex* manualTex = nullptr;
+    Tex3DS_SubTexture* manualSub = nullptr;
+    C2D_Image image = {nullptr, nullptr};
+    int lastAccessFrame = 0;
 };
 
 class ModsMenuState : public MusicBeatState {
@@ -30,16 +39,19 @@ private:
 
     int curSelected = 0;
     int subSelected = 0;
-    std::vector<C2D_Image> icons;
-    std::vector<C2D_SpriteSheet> iconSheets;
-    
     C2D_Font vcrFont = nullptr;
     C2D_TextBuf vcrFontBuf = nullptr;
-    
-    std::vector<C3D_Tex*> manualTexes;
-    std::vector<Tex3DS_SubTexture*> manualSubtexes;
-
     MenuButton btnArrowUp, btnArrowDown, btnTop, btnPlay, btnOnOff, btnConvertAssets;
+
+    std::unordered_map<std::string, ModIconEntry> modIconCache;
+    int cacheFrameCount = 0;
+    float timeSinceSelectionChange = 0.0f;
+    C2D_SpriteSheet fallbackSheet = nullptr;
+    C2D_Image fallbackIcon = {nullptr, nullptr};
+
+    C2D_Image getModIcon(int idx);
+    C2D_Image getFallbackIcon();
+    void enforceLRUCache(std::unordered_map<std::string, ModIconEntry>& cache, size_t maxSize);
     C2D_Image imgMenuBG, imgMenuBGB;
     C2D_SpriteSheet sheetMenuBG = nullptr, sheetMenuBGB = nullptr;
 

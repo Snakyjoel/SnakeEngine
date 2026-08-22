@@ -4,6 +4,7 @@
 #include <jansson.h>
 
 float SongParser::songSpeed = 1.0f;
+float SongParser::originalSongSpeed = 1.0f;
 std::string SongParser::player1 = "bf";
 std::string SongParser::player2 = "dad";
 std::string SongParser::gfVersion = "gf";
@@ -97,6 +98,7 @@ SongData SongParser::loadJson(const std::string& path) {
     
     json_t *speed = json_object_get(songObj, "speed");
     if(speed && json_is_number(speed)) songSpeed = json_number_value(speed);
+    originalSongSpeed = songSpeed;
     
     json_t *format = json_object_get(songObj, "format");
     bool isLegacy = true;

@@ -475,7 +475,7 @@ void PlayState::init() {
 
     time_t now = time(nullptr);
     tm* ltm = localtime(&now);
-    if (ltm->tm_wday == 5) Achievements::unlockAchievement("friday_night_play");
+    if (ltm->tm_wday == 5) Achievements::unlockAchievement("justlikethegame");
 
     AsyncAssetManager::get().suspend();
 
@@ -511,14 +511,14 @@ void PlayState::init() {
     }
 
     showGrid = ClientPrefs::drawGrid;
-    vcrFontBuf = C2D_TextBufNew(128);
+    vcrFontBuf = C2D_TextBufNew(2048);
 
     botplayTextBuf = C2D_TextBufNew(32);
     C2D_TextFontParse(&botplayTextObj, vcrFont, botplayTextBuf, "BOTPLAY");
     C2D_TextOptimize(&botplayTextObj);
 
     timeTextBuf = C2D_TextBufNew(32);
-    lyricsTextBuf = C2D_TextBufNew(256);
+    lyricsTextBuf = C2D_TextBufNew(2048);
     currentLyrics = "";
 
     arrowSkinScaleFactor = 1.0f;
@@ -1538,7 +1538,7 @@ void PlayState::update(float dt) {
         float keepTimeLimit = Conductor::songPosition + 15000.0f; // 15 seconds ahead
         for (size_t i = nextEventIndex; i < songData.events.size(); i++) {
             const auto& ev = songData.events[i];
-            if (ev.strumTime > keepTimeLimit || keptFutureCount >= 2) break;
+            if (ev.strumTime > keepTimeLimit || keptFutureCount >= 3) break;
             if (ev.name == "Change Character") {
                 if (std::find(keptFutureNames.begin(), keptFutureNames.end(), ev.value2) == keptFutureNames.end()) {
                     keptFutureNames.push_back(ev.value2);
@@ -1557,6 +1557,12 @@ void PlayState::update(float dt) {
             Character* newChar = AsyncAssetManager::get().getCharacter(it->charName);
             if (newChar) {
                 applyCharacterSwap(it->charType, it->charName, newChar);
+                if (!it->pendingAnim.empty()) {
+                    newChar->playAnim(it->pendingAnim, it->pendingAnimForce);
+                    if (it->pendingAnim.rfind("sing", 0) == 0) {
+                        newChar->holdTimer = 0.0f;
+                    }
+                }
                 it = pendingSwaps.erase(it);
             } else {
                 ++it;
@@ -1564,13 +1570,13 @@ void PlayState::update(float dt) {
         }
     }
 
-    // Lookahead for Change Character events (limit to next 15 seconds and max 2 upcoming characters to protect Linear RAM)
+    // Lookahead for Change Character events (limit to next 15 seconds and max 3 upcoming characters to protect Linear RAM)
     float lookaheadTime = Conductor::songPosition + 15000.0f; // 15 seconds ahead
     int requestedCount = 0;
     std::vector<std::string> requestedNames;
     for (size_t i = nextEventIndex; i < songData.events.size(); i++) {
         const auto& ev = songData.events[i];
-        if (ev.strumTime > lookaheadTime || requestedCount >= 2) break;
+        if (ev.strumTime > lookaheadTime || requestedCount >= 3) break;
         if (ev.name == "Change Character") {
             if (std::find(requestedNames.begin(), requestedNames.end(), ev.value2) == requestedNames.end()) {
                 requestedNames.push_back(ev.value2);
@@ -3638,13 +3644,21 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         }
         if (!temp.empty()) debugLines.push_back(temp);
 
+        if (AsyncAssetManager::get().isLoadingAsset) {
+            char loadingStr[256];
+            sprintf(loadingStr, "Loading \"%s\": %d%%", 
+                    AsyncAssetManager::get().loadingAssetName.c_str(), 
+                    AsyncAssetManager::get().loadingAssetPercent);
+            debugLines.push_back(loadingStr);
+        }
+
         float scale = 0.35f;
         float lineSpacing = 10.0f;
         float totalHeight = debugLines.size() * lineSpacing;
         float startY = 240.0f - totalHeight - 6.0f;
 
         if (!debugTextBuf) {
-            debugTextBuf = C2D_TextBufNew(512);
+            debugTextBuf = C2D_TextBufNew(2048);
         } else {
             C2D_TextBufClear(debugTextBuf);
         }
@@ -3756,22 +3770,8 @@ void PlayState::endSong() {
     SongInfo info = WeekData::findSongInfo(curSong);
 
     if (!ClientPrefs::botPlay) {
-        if (accuracy < 20.0f) Achievements::unlockAchievement("ur_bad");
-        if (accuracy == 100.0f) Achievements::unlockAchievement("ur_good");
-        if (maxHoldTime >= 10.0f) Achievements::unlockAchievement("oversinging");
-        if (!bfWentIdle) Achievements::unlockAchievement("hype");
-        if (keysUsed.size() <= 2) Achievements::unlockAchievement("two_keys");
-
-        std::string lowerDiff = currentDifficulty;
-        std::transform(lowerDiff.begin(), lowerDiff.end(), lowerDiff.begin(), ::tolower);
-        if (lowerDiff == "hard" && misses == 0) {
-            if (curSong == "Bopeebo" || curSong == "Fresh" || curSong == "Dad Battle") Achievements::unlockAchievement("week1_nomiss");
-            if (curSong == "Spookeez" || curSong == "South" || curSong == "Monster") Achievements::unlockAchievement("week2_nomiss");
-            if (curSong == "Pico" || curSong == "Philly Nice" || curSong == "Blammed") Achievements::unlockAchievement("week3_nomiss");
-            if (curSong == "Satin Panties" || curSong == "High" || curSong == "MILF") Achievements::unlockAchievement("week4_nomiss");
-            if (curSong == "Cocoa" || curSong == "Eggnog" || curSong == "Winter Horrorland") Achievements::unlockAchievement("week5_nomiss");
-            if (curSong == "Senpai" || curSong == "Roses" || curSong == "Thorns") Achievements::unlockAchievement("week6_nomiss");
-            if (curSong == "Ugh" || curSong == "Guns" || curSong == "Stress") Achievements::unlockAchievement("week7_nomiss");
+        if (isStoryMode && curSongIdx + 1 >= (int)weekData.songs.size()) {
+            Achievements::unlockAchievement(weekData.fileName);
         }
     }
 
@@ -3826,6 +3826,15 @@ void PlayState::exitState() {
     AsyncAssetManager::get().suspend();
 
     fastNoteSheet = nullptr;
+    if (noteSheet && !SpritesheetCache::get().contains(noteSheet)) {
+        C2D_SpriteSheetFree(noteSheet);
+    }
+    noteSheet = nullptr;
+
+    if (ratingSheet && !SpritesheetCache::get().contains(ratingSheet)) {
+        C2D_SpriteSheetFree(ratingSheet);
+    }
+    ratingSheet = nullptr;
     for (auto& pair : customNoteSheets) {
         C2D_SpriteSheet sheet = pair.second;
         if (sheet && !SpritesheetCache::get().contains(sheet)) {
@@ -4147,20 +4156,33 @@ void PlayState::applyCharacterSwap(const std::string& charType, const std::strin
     std::transform(type.begin(), type.end(), type.begin(), ::tolower);
 
     if (type == "dad" || type == "0" || type == "opponent") {
-        float oldSpawnX = dad ? (dad->baseX + (currentStage ? currentStage->dadX : 0.0f)) : 0.0f;
-        float oldSpawnY = dad ? (dad->baseY + (currentStage ? currentStage->dadY : 0.0f)) : 0.0f;
+        bool wasGfChar = dad ? (dad->curCharacterName.rfind("gf", 0) == 0) : false;
+        float oldStageX = (wasGfChar && currentStage) ? currentStage->gfX : (currentStage ? currentStage->dadX : 0.0f);
+        float oldStageY = (wasGfChar && currentStage) ? currentStage->gfY : (currentStage ? currentStage->dadY : 0.0f);
+
+        float oldSpawnX = dad ? (dad->baseX + oldStageX) : 0.0f;
+        float oldSpawnY = dad ? (dad->baseY + oldStageY) : 0.0f;
         float offsetX = dad ? (dad->x - oldSpawnX) : 0.0f;
         float offsetY = dad ? (dad->y - oldSpawnY) : 0.0f;
         bool oldVisible = dad ? dad->visible : true;
 
         dad = newChar;
-        dad->x = dad->baseX + offsetX; dad->y = dad->baseY + offsetY;
-        if (currentStage) { dad->x += currentStage->dadX; dad->y += currentStage->dadY; }
+
+        bool isGfChar = (dad->curCharacterName.rfind("gf", 0) == 0);
+        float newStageX = (isGfChar && currentStage) ? currentStage->gfX : (currentStage ? currentStage->dadX : 0.0f);
+        float newStageY = (isGfChar && currentStage) ? currentStage->gfY : (currentStage ? currentStage->dadY : 0.0f);
+
+        dad->x = dad->baseX + offsetX + newStageX; 
+        dad->y = dad->baseY + offsetY + newStageY;
         dad->visible = oldVisible;
+
         // Suspend async thread to prevent SD contention if loadHealthIcon falls back to disk
         AsyncAssetManager::get().suspend();
         loadHealthIcon(iconDad, dad->healthIcon);
         AsyncAssetManager::get().resume();
+
+        LuaManager::get().setVar("dadName", dad->curCharacterName);
+        newChar->dance(true);
     } else if (type == "bf" || type == "boyfriend" || type == "1" || type == "player") {
         float oldSpawnX = bf ? (bf->baseX + (currentStage ? currentStage->bfX : 0.0f)) : 0.0f;
         float oldSpawnY = bf ? (bf->baseY + (currentStage ? currentStage->bfY : 0.0f)) : 0.0f;
@@ -4176,6 +4198,9 @@ void PlayState::applyCharacterSwap(const std::string& charType, const std::strin
         AsyncAssetManager::get().suspend();
         loadHealthIcon(iconBf, bf->healthIcon);
         AsyncAssetManager::get().resume();
+
+        LuaManager::get().setVar("boyfriendName", bf->curCharacterName);
+        newChar->dance(true);
     } else if (type == "gf" || type == "girlfriend" || type == "2") {
         float oldSpawnX = gf ? (gf->baseX + (currentStage ? currentStage->gfX : 0.0f)) : 0.0f;
         float oldSpawnY = gf ? (gf->baseY + (currentStage ? currentStage->gfY : 0.0f)) : 0.0f;
@@ -4187,6 +4212,9 @@ void PlayState::applyCharacterSwap(const std::string& charType, const std::strin
         gf->x = gf->baseX + offsetX; gf->y = gf->baseY + offsetY;
         if (currentStage) { gf->x += currentStage->gfX; gf->y += currentStage->gfY; }
         gf->visible = oldVisible;
+
+        LuaManager::get().setVar("gfName", gf->curCharacterName);
+        newChar->dance(true);
     }
 
     // Schedule GPU-safe cleanup for next frame
@@ -4227,6 +4255,29 @@ void PlayState::triggerEvent(const Event& event) {
         if (!event.value2.empty()) hudZoom += std::atof(event.value2.c_str());
     }
     else if (event.name == "Play Animation") {
+        std::string targetTag = event.value2;
+        if (targetTag == "opponent" || targetTag == "0" || targetTag == "") targetTag = "dad";
+        else if (targetTag == "boyfriend" || targetTag == "1") targetTag = "bf";
+        else if (targetTag == "girlfriend" || targetTag == "2") targetTag = "gf";
+
+        auto slotsMatch = [](const std::string& type1, const std::string& type2) {
+            auto normalize = [](std::string s) -> std::string {
+                std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+                if (s == "opponent" || s == "0" || s == "dad") return "dad";
+                if (s == "boyfriend" || s == "1" || s == "player" || s == "bf") return "bf";
+                if (s == "girlfriend" || s == "2" || s == "gf") return "gf";
+                return s;
+            };
+            return normalize(type1) == normalize(type2);
+        };
+
+        for (auto& swap : pendingSwaps) {
+            if (slotsMatch(swap.charType, targetTag)) {
+                swap.pendingAnim = event.value1;
+                swap.pendingAnimForce = true;
+            }
+        }
+
         Character* c = nullptr;
         if (event.value2 == "bf" || event.value2 == "1" || event.value2 == "boyfriend") c = bf;
         else if (event.value2 == "dad" || event.value2 == "0" || event.value2 == "") c = dad;
@@ -4249,12 +4300,33 @@ void PlayState::triggerEvent(const Event& event) {
         parseShake(event.value2, hudShakeTimer, hudShakeIntensity);
     }
     else if (event.name == "Change Scroll Speed") {
-        if (!event.value1.empty()) SongParser::songSpeed = std::atof(event.value1.c_str());
+        if (!event.value1.empty()) SongParser::songSpeed = SongParser::originalSongSpeed * std::atof(event.value1.c_str());
         LuaManager::get().callFunction("onEvent", { event.name, event.value1, event.value2 });
     } else if (event.name == "Change Character") {
 
         std::string charType = event.value1;
         std::string newCharName = event.value2;
+
+        auto slotsMatch = [](const std::string& type1, const std::string& type2) {
+            auto normalize = [](std::string s) -> std::string {
+                std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+                if (s == "opponent" || s == "0" || s == "dad") return "dad";
+                if (s == "boyfriend" || s == "1" || s == "player" || s == "bf") return "bf";
+                if (s == "girlfriend" || s == "2" || s == "gf") return "gf";
+                return s;
+            };
+            return normalize(type1) == normalize(type2);
+        };
+
+        // Remove any existing pending swaps for this slot to prevent out-of-order overrides
+        for (auto it = pendingSwaps.begin(); it != pendingSwaps.end(); ) {
+            if (slotsMatch(it->charType, charType)) {
+                it = pendingSwaps.erase(it);
+            } else {
+                ++it;
+            }
+        }
+
         std::transform(charType.begin(), charType.end(), charType.begin(), ::tolower);
 
         Character* newChar = AsyncAssetManager::get().getCharacter(newCharName);
