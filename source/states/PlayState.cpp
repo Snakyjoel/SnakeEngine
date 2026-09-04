@@ -2989,18 +2989,38 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             headDiff = 0.0f; // Locked to receptor during active hold
         }
 
-        float laneCenterX = recX + (spacing / 2.0f);
-        float laneCenterY = recY + (spacing / 2.0f);
+        float laneCenterX = recX + spacing * 0.5f; // we do miltiplication here cuz its faster for per-frame stuff
+        float laneCenterY = recY + spacing * 0.5f;
 
-        float headX = laneCenterX - cosf(dirRad) * (headDiff * p3DS);
-        float headY = laneCenterY + sinf(dirRad) * (headDiff * p3DS);
+        float headDistance = headDiff * p3DS;
+        float tailDistance = endDiff * p3DS;
 
+        // Head pos
+        float headX = laneCenterX - cosf(dirRad) * headDistance;
+        float headY = laneCenterY + sinf(dirRad) * headDistance;
+        
         // Tail end position
-        float tailX = laneCenterX - cosf(dirRad) * (endDiff * p3DS);
-        float tailY = laneCenterY + sinf(dirRad) * (endDiff * p3DS);
+        float tailX = laneCenterX - cosf(dirRad) * tailDistance;
+        float tailY = laneCenterY + sinf(dirRad) * tailDistance;
 
-        if (headY < -300.0f && tailY < -300.0f) continue;
-        if (headY > ScreenHeight + 300.0f && tailY > ScreenHeight + 300.0f) continue;
+        float screenHeadX = centerXT + (headX - centerXT) * hudZoom;
+        float screenHeadY = centerYT + (headY - centerYT) * hudZoom;
+
+        float screenTailX = centerXT + (tailX - centerXT) * hudZoom;
+        float screenTailY = centerYT + (tailY - centerYT) * hudZoom;
+
+        screenHeadX += n.offsetX * hudZoom;
+        screenHeadY += n.offsetY * hudZoom;
+        screenTailX += n.offsetX * hudZoom;
+        screenTailY += n.offsetY * hudZoom;
+
+        float deltaX = screenTailX - screenHeadX;
+        float deltaY = screenTailY - screenHeadY;
+
+        float totalSusH = sqrtf(deltaX * deltaX + deltaY * deltaY);
+        if (totalSusH <= 0.0f) continue;
+
+        float angleLine = atan2f(deltaY, deltaX);
 
         NoteSprite holdPiece;
         NoteSprite holdEnd;
@@ -3047,17 +3067,9 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
 
         if (!holdPiece.tex) continue;
 
-        float deltaX = tailX - headX;
-        float deltaY = tailY - headY;
-        float totalSusH = sqrtf(deltaX * deltaX + deltaY * deltaY);
-        if (totalSusH <= 0.0f) continue;
-
-        float angleLine = atan2f(deltaY, deltaX);
-
         C2D_ImageTint tint;
         C2D_ImageTint* tintPtr = nullptr;
-        float baseAlpha = getLaneAlpha(n.noteData, n.isPlayer) * n.multAlpha;
-
+        float baseAlpha =getLaneAlpha(n.noteData, n.isPlayer) * n.multAlpha;
 
         static const unsigned char FAST_COLORS[4][3] = {
             {0xC2,0x4B,0x99}, {0x00,0xFF,0xFF}, {0x12,0xFA,0x05}, {0xF9,0x39,0x3F}
@@ -3105,75 +3117,20 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             }
         }
 
-        // Note head lookup to align sustain start with actual note head center
-        NoteSprite headSprite;
-        bool isHeadCustom = false;
-        if (!n.texture.empty()) {
-            auto itImg = customNoteImages.find(n.texture);
-            if (itImg != customNoteImages.end()) {
-                C2D_Image imgT = itImg->second;
-                headSprite.tex = imgT.tex;
-                headSprite.sub = *imgT.subtex;
-                headSprite.w = imgT.subtex->width;
-                headSprite.h = imgT.subtex->height;
-                isHeadCustom = true;
-            }
-        }
-        if (!isHeadCustom) {
-            if (!n.texture.empty() && customNoteSheets.find(n.texture) != customNoteSheets.end()) {
-                C2D_SpriteSheet sheet = customNoteSheets[n.texture];
-                int numImages = C2D_SpriteSheetCount(sheet);
-                int imgIdx = n.noAnimation ? 0 : (n.noteData % numImages);
-                C2D_Image imgT = C2D_SpriteSheetGetImage(sheet, imgIdx);
-                headSprite.tex = imgT.tex;
-                headSprite.sub = *imgT.subtex;
-                headSprite.w = imgT.subtex->width;
-                headSprite.h = imgT.subtex->height;
-            } else if (ClientPrefs::fastNotes && fastNoteSheet && fastNoteSubtexs.size() >= 2) {
-                headSprite = fastNoteSubtexs[0];
-            } else {
-                int groupIdx = n.noteData;
-                headSprite = noteSubtexs[groupIdx * 6 + 2];
-            }
+        float endTipH = 0.0f;
+
+        if (hasHoldEnd && holdEnd.tex) {
+            endTipH = holdEnd.h * noteScale * n.scaleY * hudZoom;
         }
 
-        float rotHeadOffsetX = 0.0f;
-        float rotHeadOffsetY = 0.0f;
-        if (headSprite.tex) {
-            float headOrigW = headSprite.frameWidth ? headSprite.frameWidth : headSprite.w;
-            float headOrigH = headSprite.frameHeight ? headSprite.frameHeight : headSprite.h;
-            float sx = noteScale * n.scaleX * hudZoom;
-            float sy = noteScale * n.scaleY * hudZoom;
-            float headOffsetX = (headOrigW / 2.0f - headSprite.w / 2.0f + headSprite.frameX) * sx;
-            float headOffsetY = (headOrigH / 2.0f - headSprite.h / 2.0f + headSprite.frameY) * sy;
+        float sustainLengthScreen = totalSusH;
+        if (sustainLengthScreen > 0.0f) {
+            float pieceH_screen = sustainLengthScreen;
+            float bodyCx = screenHeadX + cosf(angleLine) * (pieceH_screen * 0.5f);
+            float bodyCy = screenHeadY + sinf(angleLine) * (pieceH_screen * 0.5f);
 
-            float noteAngle = getLaneAngle(n.noteData, n.isPlayer) * (3.14159265f / 180.0f);
-            rotHeadOffsetX = headOffsetX * cosf(noteAngle) - headOffsetY * sinf(noteAngle);
-            rotHeadOffsetY = headOffsetX * sinf(noteAngle) + headOffsetY * cosf(noteAngle);
-        }
-
-        // Attachment pivot point at note head center in HUD screen space
-        float pivotX = centerXT + (headX - centerXT) * hudZoom;
-        float pivotY = centerYT + (headY - centerYT) * hudZoom;
-        if (!n.sustainActive) {
-            pivotX += rotHeadOffsetX;
-            pivotY += rotHeadOffsetY;
-        }
-
-
-
-        float endTipH = (hasHoldEnd && holdEnd.tex) ? (holdEnd.h * noteScale * n.scaleY) : 0.0f;
-        if (endTipH > totalSusH) {
-            endTipH = totalSusH;
-        }
-        float stretchedSusH = totalSusH - endTipH;
-
-        // Draw hold piece (anchored directly at pivot point)
-        if (stretchedSusH > 0.0f) {
-            float pieceH_screen = (stretchedSusH + 3.0f) * hudZoom;
-            float cx = pivotX + cosf(angleLine) * (pieceH_screen * 0.5f) + (n.offsetX * hudZoom);
-            float cy = pivotY + sinf(angleLine) * (pieceH_screen * 0.5f) + (n.offsetY * hudZoom);
-
+            bodyCx += n.offsetX * hudZoom;
+            bodyCy += n.offsetY * hudZoom;
 
             float dsX, dsY;
             float drawAngle;
@@ -3187,33 +3144,30 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
                 dsY = pieceH_screen / holdPiece.sub.height;
             }
 
-            float baseScaleY = noteScale * n.scaleY * hudZoom;
-            // Account for trimmed frame offsets (frameX, frameY, frameWidth, frameHeight) in Sparrow XML
             float origW_piece = holdPiece.frameWidth ? holdPiece.frameWidth : holdPiece.w;
             float origH_piece = holdPiece.frameHeight ? holdPiece.frameHeight : holdPiece.h;
             float pieceOffsetX, pieceOffsetY;
             if (holdPiece.rotated) {
                 pieceOffsetX = 0.0f;
-                pieceOffsetY = (origH_piece / 2.0f - holdPiece.h / 2.0f + holdPiece.frameY) * dsX;
+                pieceOffsetY = (origH_piece / 2.0f - holdPiece.h / 2.0f + holdPiece.frameY) * dsY;
             } else {
                 pieceOffsetX = (origW_piece / 2.0f - holdPiece.w / 2.0f + holdPiece.frameX) * dsX;
                 pieceOffsetY = 0.0f;
             }
 
-            // Rotate local offsets to screen space based on drawAngle
             float offsetXS = pieceOffsetX * cosf(drawAngle) - pieceOffsetY * sinf(drawAngle);
             float offsetYS = pieceOffsetX * sinf(drawAngle) + pieceOffsetY * cosf(drawAngle);
 
-            float finalCx = cx + offsetXS;
-            float finalCy = cy + offsetYS;
-            C2D_Image img = { holdPiece.tex, &holdPiece.sub };
+            float finalCx = bodyCx + offsetXS;
+            float finalCy = bodyCy + offsetYS;
+            C2D_Image img = { holdPiece.tex, &holdPiece.sub};
             if (useFastTint) C2D_SetTintMode(C2D_TintMult);
             GPU_TEXTURE_FILTER_PARAM f = n.antialiasing ? GPU_LINEAR : GPU_NEAREST;
             if (holdPiece.tex) C3D_TexSetFilter(holdPiece.tex, f, f);
             float finalScaleX = dsX * (n.flipX ? -1.0f : 1.0f);
             float finalScaleY = dsY * (n.flipY ? -1.0f : 1.0f);
             if (holdPiece.rotated) {
-                C2D_DrawImageAtRotated(img, finalCx, finalCy, 0.80f, drawAngle, tintPtr, finalScaleY, finalScaleX);
+                C2D_DrawImageAtRotated(img, finalCx, finalCy, 0.80f, drawAngle, tintPtr, finalScaleY,finalScaleX);
             } else {
                 C2D_DrawImageAtRotated(img, finalCx, finalCy, 0.80f, drawAngle, tintPtr, finalScaleX, finalScaleY);
             }
@@ -3222,37 +3176,32 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
 
         // Draw hold end tip (anchored directly where hold piece ends)
         if (hasHoldEnd && holdEnd.tex && endTipH > 0.0f) {
-            float endH_screen = endTipH * hudZoom;
-            float endDist_screen = (stretchedSusH * hudZoom) + (endH_screen * 0.5f);
-            float endCx = pivotX + cosf(angleLine) * endDist_screen + (n.offsetX * hudZoom);
-            float endCy = pivotY + sinf(angleLine) * endDist_screen + (n.offsetY * hudZoom);
+            float endCx = screenTailX + n.offsetX * hudZoom;
+            float endCy = screenTailY + n.offsetY * hudZoom;
 
-            float endDsX, endDsY;
+            float endDsX = noteScale * n.scaleX * hudZoom;
+            float endDsY;
             float endDrawAngle;
             if (holdEnd.rotated) {
-                endDrawAngle = angleLine + n.angle * (3.14159265f / 180.0f);
-                endDsX = noteScale * n.scaleX * hudZoom;
-                endDsY = endH_screen / holdEnd.sub.width;
+                endDrawAngle = angleLine + n.angle * (M_PI / 180.0f);
+                endDsY = endTipH / holdEnd.sub.width;
             } else {
-                endDrawAngle = angleLine - (3.14159265f / 2.0f) + n.angle * (3.14159265f / 180.0f);
-                endDsX = noteScale * n.scaleX * hudZoom;
-                endDsY = endH_screen / holdEnd.sub.height;
+                endDrawAngle = angleLine - (M_PI / 2.0f) + n.angle * (M_PI / 180.0f);
+                endDsY = endTipH / holdEnd.sub.height;
             }
 
-            float baseScaleY = noteScale * n.scaleY * hudZoom;
-            // Account for trimmed frame offsets in Sparrow XML
             float origW_end = holdEnd.frameWidth ? holdEnd.frameWidth : holdEnd.w;
+
             float origH_end = holdEnd.frameHeight ? holdEnd.frameHeight : holdEnd.h;
             float endOffsetX, endOffsetY;
             if (holdEnd.rotated) {
                 endOffsetX = 0.0f;
-                endOffsetY = (origH_end / 2.0f - holdEnd.h / 2.0f + holdEnd.frameY) * endDsX;
+                endOffsetY = (origH_end / 2.0f - holdEnd.h / 2.0f + holdEnd.frameY) *endDsY;
             } else {
                 endOffsetX = (origW_end / 2.0f - holdEnd.w / 2.0f + holdEnd.frameX) * endDsX;
                 endOffsetY = 0.0f;
             }
 
-            // Rotate local offsets to screen space based on endDrawAngle
             float endOffsetXS = endOffsetX * cosf(endDrawAngle) - endOffsetY * sinf(endDrawAngle);
             float endOffsetYS = endOffsetX * sinf(endDrawAngle) + endOffsetY * cosf(endDrawAngle);
 
