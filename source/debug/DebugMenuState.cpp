@@ -5,6 +5,8 @@
 #include "ImageViewerState.hpp"
 #include "EggRoomState.hpp"
 #include "ResultState.hpp"
+#include "OutdatedState.hpp"
+#include "MainMenuState.hpp"
 #include "../editors/CharacterEditorState.hpp"
 
 #include "../backend/AudioEngine.hpp"
@@ -60,7 +62,9 @@ void DebugMenuState::init() {
     menuItems.push_back({"Result: GREAT", "Test Result: GREAT rank", 8});
     menuItems.push_back({"Result: LOSS", "Test Result: LOSS rank", 9});
     menuItems.push_back({"Character Editor", "Edit and test character offsets", 10});
-
+    menuItems.push_back({"Outdated: GameBanana", "Test OutdatedState (GameBanana)", 11});
+    menuItems.push_back({"Outdated: GameJolt", "Test OutdatedState (GameJolt)", 12});
+    menuItems.push_back({"Outdated: Tester", "Test OutdatedState (Tester version)", 13});
 }
 
 void DebugMenuState::update(float dt) {
@@ -99,6 +103,9 @@ void DebugMenuState::update(float dt) {
             case 8: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 80, 75, 10, 1, 0, 0, 850000)); break;
             case 9: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 10, 10, 10, 5, 5, 20, 200000)); break;
             case 10: switchState(new CharacterEditorState()); break;
+            case 11: switchState(new OutdatedState(-1, "9.9.9", "gamebanana")); break;
+            case 12: switchState(new OutdatedState(-1, "9.9.9", "gamejolt")); break;
+            case 13: switchState(new OutdatedState(1, MainMenuState::version)); break;
         }
     }
 }

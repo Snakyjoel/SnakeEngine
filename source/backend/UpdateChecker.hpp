@@ -17,6 +17,9 @@ public:
     // Returns the version string found online, or empty if check failed / not finished.
     static std::string getOnlineVersion();
 
+    // Returns the update source ("gamebanana" or "gamejolt").
+    static std::string getUpdateSource();
+
     // Returns the hardcoded version of the current build.
     static std::string getCurrentVersion();
 

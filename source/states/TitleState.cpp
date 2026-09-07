@@ -254,7 +254,7 @@ void TitleState::update(float dt) {
                     int comp = UpdateChecker::compareVersions(UpdateChecker::getCurrentVersion(), UpdateChecker::getOnlineVersion());
                     if (comp != 0) {
                         Achievements::unlockAchievement("startgame");
-                        switchState(new OutdatedState(comp, UpdateChecker::getOnlineVersion()));
+                        switchState(new OutdatedState(comp, UpdateChecker::getOnlineVersion(), UpdateChecker::getUpdateSource()));
                         return;
                     }
                 }
@@ -376,14 +376,14 @@ void TitleState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     if (!skippedIntro) {
         for (size_t i = 0; i < introLines.size(); i++) {
             float lineY = 60.0f + i * 28.0f;
-            Alphabet::draw(introLines[i], 200.0f, lineY, 1.2f, 1.0f, true);
+            Alphabet::draw(introLines[i], 200.0f + get3DOffset(10.0f), lineY, 1.2f, 1.0f, true);
         }
     } else {
-        gf.drawCentered(270.0f, 125.0f, 0.5f, 0.575f, 0.575f);
+        gf.drawCentered(270.0f + get3DOffset(-12.0f), 125.0f, 0.5f, 0.575f, 0.575f);
  
         logo.scaleX = 0.7f * logoScale;
         logo.scaleY = 0.7f * logoScale;
-        logo.drawCentered(100.0f, 70.0f, 0.6f);
+        logo.drawCentered(100.0f + get3DOffset(-10.0f), 70.0f, 0.6f);
  
         drawFlash(topScreen);
     }

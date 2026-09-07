@@ -60,6 +60,7 @@ public:
     static int lua_debugPrint(lua_State* L);
     static int lua_setObjectCamera(lua_State* L);
     static int lua_setCameraExtended(lua_State* L);
+    static int lua_set3dDepth(lua_State* L);
     static int lua_screenCenter(lua_State* L);
     static int lua_cameraShake(lua_State* L);
     static int lua_triggerEvent(lua_State* L);

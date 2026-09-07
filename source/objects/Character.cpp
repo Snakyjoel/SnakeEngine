@@ -1416,33 +1416,47 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
     const Frame& f = useFrames[frameIdx];
     C2D_Image img = { f.tex, &f.uv };
 
+    // [FIX-1] Rotated frames: swap scale axes so charScaleX always controls horizontal
+    float drawCharScaleX = charScaleX;
+    float drawCharScaleY = charScaleY;
+    if (f.rotated) {
+        drawCharScaleX = charScaleY;
+        drawCharScaleY = charScaleX;
+    }
+
     float screenScale = 240.0f / 720.0f;
-    float finalScaleX = charScaleX * screenScale * zoom;
-    float finalScaleY = charScaleY * screenScale * zoom;
+    float finalScaleX = drawCharScaleX * screenScale * zoom;
+    float finalScaleY = drawCharScaleY * screenScale * zoom;
     bool shouldFlip = (isPlayer != flipX);
 
     float baseX = stageX + x - camX;
     float baseY = stageY + y - camY;
-    float drawX = (baseX * screenScale * zoom) + (ScreenWidthTop / 2.0f) + shakeX;
+    float totalDepth3D = depth3D + (PlayState::instance ? PlayState::instance->camGame3DDepth : 0.0f);
+    float offset3D = get3DOffset(totalDepth3D);
+    float drawX = (baseX * screenScale * zoom) + (ScreenWidthTop / 2.0f) + shakeX + offset3D;
     float drawY = (baseY * screenScale * zoom) + (ScreenHeight / 2.0f) + shakeY;
 
-    // HaxeFlixel scales from the origin (center of the frame)
+    // [FIX-2] Rotated frames: origin uses swapped atlas dimensions
+    // HaxeFlixel scales from the origin (center of the frame).
+    // For rotated frames atlas w/h are swapped so visual width=frameH, visual height=frameW.
     if (!PlayState::instance || !PlayState::instance->legacyPositioning) {
-        float originX = f.frameW / 2.0f;
-        float originY = f.frameH / 2.0f;
+        float originX = f.rotated ? f.frameH / 2.0f : f.frameW / 2.0f;
+        float originY = f.rotated ? f.frameW / 2.0f : f.frameH / 2.0f;
         drawX += originX * (1.0f - charScaleX) * screenScale * zoom;
         drawY += originY * (1.0f - charScaleY) * screenScale * zoom;
     }
 
-    // frameX/frameY are negative offsets that indicate where the visible sprite sits
-    // inside the full logical frame. For rotated frames the atlas w/h are swapped,
-    // but frameX/frameY in the XML already refer to the logical (unrotated) frame.
+    // [FIX-3] Separate frameX (scales with sprite) from offsetX (screen pixels, no scale)
+    // frameX/frameY: trimmed frame offset within the texture — scales with the sprite.
+    // offsetX/offsetY: animation offset in screen pixels — does NOT scale with charScale.
     if (shouldFlip) {
-        drawX += (f.frameW + f.frameX - currentAnimData->offsetX) * finalScaleX;
+        drawX += (f.frameW + f.frameX) * finalScaleX;
     } else {
-        drawX -= (f.frameX + currentAnimData->offsetX) * finalScaleX;
+        drawX -= f.frameX * finalScaleX;
     }
-    drawY -= (f.frameY + currentAnimData->offsetY) * finalScaleY;
+    drawX -= currentAnimData->offsetX * screenScale * zoom;
+    drawY -= f.frameY * finalScaleY;
+    drawY -= currentAnimData->offsetY * screenScale * zoom;
 
     C2D_ImageTint tint;
     C2D_ImageTint* tintPtr = nullptr;

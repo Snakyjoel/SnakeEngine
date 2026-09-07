@@ -29,8 +29,6 @@ function onCreate()
 	addLuaSprite('window', false)
 	addLuaSprite('behindTrain', false)
 	addLuaSprite('floor', false)
-
-	setProperty('dad.scale.x', 5.0);
 end
 
 -- I was too lazy to edit the lua (SnakyJoel words 🙏🥀)

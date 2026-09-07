@@ -9,6 +9,17 @@ function onCreate()
 
 	addLuaSprite('floor', false)
 	addLuaSprite('top', true)
+
+	set3dDepth('camHUD', 5.0)
+
+	set3dDepth('healthBar', 3.0)
+	set3dDepth('healthBarBG', 3.0)
+	set3dDepth('timeBar', 3.0)
+	set3dDepth('timeBarBG', 3.0)
+	set3dDepth('timeTxt', 3.1)
+
+	set3dDepth('iconP1', 5.0)
+	set3dDepth('iconP2', 5.0)
 end
 
 -- I was too lazy to edit the lua
@@ -18,58 +29,18 @@ function makeLuaSpriteXML(tag, image, spriteName, x, y)
 	objectPlayAnimation(tag, spriteName, true)
 end
 
+local heySteps = {
+	28, 60, 92, 124, 156, 188, 190, 220, 252,
+	284, 348, 380, 412, 444, 446, 476, 508
+}
+
 function onStepHit()
 	if songName == 'bopeebo' then
-		if curStep == 28 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 60 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 92 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 124 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 156 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 188 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 190 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 220 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 252 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 284 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 348 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 380 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 412 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 444 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 446 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 476 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
-		end
-		if curStep == 508 then
-			playAnimFES('boyfriend', 'shared/images/characters/extraAnims/bfHey', 'BF HEY!!', 24, false, 0, 0)
+		for _, step in ipairs(heySteps) do
+			if curStep == step then
+				triggerEvent('Play Animation', 'hey', 'bf')
+				break
+			end
 		end
 	end
 end

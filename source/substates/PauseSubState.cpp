@@ -68,10 +68,12 @@ void PauseSubState::update(float dt) {
     if (kDown & (KEY_DUP | KEY_CPAD_UP)) { 
         pauseSelection--; 
         if (pauseSelection < 0) pauseSelection = maxSel; 
+        if (ClientPrefs::alphabetPause) AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
     }
     if (kDown & (KEY_DDOWN | KEY_CPAD_DOWN)) { 
         pauseSelection++; 
         if (pauseSelection > maxSel) pauseSelection = 0; 
+        if (ClientPrefs::alphabetPause) AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
     }
     
     if (kDown & KEY_B) {
@@ -170,8 +172,8 @@ void PauseSubState::draw() {
         for (int i = 0; i < (int)pauseMenuItems.size(); i++) {
             bool sel = (i == pauseSelection);
             
-            float targetY = (bh / 2.0f) - (35.0f / 2.0f) + (i - pauseLerpSelection) * 38.0f;
-            float targetX = 10.0f + (i - pauseLerpSelection) * 20.0f;
+            float targetY = (bh / 2.0f) - (35.0f / 2.0f) + (i - pauseLerpSelection) * 60.0f;
+            float targetX = 10.0f + (i - pauseLerpSelection) * 10.0f;
             
             float scale = 1.5f;
             float alpha = sel ? 1.0f : 0.6f;
@@ -181,7 +183,7 @@ void PauseSubState::draw() {
         for (int i = 0; i < (int)pauseMenuItems.size() && i < 15; i++) {
             bool sel = (i == pauseSelection);
             
-            float targetY = (bh / 2.0f) - (35.0f / 2.0f) + (i - pauseLerpSelection) * 38.0f;
+            float targetY = (bh / 2.0f) - (35.0f / 2.0f) + (i - pauseLerpSelection) * 60.0f;
             float targetX = 10.0f + (i - pauseLerpSelection) * 20.0f;
             
             float fScale = sel ? 0.85f : 0.6f;

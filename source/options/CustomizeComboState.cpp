@@ -147,12 +147,19 @@ void CustomizeComboState::init() {
                     };
                     
                     std::string nameInfo = getVal("name");
-                    std::string id = "shit";
-                    if (nameInfo.find("sick") != std::string::npos) id = "sick";
-                    else if (nameInfo.find("good") != std::string::npos) id = "good";
-                    else if (nameInfo.find("bad") != std::string::npos) id = "bad";
-                    
-                    Tex3DS_SubTexture sub = {};
+
+                    // --- Digit sprites (num0-num9) ---
+                    bool isDigit = false;
+                    std::string digitKey = "";
+                    for (int d = 0; d <= 9; d++) {
+                        std::string dname = "num" + std::to_string(d);
+                        if (nameInfo.find(dname) != std::string::npos) {
+                            isDigit = true;
+                            digitKey = dname;
+                            break;
+                        }
+                    }
+
                     float x = atof(getVal("x").c_str());
                     float y = atof(getVal("y").c_str());
                     float w = atof(getVal("width").c_str());
@@ -160,30 +167,40 @@ void CustomizeComboState::init() {
                     bool rotated = (getVal("rotated") == "true");
                     float frameWidth = atof(getVal("frameWidth").c_str());
                     float frameHeight = atof(getVal("frameHeight").c_str());
-                    
+
                     float pw = w, ph = h;
                     if (rotated) {
                         bool looksLikeOriginal = (fabsf(w - frameHeight) < 1.0f && fabsf(h - frameWidth) < 1.0f);
-                        if (looksLikeOriginal) {
-                            pw = h;
-                            ph = w;
-                        }
+                        if (looksLikeOriginal) { pw = h; ph = w; }
                     }
+
+                    Tex3DS_SubTexture sub = {};
                     sub.width = (u16)pw;
                     sub.height = (u16)ph;
                     if (ratingBaseImage.subtex) {
-                        sub.left = ratingBaseImage.subtex->left + (x * rw / (float)ratingBaseImage.subtex->width);
-                        sub.top = ratingBaseImage.subtex->top + (y * rh / (float)ratingBaseImage.subtex->height);
-                        sub.right = ratingBaseImage.subtex->left + ((x + pw) * rw / (float)ratingBaseImage.subtex->width);
-                        sub.bottom = ratingBaseImage.subtex->top + ((y + ph) * rh / (float)ratingBaseImage.subtex->height);
+                        sub.left   = ratingBaseImage.subtex->left + (x * rw / (float)ratingBaseImage.subtex->width);
+                        sub.top    = ratingBaseImage.subtex->top  + (y * rh / (float)ratingBaseImage.subtex->height);
+                        sub.right  = ratingBaseImage.subtex->left + ((x + pw) * rw / (float)ratingBaseImage.subtex->width);
+                        sub.bottom = ratingBaseImage.subtex->top  + ((y + ph) * rh / (float)ratingBaseImage.subtex->height);
                     }
-                    
+
                     RatingInfo info;
                     info.sub = sub;
                     info.rotated = rotated;
-                    info.frameWidth = frameWidth;
+                    info.frameWidth  = frameWidth;
                     info.frameHeight = frameHeight;
-                    ratingSubtexs[id] = info;
+
+                    if (isDigit) {
+                        // Only store the first occurrence of each digit key
+                        if (!numSubtexs.count(digitKey))
+                            numSubtexs[digitKey] = info;
+                    } else {
+                        std::string id = "shit";
+                        if (nameInfo.find("sick") != std::string::npos) id = "sick";
+                        else if (nameInfo.find("good") != std::string::npos) id = "good";
+                        else if (nameInfo.find("bad")  != std::string::npos) id = "bad";
+                        ratingSubtexs[id] = info;
+                    }
                 }
             }
             
@@ -193,6 +210,15 @@ void CustomizeComboState::init() {
                 float autoScale = skinW < REFERENCE_SICK_WIDTH ? REFERENCE_SICK_WIDTH / skinW : 1.0f;
                 for (auto& kv : ratingSubtexs) {
                     kv.second.autoScale = autoScale;
+                }
+            }
+            // Auto-scale digits to match a reference number width
+            if (numSubtexs.count("num0")) {
+                constexpr float REFERENCE_NUM_WIDTH = 48.0f;
+                float numW = numSubtexs["num0"].frameWidth > 0.0f ? numSubtexs["num0"].frameWidth : numSubtexs["num0"].sub.width;
+                float numAutoScale = numW < REFERENCE_NUM_WIDTH ? REFERENCE_NUM_WIDTH / numW : 1.0f;
+                for (auto& kv : numSubtexs) {
+                    kv.second.autoScale = numAutoScale;
                 }
             }
         }
@@ -208,10 +234,17 @@ void CustomizeComboState::init() {
         }
     }
 
+    // Rating sprite
     currentScale = ClientPrefs::comboScale;
     currentAlpha = ClientPrefs::comboAlpha;
     currentX = (400.0f - 50.0f) + ClientPrefs::comboOffsetX;
     currentY = 35.0f + ClientPrefs::comboOffsetY;
+
+    // Number counter
+    currentNumScale = ClientPrefs::comboNumScale;
+    currentNumAlpha = ClientPrefs::comboNumAlpha;
+    currentNumX = (400.0f - 50.0f) + ClientPrefs::comboNumOffsetX;
+    currentNumY = 35.0f + ClientPrefs::comboNumOffsetY;
 
     ButtonPrompt::init();
 }
@@ -221,16 +254,35 @@ void CustomizeComboState::update(float dt) {
     u32 kDown = hidKeysDown();
     u32 kHeld = hidKeysHeld();
     
-    if (kDown & KEY_B) {
+    // START = save and exit
+    if (kDown & KEY_START) {
         AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
         ClientPrefs::comboOffsetX = currentX - (400.0f - 50.0f);
         ClientPrefs::comboOffsetY = currentY - 35.0f;
         ClientPrefs::comboScale = currentScale;
         ClientPrefs::comboAlpha = currentAlpha;
+        ClientPrefs::comboNumOffsetX = currentNumX - (400.0f - 50.0f);
+        ClientPrefs::comboNumOffsetY = currentNumY - 35.0f;
+        ClientPrefs::comboNumScale = currentNumScale;
+        ClientPrefs::comboNumAlpha = currentNumAlpha;
         ClientPrefs::saveSettings();
         switchState(new OptionsMenuState());
         return;
     }
+
+    // B = switch between rating sprite and number counter
+    if (kDown & KEY_B) {
+        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+        editingNumbers = !editingNumbers;
+        dragging = false;
+        return;
+    }
+
+    // Aliases to currently active object
+    float& activeX     = editingNumbers ? currentNumX     : currentX;
+    float& activeY     = editingNumbers ? currentNumY     : currentY;
+    float& activeScale = editingNumbers ? currentNumScale : currentScale;
+    float& activeAlpha = editingNumbers ? currentNumAlpha : currentAlpha;
 
     // Touch logic for dragging in the bottom screen representation
     touchPosition touch;
@@ -247,24 +299,30 @@ void CustomizeComboState::update(float dt) {
         float mappedTouchX = (touch.px - previewX) / mapScale;
         float mappedTouchY = (touch.py - previewY) / mapScale;
         
-        float sw = ratingSubtexs["sick"].sub.width * 0.4f * currentScale * ratingSubtexs["sick"].autoScale;
-        float sh = ratingSubtexs["sick"].sub.height * 0.4f * currentScale * ratingSubtexs["sick"].autoScale;
+        // Determine hit box for currently active object
+        float objW = 50.0f, objH = 50.0f;
+        if (!editingNumbers && ratingSubtexs.count("sick")) {
+            objW = ratingSubtexs["sick"].sub.width  * 0.4f * activeScale * ratingSubtexs["sick"].autoScale;
+            objH = ratingSubtexs["sick"].sub.height * 0.4f * activeScale * ratingSubtexs["sick"].autoScale;
+        } else if (editingNumbers && numSubtexs.count("num0")) {
+            objW = numSubtexs["num0"].sub.width  * 0.4f * activeScale * numSubtexs["num0"].autoScale;
+            objH = numSubtexs["num0"].sub.height * 0.4f * activeScale * numSubtexs["num0"].autoScale;
+        }
         
-        float hitX = currentX - sw / 2.0f;
-        float hitY = currentY - sh / 2.0f;
+        float hitX = activeX - objW / 2.0f;
+        float hitY = activeY - objH / 2.0f;
         
-        if (mappedTouchX >= hitX && mappedTouchX <= hitX + sw &&
-            mappedTouchY >= hitY && mappedTouchY <= hitY + sh) {
+        if (mappedTouchX >= hitX && mappedTouchX <= hitX + objW &&
+            mappedTouchY >= hitY && mappedTouchY <= hitY + objH) {
             dragging = true;
-            dragOffsetX = currentX - mappedTouchX;
-            dragOffsetY = currentY - mappedTouchY;
+            dragOffsetX = activeX - mappedTouchX;
+            dragOffsetY = activeY - mappedTouchY;
         } else {
-            // Click outside to immediately move
             dragging = true;
             dragOffsetX = 0;
             dragOffsetY = 0;
-            currentX = mappedTouchX;
-            currentY = mappedTouchY;
+            activeX = mappedTouchX;
+            activeY = mappedTouchY;
         }
     }
     
@@ -272,50 +330,66 @@ void CustomizeComboState::update(float dt) {
         if (dragging) {
             float mappedTouchX = (touch.px - previewX) / mapScale;
             float mappedTouchY = (touch.py - previewY) / mapScale;
-            currentX = mappedTouchX + dragOffsetX;
-            currentY = mappedTouchY + dragOffsetY;
+            activeX = mappedTouchX + dragOffsetX;
+            activeY = mappedTouchY + dragOffsetY;
         }
     } else {
         dragging = false;
     }
 
     // D-Pad for precise movement
-    if (kHeld & (KEY_DLEFT | KEY_CPAD_LEFT))  currentX -= 150.0f * dt;
-    if (kHeld & (KEY_DRIGHT | KEY_CPAD_RIGHT)) currentX += 150.0f * dt;
-    if (kHeld & (KEY_DUP | KEY_CPAD_UP))    currentY -= 150.0f * dt;
-    if (kHeld & (KEY_DDOWN | KEY_CPAD_DOWN))  currentY += 150.0f * dt;
+    if (kHeld & (KEY_DLEFT | KEY_CPAD_LEFT))  activeX -= 150.0f * dt;
+    if (kHeld & (KEY_DRIGHT | KEY_CPAD_RIGHT)) activeX += 150.0f * dt;
+    if (kHeld & (KEY_DUP | KEY_CPAD_UP))    activeY -= 150.0f * dt;
+    if (kHeld & (KEY_DDOWN | KEY_CPAD_DOWN))  activeY += 150.0f * dt;
 
     // L/R for scale
-    if (kHeld & KEY_L) currentScale = std::max(0.1f, currentScale - 1.0f * dt);
-    if (kHeld & KEY_R) currentScale = std::min(5.0f, currentScale + 1.0f * dt);
+    if (kHeld & KEY_L) activeScale = std::max(0.1f, activeScale - 1.0f * dt);
+    if (kHeld & KEY_R) activeScale = std::min(5.0f, activeScale + 1.0f * dt);
     
     // X/Y for alpha
-    if (kHeld & KEY_Y) currentAlpha = std::max(0.1f, currentAlpha - 1.0f * dt);
-    if (kHeld & KEY_X) currentAlpha = std::min(1.0f, currentAlpha + 1.0f * dt);
+    if (kHeld & KEY_Y) activeAlpha = std::max(0.1f, activeAlpha - 1.0f * dt);
+    if (kHeld & KEY_X) activeAlpha = std::min(1.0f, activeAlpha + 1.0f * dt);
 
-    // Reset with SELECT
+    // Reset with SELECT (resets active object to default on-screen position)
     if (kDown & KEY_SELECT) {
-        currentX = (400.0f - 50.0f);
-        currentY = 35.0f;
-        currentScale = 1.0f;
-        currentAlpha = 1.0f;
+        if (editingNumbers) {
+            currentNumX = (400.0f - 50.0f) + (-196.0f); // = 154
+            currentNumY = 35.0f + 92.0f;                // = 127
+            currentNumScale = 1.0f;
+            currentNumAlpha = 1.0f;
+        } else {
+            currentX = (400.0f - 50.0f) + (-163.0f); // = 187
+            currentY = 35.0f + 62.0f;                // = 97
+            currentScale = 1.3f;
+            currentAlpha = 1.0f;
+        }
         AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
     }
     
-    // Bounds checking
-    float comboW = 0.0f;
-    float comboH = 0.0f;
-    if (ratingSubtexs.count("sick")) {
-        comboW = ratingSubtexs["sick"].sub.width * 0.4f * currentScale * ratingSubtexs["sick"].autoScale;
-        comboH = ratingSubtexs["sick"].sub.height * 0.4f * currentScale * ratingSubtexs["sick"].autoScale;
+    // Bounds checking for rating sprite
+    {
+        float objW = 0.0f, objH = 0.0f;
+        if (ratingSubtexs.count("sick")) {
+            objW = ratingSubtexs["sick"].sub.width  * 0.4f * currentScale * ratingSubtexs["sick"].autoScale;
+            objH = ratingSubtexs["sick"].sub.height * 0.4f * currentScale * ratingSubtexs["sick"].autoScale;
+        }
+        float l = currentX - objW / 2.0f, r = currentX + objW / 2.0f;
+        float t = currentY - objH / 2.0f, b = currentY + objH / 2.0f;
+        isOutOfBounds = (l < 0 || r > 400 || t < 0 || b > 240);
     }
-    
-    float comboLeft = currentX - comboW / 2.0f;
-    float comboRight = currentX + comboW / 2.0f;
-    float comboTop = currentY - comboH / 2.0f;
-    float comboBottom = currentY + comboH / 2.0f;
-    
-    isOutOfBounds = (comboLeft < 0 || comboRight > 400 || comboTop < 0 || comboBottom > 240);
+
+    // Bounds checking for number counter
+    {
+        float objW = 0.0f, objH = 0.0f;
+        if (numSubtexs.count("num0")) {
+            objW = numSubtexs["num0"].sub.width  * 0.4f * currentNumScale * numSubtexs["num0"].autoScale;
+            objH = numSubtexs["num0"].sub.height * 0.4f * currentNumScale * numSubtexs["num0"].autoScale;
+        }
+        float l = currentNumX - objW / 2.0f, r = currentNumX + objW / 2.0f;
+        float t = currentNumY - objH / 2.0f, b = currentNumY + objH / 2.0f;
+        isNumOutOfBounds = (l < 0 || r > 400 || t < 0 || b > 240);
+    }
     
     blinkTimer += dt;
     if (blinkTimer > 1.0f) blinkTimer -= 1.0f;
@@ -426,14 +500,18 @@ void CustomizeComboState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
     }
     // ------------------------
 
-    // Draw the combo on top screen
+    float blinkPulse = 0.4f + 0.6f * (0.5f + 0.5f * sinf(blinkTimer * 2 * M_PI));
+
+    // Draw the RATING sprite (dimmed when editing numbers)
     if (ratingSheet && ratingSubtexs.count("sick")) {
         RatingInfo& ri = ratingSubtexs["sick"];
 
         C2D_ImageTint tint;
         float displayAlpha = currentAlpha;
-        if (isOutOfBounds) {
-            displayAlpha = currentAlpha * (0.3f + 0.7f * (0.5f + 0.5f * sinf(blinkTimer * 2 * M_PI)));
+        if (editingNumbers) {
+            displayAlpha *= 0.4f; // dim inactive object
+        } else if (isOutOfBounds) {
+            displayAlpha = currentAlpha * blinkPulse;
         }
         C2D_AlphaImageTint(&tint, displayAlpha);
         
@@ -451,45 +529,81 @@ void CustomizeComboState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
         
         renderRatingSprite(ratingBaseImage.tex, &ri.sub, ri.rotated, ri.frameWidth, ri.frameHeight, drawX, drawY, 0.95f, &tint, scale * ri.autoScale);
     }
-    
-    float comboW = ratingSubtexs.count("sick") ? ratingSubtexs["sick"].frameWidth * 0.4f * currentScale : 150.0f;
-    float comboH = ratingSubtexs.count("sick") ? ratingSubtexs["sick"].frameHeight * 0.4f * currentScale : 150.0f;
-    float comboLeft = currentX - comboW / 2.0f;
-    float comboRight = currentX + comboW / 2.0f;
-    float comboTop = currentY - comboH / 2.0f;
-    float comboBottom = currentY + comboH / 2.0f;
-    
-    float tw = Alphabet::getTextWidth("PREVIEW", 0.7f);
-    float pX = 400.0f - tw - 10.0f;
-    float defaultPy = ClientPrefs::downscroll ? 10.0f : 240.0f - 35.0f;
-    float altPy = ClientPrefs::downscroll ? 240.0f - 35.0f : 10.0f;
-    bool overlapPreview = (comboRight > pX && comboLeft < pX + tw && 
-                           comboBottom > defaultPy && comboTop < defaultPy + 25.0f);
-    float actualPy = overlapPreview ? altPy : defaultPy;
 
+    // Draw the NUMBER COUNTER (showing "num1", "num2", "num3" side by side as example "123")
+    if (ratingSheet && numSubtexs.count("num0")) {
+        // Show "123" as a demo combo count
+        const char* demoDigits = "123";
+        float numScale = 0.4f * currentNumScale;
+        float digitSpacing = 0.0f;
+        if (numSubtexs.count("num0"))
+            digitSpacing = numSubtexs["num0"].sub.width * numScale * numSubtexs["num0"].autoScale * 0.9f;
+
+        float totalW = digitSpacing * 3.0f;
+        float startX = currentNumX - totalW / 2.0f;
+
+        for (int i = 0; i < 3; i++) {
+            std::string key = "num";
+            key += demoDigits[i];
+            if (!numSubtexs.count(key)) continue;
+
+            RatingInfo& ni = numSubtexs[key];
+            float displayAlpha = currentNumAlpha;
+            if (!editingNumbers) {
+                displayAlpha *= 0.4f; // dim when editing rating
+            } else if (isNumOutOfBounds) {
+                displayAlpha = currentNumAlpha * blinkPulse;
+            }
+
+            C2D_ImageTint tint;
+            C2D_AlphaImageTint(&tint, displayAlpha);
+
+            float dx = startX + i * digitSpacing;
+            float dy = currentNumY - ni.sub.height * numScale * ni.autoScale / 2.0f;
+
+            renderRatingSprite(ratingBaseImage.tex, &ni.sub, ni.rotated, ni.frameWidth, ni.frameHeight, dx, dy, 0.94f, &tint, numScale * ni.autoScale);
+        }
+    }
+    
+    // Start Save prompt in top screen
+    float topUiScale = 0.45f;
+    float topTextMult = 1.45f;
+    float startW = ButtonPrompt::getPromptWidth("start", "Save", topUiScale, topTextMult);
+    float startX = 400.0f - startW - 10.0f;
+    float startY = ClientPrefs::downscroll ? 10.0f : 240.0f - 35.0f;
+    ButtonPrompt::drawPrompt("start", "Save", startX, startY, topUiScale, 1.0f, CWhite, 0.95f, topTextMult);
+
+    char coordStr[80];
+    if (editingNumbers) {
+        sprintf(coordStr, "Num XY: [%d, %d]", (int)currentNumX, (int)currentNumY);
+    } else {
+        sprintf(coordStr, "Combo XY: [%d, %d]", (int)currentX, (int)currentY);
+    }
     float cX = 10.0f;
-    float defaultCy = ClientPrefs::downscroll ? 240.0f - 35.0f : 10.0f;
-    float altCy = ClientPrefs::downscroll ? 10.0f : 240.0f - 35.0f;
-    bool overlapCoords = (comboRight > cX && comboLeft < cX + 120.0f && 
-                          comboBottom > defaultCy && comboTop < defaultCy + 40.0f);
-    float actualCy = overlapCoords ? altCy : defaultCy;
-
-    float previewPulse = 0.5f + 0.5f * sinf(blinkTimer * M_PI);
-    float previewAlpha = 0.4f + 0.6f * previewPulse; // pulse between 0.4 and 1.0
-    Alphabet::draw("PREVIEW", pX, actualPy, 0.7f, previewAlpha, false);
-    
-    char coordStr[64];
-    sprintf(coordStr, "Combo XY: [%d, %d]", (int)currentX, (int)currentY);
+    float cY = ClientPrefs::downscroll ? 240.0f - 35.0f : 10.0f;
             
     C2D_Text coordObj;
     C2D_TextFontParse(&coordObj, vcrFont, vcrFontBuf, coordStr);
     C2D_TextOptimize(&coordObj);
     
-    DrawTextBorderCardinal(&coordObj, cX, actualCy, 0.96f, 0.4f, 0.4f, 1.5f, C2D_Color32(0,0,0,255));
-    C2D_DrawText(&coordObj, C2D_WithColor, cX, actualCy, 0.97f, 0.4f, 0.4f, CWhite);
+    DrawTextBorderCardinal(&coordObj, cX, cY, 0.96f, 0.4f, 0.4f, 1.5f, C2D_Color32(0,0,0,255));
+    C2D_DrawText(&coordObj, C2D_WithColor, cX, cY, 0.97f, 0.4f, 0.4f, CWhite);
 
-    if (isOutOfBounds) {
+    // Mode label (top-right corner)
+    const char* modeLabel = editingNumbers ? "NUMBERS" : "RATING";
+    float modeLabelX = 10.0f;
+    float modeLabelY = ClientPrefs::downscroll ? 10.0f : 240.0f - 20.0f;
+    C2D_Text modeObj;
+    C2D_TextFontParse(&modeObj, vcrFont, vcrFontBuf, modeLabel);
+    C2D_TextOptimize(&modeObj);
+    DrawTextBorderCardinal(&modeObj, modeLabelX, modeLabelY, 0.96f, 0.35f, 0.35f, 1.5f, C2D_Color32(0,0,0,255));
+    C2D_DrawText(&modeObj, C2D_WithColor, modeLabelX, modeLabelY, 0.97f, 0.35f, 0.35f,
+        editingNumbers ? C2D_Color32(255, 220, 80, 255) : C2D_Color32(80, 220, 255, 255));
+
+    if (!editingNumbers && isOutOfBounds) {
         AddTextCentered("Combo is out of screen bounds", 200, 220, 0.4f, 1.0f, CRed, 400.0f);
+    } else if (editingNumbers && isNumOutOfBounds) {
+        AddTextCentered("Numbers are out of screen bounds", 200, 220, 0.4f, 1.0f, CRed, 400.0f);
     }
 
 
@@ -525,12 +639,13 @@ void CustomizeComboState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
     C2D_DrawRectSolid(previewX - 2, previewY, 0.22f, 2, previewH, CWhite);
     C2D_DrawRectSolid(previewX + previewW, previewY, 0.22f, 2, previewH, CWhite);
 
-    // Draw combo inside preview box
+    // Draw rating sprite inside preview (dimmed when editing numbers)
     if (ratingSheet && ratingSubtexs.count("sick")) {
         RatingInfo& ri = ratingSubtexs["sick"];
 
+        float displayAlpha = editingNumbers ? currentAlpha * 0.4f : currentAlpha;
         C2D_ImageTint tint;
-        C2D_AlphaImageTint(&tint, currentAlpha);
+        C2D_AlphaImageTint(&tint, displayAlpha);
         
         float scale = 0.4f * currentScale * mapScale;
         float baseW = ri.sub.width;
@@ -547,6 +662,33 @@ void CustomizeComboState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
         renderRatingSprite(ratingBaseImage.tex, &ri.sub, ri.rotated, ri.frameWidth, ri.frameHeight, drawX, drawY, 0.95f, &tint, scale * ri.autoScale);
     }
 
+    // Draw number counter inside preview (dimmed when editing rating)
+    if (ratingSheet && numSubtexs.count("num0")) {
+        const char* demoDigits = "123";
+        float numScale = 0.4f * currentNumScale * mapScale;
+        float digitSpacing = numSubtexs["num0"].sub.width * numScale * numSubtexs["num0"].autoScale * 0.9f;
+        float totalW = digitSpacing * 3.0f;
+
+        float startX = previewX + currentNumX * mapScale - totalW / 2.0f;
+
+        for (int i = 0; i < 3; i++) {
+            std::string key = "num";
+            key += demoDigits[i];
+            if (!numSubtexs.count(key)) continue;
+
+            RatingInfo& ni = numSubtexs[key];
+            float displayAlpha = !editingNumbers ? currentNumAlpha * 0.4f : currentNumAlpha;
+            C2D_ImageTint tint;
+            C2D_AlphaImageTint(&tint, displayAlpha);
+
+            float dh = ni.sub.height * numScale * ni.autoScale;
+            float dx = startX + i * digitSpacing;
+            float dy = previewY + currentNumY * mapScale - dh / 2.0f;
+
+            renderRatingSprite(ratingBaseImage.tex, &ni.sub, ni.rotated, ni.frameWidth, ni.frameHeight, dx, dy, 0.94f, &tint, numScale * ni.autoScale);
+        }
+    }
+
     float uiScale = 0.45f;
     float textMult = 1.45f; // Extra size for button prompt texts in this state
 
@@ -556,27 +698,31 @@ void CustomizeComboState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
     float topY = (37.0f - topPromptH) * 0.5f;
 
     // Bottom gap is 37.0f high (203.0f to 240.0f)
-    float bottomPromptH = ButtonPrompt::getPromptHeight("b", "Save", uiScale, textMult);
+    float bottomPromptH = ButtonPrompt::getPromptHeight("select", "Reset", uiScale, textMult);
     float bottomY = 203.0f + (37.0f - bottomPromptH) * 0.5f;
 
-    // Top prompts horizontal alignment (D-pad on the left, L+R mirrored on the right)
+    // Top prompts horizontal alignment
     std::string dpadBtn = ButtonPrompt::getAnimatedDpad(dpadTimer);
     float scaleW = ButtonPrompt::getPrompt2Width("l", "r", "Scale", uiScale, textMult);
 
     ButtonPrompt::drawPrompt(dpadBtn, "Move | Touch", 16.0f, topY, uiScale, 1.0f, CWhite, 0.95f, textMult);
     ButtonPrompt::drawPrompt2("l", "r", "Scale", 320.0f - 16.0f - scaleW, topY, uiScale, 1.0f, CWhite, 0.95f, textMult);
 
-    // Bottom prompts horizontal alignment (distribute them evenly matching left/right margins)
-    float w1 = ButtonPrompt::getPromptWidth("b", "Save", uiScale, textMult);
-    float w2 = ButtonPrompt::getPromptWidth("select", "Reset", uiScale, textMult);
+    // Bottom prompts: Select Reset | B Switch | X+Y Alpha
+    float w1 = ButtonPrompt::getPromptWidth("select", "Reset", uiScale, textMult);
+    float w2 = ButtonPrompt::getPromptWidth("b", "Switch", uiScale, textMult);
     float w3 = ButtonPrompt::getPrompt2Width("x", "y", "Alpha", uiScale, textMult);
 
-    float x1 = 16.0f;
-    float x3 = 320.0f - 16.0f - w3;
-    float remaining = x3 - (x1 + w1);
-    float x2 = x1 + w1 + (remaining - w2) * 0.5f;
+    // Distribute evenly: left margin 8px, right margin 8px
+    float totalPromptsW = w1 + w2 + w3;
+    float availableW = 320.0f - 16.0f - totalPromptsW;
+    float gap = availableW / 2.0f;
 
-    ButtonPrompt::drawPrompt("b", "Save", x1, bottomY, uiScale, 1.0f, CWhite, 0.95f, textMult);
-    ButtonPrompt::drawPrompt("select", "Reset", x2, bottomY, uiScale, 1.0f, CWhite, 0.95f, textMult);
-    ButtonPrompt::drawPrompt2("x", "y", "Alpha", x3, bottomY, uiScale, 1.0f, CWhite, 0.95f, textMult);
+    float bx1 = 8.0f;
+    float bx2 = bx1 + w1 + gap;
+    float bx3 = bx2 + w2 + gap;
+
+    ButtonPrompt::drawPrompt("select", "Reset",  bx1, bottomY, uiScale, 1.0f, CWhite, 0.95f, textMult);
+    ButtonPrompt::drawPrompt("b",      "Switch", bx2, bottomY, uiScale, 1.0f, CWhite, 0.95f, textMult);
+    ButtonPrompt::drawPrompt2("x",     "y", "Alpha", bx3, bottomY, uiScale, 1.0f, CWhite, 0.95f, textMult);
 }

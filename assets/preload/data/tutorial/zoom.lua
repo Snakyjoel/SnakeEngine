@@ -93,11 +93,13 @@ function onTimerCompleted(tag)
     end
 end
 
+local yeySteps = { 120, 184 }
+
 function onStepHit()
-    if curStep == 120 then
-        yey()
-    end
-    if curStep == 184 then
-        yey()
+    for _, step in ipairs(yeySteps) do
+        if curStep == step then
+            yey()
+            break
+        end
     end
 end

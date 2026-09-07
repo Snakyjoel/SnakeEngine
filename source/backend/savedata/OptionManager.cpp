@@ -507,6 +507,8 @@ void OptionManager::syncToClientPrefs() {
     ClientPrefs::noteColorsEnabled = getBool("noteColorsEnabled", false);
     ClientPrefs::healthBar         = getBool("healthBar", true);
     ClientPrefs::showRatings       = getBool("showRatings", true);
+    ClientPrefs::showComboNum      = getBool("showComboNum", true);
+    ClientPrefs::comboStacking     = getBool("comboStacking", true);
     ClientPrefs::camZooms          = getBool("camZooms", true);
     ClientPrefs::scoreZoom         = getBool("scoreZoom", true);
     ClientPrefs::flashing          = getBool("flashing", true);
@@ -516,6 +518,7 @@ void OptionManager::syncToClientPrefs() {
 
     ClientPrefs::lowQuality        = getBool("lowQuality", false);
     ClientPrefs::globalAntialiasing= getBool("globalAntialiasing", true);
+    ClientPrefs::enable3DEffect    = getBool("enable3DEffect", true);
     ClientPrefs::fastNotes         = getBool("fastNotes", false);
     ClientPrefs::drawGrid          = getBool("drawGrid", true);
     ClientPrefs::debugInfo         = getBool("debugInfo", false);
@@ -555,6 +558,8 @@ void OptionManager::syncFromClientPrefs() {
     setBool("noteColorsEnabled", ClientPrefs::noteColorsEnabled);
     setBool("healthBar", ClientPrefs::healthBar);
     setBool("showRatings", ClientPrefs::showRatings);
+    setBool("showComboNum", ClientPrefs::showComboNum);
+    setBool("comboStacking", ClientPrefs::comboStacking);
     setBool("camZooms", ClientPrefs::camZooms);
     setBool("scoreZoom", ClientPrefs::scoreZoom);
     setBool("flashing", ClientPrefs::flashing);
@@ -568,4 +573,9 @@ void OptionManager::syncFromClientPrefs() {
     setBool("drawGrid", ClientPrefs::drawGrid);
     setBool("debugInfo", ClientPrefs::debugInfo);
     setBool("extendedDebug", ClientPrefs::extendedDebug);
+
+    if (ClientPrefs::timeBarType == 0) setString("timeBarType", "Time Left");
+    else if (ClientPrefs::timeBarType == 1) setString("timeBarType", "Time Elapsed");
+    else if (ClientPrefs::timeBarType == 2) setString("timeBarType", "Song Name");
+    else if (ClientPrefs::timeBarType == 3) setString("timeBarType", "Disabled");
 }

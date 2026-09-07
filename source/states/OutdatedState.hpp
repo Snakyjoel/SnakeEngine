@@ -6,7 +6,7 @@
 
 class OutdatedState : public MusicBeatState {
 public:
-    OutdatedState(int compResult, const std::string& onlineVer);
+    OutdatedState(int compResult, const std::string& onlineVer, const std::string& source = "gamebanana");
     ~OutdatedState() override;
 
     void init() override;
@@ -16,11 +16,12 @@ public:
 private:
     int comparison;
     std::string latestVersion;
+    std::string updateSource;
     C2D_Font vcrFont = nullptr;
     C2D_TextBuf vcrFontBuf = nullptr;
     C2D_TextBuf textBuf = nullptr;
     float gridScrollTime;
-    struct CachedSpritesheet* gamejoltSheet;
+    struct CachedSpritesheet* bgLogoSheet;
     struct CachedSpritesheet* hifellaSheet;
     C2D_Text titleText;
     C2D_Text bodyText[12];

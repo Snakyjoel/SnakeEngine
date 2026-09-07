@@ -19,6 +19,7 @@ bool ClientPrefs::lowQuality = false;
 bool ClientPrefs::showRatings = true;
 bool ClientPrefs::fastNotes = false;
 bool ClientPrefs::globalAntialiasing = true;
+bool ClientPrefs::enable3DEffect = true;
 
 bool ClientPrefs::flashing = true;
 bool ClientPrefs::disableReset = false;
@@ -27,10 +28,16 @@ int ClientPrefs::noteOffset = 0;
 bool ClientPrefs::noteColorsEnabled = false;
 
 bool ClientPrefs::drawGrid = true;
-float ClientPrefs::comboOffsetX = 170.0f;
-float ClientPrefs::comboOffsetY = 120.0f;
-float ClientPrefs::comboScale = 1.0f;
+float ClientPrefs::comboOffsetX = -163.0f;
+float ClientPrefs::comboOffsetY = 62.0f;
+bool ClientPrefs::showComboNum = true;
+float ClientPrefs::comboNumOffsetX = -196.0f;
+float ClientPrefs::comboNumOffsetY = 92.0f;
+float ClientPrefs::comboNumScale = 1.0f;
+float ClientPrefs::comboNumAlpha = 1.0f;
+float ClientPrefs::comboScale = 1.3f;
 float ClientPrefs::comboAlpha = 1.0f;
+bool ClientPrefs::comboStacking = true;
 bool ClientPrefs::alphabetPause = true;
 bool ClientPrefs::checkForUpdates = true;
 bool ClientPrefs::buttonPrompts = true;
@@ -122,6 +129,9 @@ void ClientPrefs::loadSettings() {
     val = json_object_get(root, "globalAntialiasing");
     if (val && json_is_boolean(val)) globalAntialiasing = json_is_true(val);
 
+    val = json_object_get(root, "enable3DEffect");
+    if (val && json_is_boolean(val)) enable3DEffect = json_is_true(val);
+
     val = json_object_get(root, "flashing");
     if (val && json_is_boolean(val)) flashing = json_is_true(val);
 
@@ -145,6 +155,24 @@ void ClientPrefs::loadSettings() {
 
     val = json_object_get(root, "comboOffsetY");
     if (val && json_is_number(val)) comboOffsetY = json_number_value(val);
+
+    val = json_object_get(root, "showComboNum");
+    if (val && json_is_boolean(val)) showComboNum = json_is_true(val);
+
+    val = json_object_get(root, "comboNumOffsetX");
+    if (val && json_is_number(val)) comboNumOffsetX = json_number_value(val);
+
+    val = json_object_get(root, "comboNumOffsetY");
+    if (val && json_is_number(val)) comboNumOffsetY = json_number_value(val);
+
+    val = json_object_get(root, "comboNumScale");
+    if (val && json_is_number(val)) comboNumScale = (float)json_number_value(val);
+
+    val = json_object_get(root, "comboNumAlpha");
+    if (val && json_is_number(val)) comboNumAlpha = (float)json_number_value(val);
+
+    val = json_object_get(root, "comboStacking");
+    if (val && json_is_boolean(val)) comboStacking = json_is_true(val);
 
     val = json_object_get(root, "comboScale");
     if (val && json_is_number(val)) comboScale = json_number_value(val);
@@ -256,6 +284,7 @@ void ClientPrefs::saveSettings() {
     json_object_set_new(root, "showRatings", showRatings ? json_true() : json_false());
     json_object_set_new(root, "fastNotes", fastNotes ? json_true() : json_false());
     json_object_set_new(root, "globalAntialiasing", globalAntialiasing ? json_true() : json_false());
+    json_object_set_new(root, "enable3DEffect", enable3DEffect ? json_true() : json_false());
     json_object_set_new(root, "flashing", flashing ? json_true() : json_false());
     json_object_set_new(root, "disableReset", disableReset ? json_true() : json_false());
     json_object_set_new(root, "botPlay", botPlay ? json_true() : json_false());
@@ -264,8 +293,14 @@ void ClientPrefs::saveSettings() {
     json_object_set_new(root, "drawGrid", drawGrid ? json_true() : json_false());
     json_object_set_new(root, "comboOffsetX", json_real(comboOffsetX));
     json_object_set_new(root, "comboOffsetY", json_real(comboOffsetY));
+    json_object_set_new(root, "showComboNum", showComboNum ? json_true() : json_false());
+    json_object_set_new(root, "comboNumOffsetX", json_real(comboNumOffsetX));
+    json_object_set_new(root, "comboNumOffsetY", json_real(comboNumOffsetY));
+    json_object_set_new(root, "comboNumScale", json_real(comboNumScale));
+    json_object_set_new(root, "comboNumAlpha", json_real(comboNumAlpha));
     json_object_set_new(root, "comboScale", json_real(comboScale));
     json_object_set_new(root, "comboAlpha", json_real(comboAlpha));
+    json_object_set_new(root, "comboStacking", comboStacking ? json_true() : json_false());
     json_object_set_new(root, "alphabetPause", alphabetPause ? json_true() : json_false());
     json_object_set_new(root, "checkForUpdates", checkForUpdates ? json_true() : json_false());
     json_object_set_new(root, "buttonPrompts", buttonPrompts ? json_true() : json_false());

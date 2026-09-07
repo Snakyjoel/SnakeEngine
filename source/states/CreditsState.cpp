@@ -180,7 +180,7 @@ void CreditsState::init() {
         addEntry("Psych Engine team", "Engine on which the port was based");
         addEntry("Friday Night Funkin' team", "Original creators of FNF");
         addEntry("Luc", "Artist of storymode banners");
-        addEntry("Elitra090", "Helped with porting the weeks");
+        addEntry("Elitra090", "Helped with porting and fixing");
         addEntry("Natexs", "Pong game used as a template");
         addEntry("Cocottyna", "Artist of the old engine icon and banner");
         addEntry("AweSamdudeVR", "Helped with the menu background");
@@ -190,6 +190,11 @@ void CreditsState::init() {
         addEntry("GameCrafterDev", "Helped with spritesheet optimization");
         addEntry("Oliwierpl", "Suggested the system lua functions");
         addEntry("Mimikitty3", "Composed the home menu sound");
+        addEntry("Fukita", "Fixed the sustains visuals");
+        addEntry("Jon SpeedArts", "Ported the week 6");
+
+        addTitle("TOP DONATORS, THANKS <3");
+        addEntry("SG Lara", "US$ 28,08");
 
         
 

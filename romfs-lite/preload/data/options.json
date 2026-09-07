@@ -150,6 +150,20 @@
           "description": "Show Sick!, Good!, Bad!, Shit!\npopups when hitting a note."
         },
         {
+          "id": "showComboNum",
+          "name": "Number Popups",
+          "type": "bool",
+          "default": true,
+          "description": "Show combo number\npopups when hitting a note."
+        },
+        {
+          "id": "comboStacking",
+          "name": "Combo Stacking",
+          "type": "bool",
+          "default": true,
+          "description": "If unchecked, ratings and combo won't stack,\nsaving memory and making them easier to read."
+        },
+        {
           "id": "camZooms",
           "name": "Camera Zooms",
           "type": "bool",

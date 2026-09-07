@@ -52,6 +52,7 @@ struct LuaText {
     bool active = false;
     bool front = false;
     bool visible = true;
+    float depth3D = 0.0f;
 
     C2D_TextBuf buf = nullptr;
     C2D_Text c2dObj;
@@ -222,6 +223,25 @@ public:
     float camAngle = 0.0f;
     float hudAngle = 0.0f;
 
+    // 3D Depth properties
+    float camGame3DDepth = 0.0f;
+    float camHUD3DDepth = 0.0f;
+    float camOther3DDepth = 0.0f;
+
+    float healthBar3DDepth = 0.0f;
+    float healthBarBG3DDepth = 0.0f;
+    float timeBar3DDepth = 0.0f;
+    float timeBarBG3DDepth = 0.0f;
+    float iconP13DDepth = 0.0f;
+    float iconP23DDepth = 0.0f;
+    float scoreTxt3DDepth = 0.0f;
+    float timeTxt3DDepth = 0.0f;
+    float strumLineNotes3DDepth = 0.0f;
+    float notes3DDepth = 0.0f;
+    float rating3DDepth = 0.0f;
+    float customPlayerStrum3DDepth[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float customOpponentStrum3DDepth[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
     // Custom Strum Properties
     float customPlayerStrumScaleX[4];
     float customPlayerStrumScaleY[4];
@@ -389,6 +409,7 @@ private:
     bool deathSoundPlayed = false;
     bool deathLoopPlaying = false;
     bool deathConfirmActive = false;
+    bool deathStateSwitched = false;
     float deathConfirmTimer = 0.0f;
     float gameOverTimer = 0.0f;
     float deathCamFollowX = 0.0f;
@@ -416,15 +437,18 @@ private:
     int lastStep = -1;
 
     // Cache Score
-    C2D_Text scoreTextObj;
+    C2D_Text scoreTextObjLine1;
+    C2D_Text scoreTextObjLine2;
     bool scoreTextNeedsUpdate = true;
     int cachedScore = -1;
     int cachedMisses = -1;
     int cachedCombo = -1;
+    int cachedTotalNotesHit = -1;
 
     // Cache Time and Botplay Texts
     C2D_Text timeTextObj;
     int cachedTimeLeft = -1;
+    int cachedTimeBarType = -1;
     C2D_Text botplayTextObj;
     C2D_TextBuf botplayTextBuf;
     C2D_TextBuf timeTextBuf;
@@ -523,17 +547,37 @@ private:
     C2D_SpriteSheet ratingSheet = nullptr;
     C2D_Image ratingBaseImage;
     std::map<std::string, Tex3DS_SubTexture> ratingSubtexs;
+    std::map<std::string, Tex3DS_SubTexture> numSubtexs;   // "num0".."num9"
     std::vector<NoteSprite> noteSubtexs;
     std::vector<std::vector<NoteSprite>> noteSubtexFrames;
-    bool ratingActive = false;
-    float ratingX = 0.0f;
-    float ratingY = 0.0f;
-    float ratingVelY = 0.0f;
-    float ratingAccelY = 550.0f;
-    float ratingScale = 0.7f;
-    float ratingAlpha = 1.0f;
-    float ratingTimer = 0.0f;
     std::string currentRatingStr;
+
+    struct RatingPopup {
+        std::string key;
+        float x = 0.0f, y = 0.0f;
+        float velY = 0.0f, accelY = 0.0f;
+        float scale = 1.0f;
+        float alpha = 1.0f;
+        bool active = false;
+        int spawnOrder = 0;  // Higher = spawned later = drawn in front
+    };
+    static constexpr int MAX_RATING_POPUPS = 16;
+    RatingPopup ratingPopups[MAX_RATING_POPUPS];
+    int ratingSpawnCounter = 0;  // Incremented each time a rating popup is spawned
+
+    // Combo number counter — each digit is an independent sprite with physics
+    struct ComboDigit {
+        std::string key;   // "num0".."num9"
+        float x = 0.0f, y = 0.0f;
+        float velY = 0.0f, accelY = 0.0f, velX = 0.0f;
+        float alpha = 1.0f, scale = 1.0f;
+        bool active = false;
+        int spawnOrder = 0;  // Higher = spawned later = drawn in front
+    };
+    static constexpr int MAX_COMBO_DIGITS = 32;
+    ComboDigit comboDigits[MAX_COMBO_DIGITS];
+    int digitSpawnCounter = 0;  // Incremented each time a new digit group is spawned
+
     
     C2D_Image lazyBG;
     C2D_SpriteSheet lazyBGSheet = nullptr;

@@ -1,4 +1,5 @@
-v3.6.8
+v3.7.8
+(The list of changes is very long; I may have missed some changes that aren't listed.)
 - Some fixes were made
 - Game Over was finally added
 - The ogg files of the base game were converted to adp for better performance
@@ -26,6 +27,19 @@ v3.6.8
 - Freeplay stability was improved (Kinda)
 - Options Menu colors were changed to match the original game and not psych's one
 - Note Colors Menu was remade
+- Added stereoscopic effect, use set3dDepth(tag, float)
+- Menus now has the stereoscopic effect
+- The engine now search for updates in gamebanana
+- Added compatibility for gamebanana for checking updates
+- Combo numbers were added
+- The combo counter in the scoring text was replaced with a precision counter
+- The size of the grid on the bottom screen in PlayState has been reduced
+- The spacing of items in the pause menu was adjusted to match the original
+- If the Enhanced Pause feature is enabled (formerly called Alphabet Pause), then it will now also play scrolling sounds like in the original game
+- Added the collab week
+- Time bar's Elapsed and Song Name modes now work
+- The image on the bottom screen in some menus (such as the Main Menu, Options, etc.) was replaced
+- Fixed a crash in GameOver
 
 v2.5.7
 - Fixed a crash with change character, but not tested

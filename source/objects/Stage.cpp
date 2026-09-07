@@ -105,7 +105,9 @@ void Stage::draw(float camX, float camY, float camZoom, bool frontLayer, float s
         if (!s.visible || s.alpha <= 0.0f) continue;
 
         // Parallax math relative to center
-        float drawX = ((s.x - (camX * s.scrollX)) * camZoom * screenScale) + (ScreenWidthTop / 2.0f) + shakeX;
+        float totalDepth3D = s.depth3D + (PlayState::instance ? PlayState::instance->camGame3DDepth : 0.0f);
+        float offset3D = get3DOffset(totalDepth3D);
+        float drawX = ((s.x - (camX * s.scrollX)) * camZoom * screenScale) + (ScreenWidthTop / 2.0f) + shakeX + offset3D;
         float drawY = ((s.y - (camY * s.scrollY)) * camZoom * screenScale) + (ScreenHeight / 2.0f) + shakeY;
         
         float drawScaleX = s.scaleX * screenScale * camZoom;

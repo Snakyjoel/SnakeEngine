@@ -371,6 +371,7 @@ void LuaManager::registerFunctions(lua_State* L) {
     BIND_LUA_FUNC(debugPrint);
     BIND_LUA_FUNC(setObjectCamera);
     BIND_LUA_FUNC(setCameraExtended);
+    BIND_LUA_FUNC(set3dDepth);
     BIND_LUA_FUNC(screenCenter);
     BIND_LUA_FUNC(cameraShake);
     BIND_LUA_FUNC(triggerEvent);
@@ -2132,8 +2133,36 @@ int LuaManager::lua_setProperty(lua_State* L) {
             else if (prop == "flipY") PlayState::instance->countdownFlipY = getBoolSafe(2);
             else if (prop == "antialiasing") PlayState::instance->countdownAntialiasing = getBoolSafe(2);
         }
+        else if (obj == "healthBar") {
+            if (prop == "depth3D") PlayState::instance->healthBar3DDepth = (float)luaL_checknumber(L, 2);
+        }
+        else if (obj == "healthBarBG") {
+            if (prop == "depth3D") PlayState::instance->healthBarBG3DDepth = (float)luaL_checknumber(L, 2);
+        }
+        else if (obj == "timeBar") {
+            if (prop == "depth3D") PlayState::instance->timeBar3DDepth = (float)luaL_checknumber(L, 2);
+        }
+        else if (obj == "timeBarBG") {
+            if (prop == "depth3D") PlayState::instance->timeBarBG3DDepth = (float)luaL_checknumber(L, 2);
+        }
+        else if (obj == "iconP1") {
+            if (prop == "depth3D") PlayState::instance->iconP13DDepth = (float)luaL_checknumber(L, 2);
+        }
+        else if (obj == "iconP2") {
+            if (prop == "depth3D") PlayState::instance->iconP23DDepth = (float)luaL_checknumber(L, 2);
+        }
+        else if (obj == "scoreTxt") {
+            if (prop == "depth3D") PlayState::instance->scoreTxt3DDepth = (float)luaL_checknumber(L, 2);
+        }
+        else if (obj == "timeTxt") {
+            if (prop == "depth3D") PlayState::instance->timeTxt3DDepth = (float)luaL_checknumber(L, 2);
+        }
+        else if (obj == "strumLineNotes") {
+            if (prop == "depth3D") PlayState::instance->strumLineNotes3DDepth = (float)luaL_checknumber(L, 2);
+        }
         else if (obj == "camGame" || obj == "game") {
-            if (prop == "x") PlayState::instance->camX_offset = (float)luaL_checknumber(L, 2);
+            if (prop == "depth3D") PlayState::instance->camGame3DDepth = (float)luaL_checknumber(L, 2);
+            else if (prop == "x") PlayState::instance->camX_offset = (float)luaL_checknumber(L, 2);
             else if (prop == "y") PlayState::instance->camY_offset = (float)luaL_checknumber(L, 2);
             else if (prop == "zoom") PlayState::instance->camZoom = (float)luaL_checknumber(L, 2);
             else if (prop == "scale.x" || prop == "scaleX") PlayState::instance->camScaleX = (float)luaL_checknumber(L, 2);
@@ -2145,7 +2174,8 @@ int LuaManager::lua_setProperty(lua_State* L) {
             else if (prop == "flipY") PlayState::instance->camFlipY = getBoolSafe(2);
         }
         else if (obj == "camHUD" || obj == "hud") {
-            if (prop == "x") PlayState::instance->hudX_offset = (float)luaL_checknumber(L, 2);
+            if (prop == "depth3D") PlayState::instance->camHUD3DDepth = (float)luaL_checknumber(L, 2);
+            else if (prop == "x") PlayState::instance->hudX_offset = (float)luaL_checknumber(L, 2);
             else if (prop == "y") PlayState::instance->hudY_offset = (float)luaL_checknumber(L, 2);
             else if (prop == "zoom") PlayState::instance->hudZoom = (float)luaL_checknumber(L, 2);
             else if (prop == "scale.x" || prop == "scaleX") PlayState::instance->hudScaleX = (float)luaL_checknumber(L, 2);
@@ -2157,7 +2187,8 @@ int LuaManager::lua_setProperty(lua_State* L) {
             else if (prop == "flipY") PlayState::instance->hudFlipY = getBoolSafe(2);
         }
         else if (obj == "camOther" || obj == "other") {
-            if (prop == "x") PlayState::instance->otherX_offset = (float)luaL_checknumber(L, 2);
+            if (prop == "depth3D") PlayState::instance->camOther3DDepth = (float)luaL_checknumber(L, 2);
+            else if (prop == "x") PlayState::instance->otherX_offset = (float)luaL_checknumber(L, 2);
             else if (prop == "y") PlayState::instance->otherY_offset = (float)luaL_checknumber(L, 2);
             else if (prop == "zoom") PlayState::instance->otherZoom = (float)luaL_checknumber(L, 2);
             else if (prop == "scale.x" || prop == "scaleX") PlayState::instance->otherScaleX = (float)luaL_checknumber(L, 2);
@@ -2174,7 +2205,8 @@ int LuaManager::lua_setProperty(lua_State* L) {
         }
         else if (PlayState::instance->luaSpriteIndices.count(obj)) {
             auto& s = PlayState::instance->luaSprites[PlayState::instance->luaSpriteIndices[obj]];
-            if (prop == "alpha") s.alpha = (float)luaL_checknumber(L, 2);
+            if (prop == "depth3D") s.depth3D = (float)luaL_checknumber(L, 2);
+            else if (prop == "alpha") s.alpha = (float)luaL_checknumber(L, 2);
             else if (prop == "depth") s.depth = (float)luaL_checknumber(L, 2);
             else if (prop == "x") s.x = (float)luaL_checknumber(L, 2);
             else if (prop == "y") s.y = (float)luaL_checknumber(L, 2);
@@ -2201,7 +2233,8 @@ int LuaManager::lua_setProperty(lua_State* L) {
         }
         else if (PlayState::instance->luaTextIndices.count(obj)) {
             auto& t = PlayState::instance->luaTexts[PlayState::instance->luaTextIndices[obj]];
-            if (prop == "alpha") t.alpha = (float)luaL_checknumber(L, 2);
+            if (prop == "depth3D") t.depth3D = (float)luaL_checknumber(L, 2);
+            else if (prop == "alpha") t.alpha = (float)luaL_checknumber(L, 2);
             else if (prop == "x") t.x = (float)luaL_checknumber(L, 2);
             else if (prop == "y") t.y = (float)luaL_checknumber(L, 2);
             else if (prop == "visible") t.visible = getBoolSafe(2);
@@ -2221,7 +2254,8 @@ int LuaManager::lua_setProperty(lua_State* L) {
             else if (obj == "gf") c = PlayState::instance->gf;
 
             if (c) {
-                if (prop == "alpha") c->alpha = (float)luaL_checknumber(L, 2);
+                if (prop == "depth3D") c->depth3D = (float)luaL_checknumber(L, 2);
+                else if (prop == "alpha") c->alpha = (float)luaL_checknumber(L, 2);
                 else if (prop == "x") c->x = (float)luaL_checknumber(L, 2);
                 else if (prop == "y") c->y = (float)luaL_checknumber(L, 2);
                 else if (prop == "scale.x" || prop == "scale") {
@@ -2493,6 +2527,37 @@ int LuaManager::lua_setPropertyFromGroup(lua_State* L) {
         else if (prop == "antialiasing") {
             n.antialiasing = lua_toboolean(L, 4);
         }
+    }
+    return 0;
+}
+
+int LuaManager::lua_set3dDepth(lua_State* L) {
+    if (!PlayState::instance || lua_gettop(L) < 2) return 0;
+    std::string tag = luaL_checkstring(L, 1);
+    float depthVal = (float)luaL_checknumber(L, 2);
+
+    if (tag == "camGame" || tag == "game") PlayState::instance->camGame3DDepth = depthVal;
+    else if (tag == "camHUD" || tag == "hud") PlayState::instance->camHUD3DDepth = depthVal;
+    else if (tag == "camOther" || tag == "other") PlayState::instance->camOther3DDepth = depthVal;
+    else if (tag == "healthBar") PlayState::instance->healthBar3DDepth = depthVal;
+    else if (tag == "healthBarBG") PlayState::instance->healthBarBG3DDepth = depthVal;
+    else if (tag == "timeBar") PlayState::instance->timeBar3DDepth = depthVal;
+    else if (tag == "timeBarBG") PlayState::instance->timeBarBG3DDepth = depthVal;
+    else if (tag == "iconP1") PlayState::instance->iconP13DDepth = depthVal;
+    else if (tag == "iconP2") PlayState::instance->iconP23DDepth = depthVal;
+    else if (tag == "scoreTxt") PlayState::instance->scoreTxt3DDepth = depthVal;
+    else if (tag == "timeTxt") PlayState::instance->timeTxt3DDepth = depthVal;
+    else if (tag == "strumLineNotes") PlayState::instance->strumLineNotes3DDepth = depthVal;
+    else if (tag == "notes") PlayState::instance->notes3DDepth = depthVal;
+    else if (tag == "rating" || tag == "combo") PlayState::instance->rating3DDepth = depthVal;
+    else if (tag == "boyfriend" && PlayState::instance->bf) PlayState::instance->bf->depth3D = depthVal;
+    else if (tag == "dad" && PlayState::instance->dad) PlayState::instance->dad->depth3D = depthVal;
+    else if (tag == "gf" && PlayState::instance->gf) PlayState::instance->gf->depth3D = depthVal;
+    else if (PlayState::instance->luaSpriteIndices.count(tag)) {
+        PlayState::instance->luaSprites[PlayState::instance->luaSpriteIndices[tag]].depth3D = depthVal;
+    }
+    else if (PlayState::instance->luaTextIndices.count(tag)) {
+        PlayState::instance->luaTexts[PlayState::instance->luaTextIndices[tag]].depth3D = depthVal;
     }
     return 0;
 }

@@ -106,8 +106,10 @@ int main(int argc, char* argv[]) {
 
     globalVCRFont = C2D_FontLoad("romfs:/fonts/vcr.bcfnt");
     makeFontPixelPerfect(globalVCRFont);
-    C3D_RenderTarget* top    = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
-    C3D_RenderTarget* bottom = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
+    gfxSet3D(true);
+    C3D_RenderTarget* top      = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
+    C3D_RenderTarget* topRight = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
+    C3D_RenderTarget* bottom   = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 
     C3D_AlphaTest(true, GPU_GREATER, 0x00);
     C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA); //Fucking Long Line
@@ -207,8 +209,20 @@ int main(int argc, char* argv[]) {
             }
             MusicPlayer::update();
 
+            bool want3D = ClientPrefs::enable3DEffect && (osGet3DSliderState() > 0.001f);
+            gfxSet3D(want3D);
+            g_current3DSlider = want3D ? osGet3DSliderState() : 0.0f;
+            
             C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+
+            g_isRightEye = false;
             currentState->draw(top, bottom);
+
+            if (g_current3DSlider > 0.001f) {
+                g_isRightEye = true;
+                currentState->draw(topRight, bottom);
+            }
+            g_isRightEye = false;
 
             // Global debug overlay (L+R+SELECT outside of PlayState)
             u32 keys_held = hidKeysHeld();

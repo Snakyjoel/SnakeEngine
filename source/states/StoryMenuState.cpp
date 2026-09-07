@@ -368,7 +368,7 @@ void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             if (bgImg.tex) {
                 float w = bgImg.subtex->width;
                 float h = bgImg.subtex->height;
-                drawImage(bgImg, 200.0f - (w / 2.0f), 120.0f - (h / 2.0f), 0.5f);
+                drawImage(bgImg, 200.0f - (w / 2.0f) + get3DOffset(-10.0f), 120.0f - (h / 2.0f), 0.5f);
             }
         }
     }
@@ -383,8 +383,8 @@ void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         std::string storyText = data.storyName.empty() ? data.weekName : data.storyName;
         std::transform(storyText.begin(), storyText.end(), storyText.begin(), ::toupper);
         
-        AddText(storyText, 200, 12, 0.45f, true, 0.0f, C2D_Color32(0xB2, 0xB2, 0xB2, 255), 0.0f);
-        AddText("LEVEL SCORE: 0", 200, 31, 0.45f, true, 0.0f, CWhite, 0.0f);
+        AddText(storyText, 200 + get3DOffset(10.0f), 12, 0.45f, true, 0.0f, C2D_Color32(0xB2, 0xB2, 0xB2, 255), 0.0f);
+        AddText("LEVEL SCORE: 0", 200 + get3DOffset(10.0f), 31, 0.45f, true, 0.0f, CWhite, 0.0f);
     }
  
     if (!selectableWeeks.empty()) {
@@ -401,19 +401,19 @@ void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         if (dImg.tex) {
             float dW = dImg.subtex->width;
             float dH = dImg.subtex->height;
-            drawImage(dImg, 200 - (dW / 2.0f), diffY - (dH / 2.0f), 0.85f);
+            drawImage(dImg, 200 - (dW / 2.0f) + get3DOffset(10.0f), diffY - (dH / 2.0f), 0.85f);
             
             if (aLeftFrame && aLeftFrame->tex) {
                 float aH = frameLogicalH(*aLeftFrame);
-                drawFrameAt(*aLeftFrame, 200 - (dW / 2.0f) - 35, diffY - (aH / 2.0f), 0.85f);
+                drawFrameAt(*aLeftFrame, 200 - (dW / 2.0f) - 35 + get3DOffset(10.0f), diffY - (aH / 2.0f), 0.85f);
             }
             if (aRightFrame && aRightFrame->tex) {
                 float aW = frameLogicalW(*aRightFrame);
                 float aH = frameLogicalH(*aRightFrame);
-                drawFrameAt(*aRightFrame, 200 + (dW / 2.0f) + 35 - aW, diffY - (aH / 2.0f), 0.85f);
+                drawFrameAt(*aRightFrame, 200 + (dW / 2.0f) + 35 - aW + get3DOffset(10.0f), diffY - (aH / 2.0f), 0.85f);
             }
         } else {
-            AddText("< " + curDiffStr + " >", 200, diffY, 0.6f, true, 0.0f, CWhite, 0.0f);
+            AddText("< " + curDiffStr + " >", 200 + get3DOffset(10.0f), diffY, 0.6f, true, 0.0f, CWhite, 0.0f);
         }
     }
  

@@ -125,10 +125,15 @@ extern C2D_Font globalVCRFont;
     vcrFont = globalVCRFont; \
     vcrFontBuf = C2D_TextBufNew(4096);
 
-// State
-
-// Input
 extern bool g_inTransition;
+extern bool g_isRightEye;
+extern float g_current3DSlider;
+
+inline float get3DOffset(float depth) {
+    if (g_current3DSlider <= 0.001f || depth == 0.0f) return 0.0f;
+    float offset = (depth * g_current3DSlider * 0.4f);
+    return g_isRightEye ? -offset : offset;
+}
 #undef hidKeysDown
 #undef hidKeysHeld
 #undef hidKeysUp
@@ -163,6 +168,14 @@ extern bool g_inTransition;
 #define drawImageScaled(img, x, y, z, sx, sy) C2D_DrawImageAt(img, x, y, z, nullptr, sx, sy)
 #define drawImageTinted(img, x, y, z, tint) C2D_DrawImageAt(img, x, y, z, tint)
 #define drawImageScaledTinted(img, x, y, z, sx, sy, tint) C2D_DrawImageAt(img, x, y, z, tint, sx, sy)
+
+// 3D-enabled drawing macros (applies stereoscopic 3D offset automatically)
+#define drawImage3D(img, x, y, z, depth3D) C2D_DrawImageAt(img, (x) + get3DOffset(depth3D), y, z)
+#define drawImageScaled3D(img, x, y, z, sx, sy, depth3D) C2D_DrawImageAt(img, (x) + get3DOffset(depth3D), y, z, nullptr, sx, sy)
+#define drawImageTinted3D(img, x, y, z, tint, depth3D) C2D_DrawImageAt(img, (x) + get3DOffset(depth3D), y, z, tint)
+#define drawImageScaledTinted3D(img, x, y, z, sx, sy, tint, depth3D) C2D_DrawImageAt(img, (x) + get3DOffset(depth3D), y, z, tint, sx, sy)
+#define drawFrameAt3D(f, x, y, depth, depth3D, tint, sx, sy) drawFrameAt(f, (x) + get3DOffset(depth3D), y, depth, tint, sx, sy)
+#define drawFrameCentered3D(f, cx, cy, depth, depth3D, tint, sx, sy) drawFrameCentered(f, (cx) + get3DOffset(depth3D), cy, depth, tint, sx, sy)
 
 static inline void drawCenteredBG(C2D_Image img, float targetW, float targetH, float depth, C2D_ImageTint* tint = nullptr) {
     if (!img.tex) return;
@@ -346,17 +359,3 @@ static inline void renderRatingSprite(C3D_Tex* tex, const Tex3DS_SubTexture* sub
         }
     }
 }
-
-
-
-/*
-Hope dies slowly.
-Humanity is fading away...
-
-The end is drawing ever closer, but ignorance makes it imperceptible.
-
-Clear your mind, and follow the man who wears blue and black.
-Where you have all the options, wait until a unknow door appears.
-
-@{3P7 H1S D3@L.....
-*/

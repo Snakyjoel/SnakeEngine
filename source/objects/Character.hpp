@@ -142,6 +142,7 @@ public:
     float alpha = 1.0f;
     bool visible = true;
     float angle = 0.0f;
+    float depth3D = 0.0f;
 
     float holdTimer = 0.0f;
     float singDuration = 4.0f; // Steps en conductor

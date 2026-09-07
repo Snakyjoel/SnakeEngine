@@ -14,6 +14,7 @@
 #include <cmath>
 
 bool MainMenuState::comingFromFreeplay = false;
+std::string MainMenuState::version = "3.7.8";
 
 void MainMenuState::init() {
     // Reset isolation
@@ -329,7 +330,7 @@ void MainMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         if (drawY > maxY) drawY = maxY;
         C2D_ImageTint tint;
         C2D_PlainImageTint(&tint, C2D_Color32(bgTintR, bgTintG, bgTintB, (u8)(drawAlpha * 255.0f)), 1.0f);
-        C2D_DrawImageAt(topBG, drawX, drawY, 0.1f, &tint, parallaxScale, parallaxScale);
+        C2D_DrawImageAt(topBG, drawX  + get3DOffset(-10.0f), drawY, 0.1f, &tint, parallaxScale, parallaxScale);
     }
 
     for (int i = 0; i < 4; i++) {
@@ -345,11 +346,11 @@ void MainMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             C2D_AlphaImageTint(&tint, itemAlpha);
             tintPtr = &tint;
         }
-        item.animate.drawCentered(item.x, item.y, 0.5f, 1.0f, 1.0f, tintPtr);
+        item.animate.drawCentered(item.x + get3DOffset(10.0f), item.y, 0.5f, 1.0f, 1.0f, tintPtr);
     }
 
     u32 textCol = C2D_Color32(255, 255, 255, (u8)(drawAlpha * 255.0f));
-    AddText("v2.6.7", 8, 225, 0.38f, false, 1.5f, textCol, 0.0f);
+    AddText("v" + version, 8 + get3DOffset(10.0f), 225, 0.38f, false, 1.5f, textCol, 0.0f);
 
     C2D_SceneBegin(bottom);
     C2D_TargetClear(bottom, bgClearCol);
