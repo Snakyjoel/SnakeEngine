@@ -1322,7 +1322,8 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
 
         float baseX = stageX + x - camX;
         float baseY = stageY + y - camY;
-        float drawX = (baseX * screenScale * zoom) + (ScreenWidthTop / 2.0f) + shakeX;
+        float totalDepth3D_sp = depth3D + (PlayState::instance ? PlayState::instance->camGame3DDepth : 0.0f);
+        float drawX = (baseX * screenScale * zoom) + (ScreenWidthTop / 2.0f) + shakeX + get3DOffset(totalDepth3D_sp);
         float drawY = (baseY * screenScale * zoom) + (ScreenHeight / 2.0f) + shakeY;
 
         float offX = 0.0f;
@@ -1366,7 +1367,8 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
              float screenScale = 240.0f / 720.0f;
              float baseX = stageX + x - camX;
              float baseY = stageY + y - camY;
-             float drawX = (baseX * screenScale * zoom) + (ScreenWidthTop / 2.0f) + shakeX;
+             float totalDepth3D_fb = depth3D + (PlayState::instance ? PlayState::instance->camGame3DDepth : 0.0f);
+             float drawX = (baseX * screenScale * zoom) + (ScreenWidthTop / 2.0f) + shakeX + get3DOffset(totalDepth3D_fb);
              float drawY = (baseY * screenScale * zoom) + (ScreenHeight / 2.0f) + shakeY;
              C2D_ImageTint tint;
              C2D_ImageTint* tintPtr = nullptr;

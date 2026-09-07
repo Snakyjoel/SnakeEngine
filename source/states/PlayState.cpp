@@ -1484,8 +1484,7 @@ void PlayState::updateNotesLogic(float dt) {
 
 void PlayState::update(float dt) {
     if (gameOver) {
-        LuaManager::get().callFunction("onUpdate", {std::to_string(dt)});
-        LuaManager::get().callFunction("onUpdatePost", {std::to_string(dt)});
+        { static char _dtBuf[32]; snprintf(_dtBuf, sizeof(_dtBuf), "%.6f", dt); LuaManager::get().callFunction("onUpdate", {_dtBuf}); LuaManager::get().callFunction("onUpdatePost", {_dtBuf}); }
 
         gameOverTimer += dt;
 
@@ -1590,7 +1589,7 @@ void PlayState::update(float dt) {
         }
     }
 
-    if (bf && bf->curAnim.find("idle") != std::string::npos) {
+    if (!bfWentIdle && bf && bf->curAnim.find("idle") != std::string::npos) {
         bfWentIdle = true;
     }
 
@@ -1704,8 +1703,7 @@ void PlayState::update(float dt) {
         return;
     }
 
-    LuaManager::get().callFunction("onUpdate", {std::to_string(dt)});
-    LuaManager::get().callFunction("onUpdatePost", {std::to_string(dt)});
+    { static char _dtBuf[32]; snprintf(_dtBuf, sizeof(_dtBuf), "%.6f", dt); LuaManager::get().callFunction("onUpdate", {_dtBuf}); LuaManager::get().callFunction("onUpdatePost", {_dtBuf}); }
 
 
 
@@ -3169,6 +3167,8 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
     // Cap note iterations for performance
     size_t noteLimit = nextNoteIndex + 80;
     if (noteLimit > songNotes.size()) noteLimit = songNotes.size();
+    // Cache 3D offset once — constant for the entire note loop
+    const float offset3D_notes = get3DOffset(notes3DDepth + camHUD3DDepth);
 
     for (size_t i = nextNoteIndex; i < noteLimit; i++) {
         Note& n = songNotes[i];
@@ -3204,12 +3204,11 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         float tailDistance = endDiff * p3DS;
 
         // Head pos
-        float offset3D_note = get3DOffset(notes3DDepth + camHUD3DDepth);
-        float headX = laneCenterX - cosf(dirRad) * headDistance + offset3D_note;
+        float headX = laneCenterX - cosf(dirRad) * headDistance + offset3D_notes;
         float headY = laneCenterY + sinf(dirRad) * headDistance;
 
         // Tail end position
-        float tailX = laneCenterX - cosf(dirRad) * tailDistance + offset3D_note;
+        float tailX = laneCenterX - cosf(dirRad) * tailDistance + offset3D_notes;
         float tailY = laneCenterY + sinf(dirRad) * tailDistance;
 
         if (headY < -300.0f && tailY < -300.0f) continue;
@@ -3461,7 +3460,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
 
         float sx = noteScale, sy = noteScale;
 
-        float offset3D_noteHead = get3DOffset(notes3DDepth + camHUD3DDepth);
+        float offset3D_noteHead = offset3D_notes;
         lx = centerXT + (lx - centerXT) * hudZoom + offset3D_noteHead;
         ly = centerYT + (ly - centerYT) * hudZoom;
         sx *= hudZoom; sy *= hudZoom;
