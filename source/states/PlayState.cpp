@@ -265,6 +265,8 @@ inline float lerp(float a, float b, float t) {
     return a + t * (b - a);
 }
 
+static constexpr float DEG_TO_RAD = 0.017453292519943295f;
+
 PlayState::PlayState(const std::string& songName, const std::string& difficulty)
     : curSong(songName), currentDifficulty(difficulty) {
     isStoryMode = false;
@@ -1255,24 +1257,21 @@ void PlayState::updateCamera(float dt) {
     scoreZoom = lerp(scoreZoom, 1.0f, dt * 10.0f);
 
     if (autoIconPosition) {
-        float screenScale = 240.0f / 720.0f;
         float healthBarW = 200.0f;
-        float healthBarH = 5.0f;
-        float healthBarX = (ScreenWidthTop - healthBarW) / 2.0f;
+        float healthBarX = 100.0f;
         float healthBarY = ClientPrefs::downscroll ? 20.0f : ScreenHeight - 20.0f;
-        float healthPerc = health / 2.0f;
+        float healthPerc = health * 0.5f;
 
         float unzoomed_divX  = healthBarX + healthBarW * (1.0f - healthPerc);
-        float unzoomed_iconSz = 42.0f;
-        float iconHalf = unzoomed_iconSz * 0.5f;               // 21px
-        float iconCenterY = healthBarY + healthBarH * 0.5f;    // vertical center of the bar
+        float iconHalf = 21.0f;
+        float iconCenterY = healthBarY + 2.5f;
 
         // P2 (enemy, positive scale): C2D_DrawImageAtRotated is centered → store center = divX - iconHalf
         // P1 (player, negative scale): anchor is LEFT EDGE of flipped image → store divX so center lands at divX + iconHalf
-        iconP2X = (unzoomed_divX - iconHalf) / screenScale;
-        iconP2Y = iconCenterY / screenScale;
-        iconP1X = unzoomed_divX / screenScale;   // store visual center of P1 (= divX)
-        iconP1Y = iconCenterY / screenScale;
+        iconP2X = (unzoomed_divX - iconHalf) * 3.0f;
+        iconP2Y = iconCenterY * 3.0f;
+        iconP1X = unzoomed_divX * 3.0f;   // store visual center of P1 (= divX)
+        iconP1Y = iconCenterY * 3.0f;
     }
 
     // Update rating popups physics
@@ -1310,9 +1309,9 @@ void PlayState::updateCamera(float dt) {
 }
 
 void PlayState::updateNotesLogic(float dt) {
-    p3DS = (240.0f/720.0f) * SongParser::songSpeed * 0.45f;
+    p3DS = SongParser::songSpeed * 0.15f;
     if (ClientPrefs::middleScroll) {
-        playerX = (ScreenWidthTop / 2.0f) - (spacing * 1.5f) - (spacing / 2.0f);
+        playerX = 200.0f - (spacing * 2.0f);
     } else {
         playerX = ScreenWidthTop - (spacing * 4.0f) - 16.0f;
     }
@@ -1881,20 +1880,20 @@ void PlayState::update(float dt) {
 
     if (camShakeTimer > 0) {
         camShakeTimer -= dt;
-        csX = (float)((rand() % 100) - 50) / 50.0f * camShakeIntensity * 400.0f;
-        csY = (float)((rand() % 100) - 50) / 50.0f * camShakeIntensity * 240.0f;
+        csX = (float)((rand() % 100) - 50) * 8.0f * camShakeIntensity;
+        csY = (float)((rand() % 100) - 50) * 4.8f * camShakeIntensity;
     } else { csX = 0; csY = 0; }
 
     if (hudShakeTimer > 0) {
         hudShakeTimer -= dt;
-        hsX = (float)((rand() % 100) - 50) / 50.0f * hudShakeIntensity * 400.0f;
-        hsY = (float)((rand() % 100) - 50) / 50.0f * hudShakeIntensity * 240.0f;
+        hsX = (float)((rand() % 100) - 50) * 8.0f * hudShakeIntensity;
+        hsY = (float)((rand() % 100) - 50) * 4.8f * hudShakeIntensity;
     } else { hsX = 0; hsY = 0; }
 
     if (otherShakeTimer > 0) {
         otherShakeTimer -= dt;
-        osX = (float)((rand() % 100) - 50) / 50.0f * otherShakeIntensity * 400.0f;
-        osY = (float)((rand() % 100) - 50) / 50.0f * otherShakeIntensity * 240.0f;
+        osX = (float)((rand() % 100) - 50) * 8.0f * otherShakeIntensity;
+        osY = (float)((rand() % 100) - 50) * 4.8f * otherShakeIntensity;
     } else { osX = 0; osY = 0; }
 
 
@@ -2448,7 +2447,7 @@ static void C2D_DrawRectRotated(float cx, float cy, float w, float h, float angl
         C2D_DrawRectSolid(cx - w * 0.5f, cy - h * 0.5f, depth, w, h, color);
         return;
     }
-    float rad = angle_deg * (3.14159265f / 180.0f);
+    float rad = angle_deg * DEG_TO_RAD;
     float hw = w * 0.5f;
     float hh = h * 0.5f;
     float cosA = cosf(rad);
@@ -2505,9 +2504,11 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
                        ShaderManager::get().isCameraExtended("camHUD") ||
                        ShaderManager::get().isCameraExtended("camOther");
     if (showGrid && !ClientPrefs::lowQuality && !anyExtended) {
-        for (float x = -gridSize; x < bw + gridSize; x += gridSize) {
-            for (float y = -gridSize; y < bh + gridSize; y += gridSize) {
-                if ((int(x / gridSize) + int(y / gridSize)) % 2 == 0) {
+        int ix = -1;
+        for (float x = -gridSize; x < bw + gridSize; x += gridSize, ++ix) {
+            int iy = -1;
+            for (float y = -gridSize; y < bh + gridSize; y += gridSize, ++iy) {
+                if ((ix + iy) % 2 == 0) {
                     C2D_DrawRectSolid(x + gx, y + gy, 0, gridSize, gridSize, gridCol);
                 }
             }
@@ -2637,7 +2638,7 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
 
         float cx = drawX + sub.width * finalScaleX * 0.5f;
         float cy = drawY + sub.height * finalScaleY * 0.5f;
-        C2D_DrawImageAtRotated(img, cx, cy, 0.95f, countdownAngle * (3.14159265f / 180.0f), tintPtr, finalScaleX, finalScaleY);
+        C2D_DrawImageAtRotated(img, cx, cy, 0.95f, countdownAngle * DEG_TO_RAD, tintPtr, finalScaleX, finalScaleY);
     }
 }
 
@@ -2747,7 +2748,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
                 u32 barCol = (timeBarColor & 0x00FFFFFF) | ((u32)bar_a << 24);
                 float bar_cx = tbX + timeBarW * 0.5f;
                 float bar_cy = tbY + timeBarH * 0.5f;
-                float rad = timeBarAngle * (3.14159265f / 180.0f);
+                float rad = timeBarAngle * DEG_TO_RAD;
                 float dx = -timeBarW * 0.5f * (1.0f - progress);
                 float rx = dx * cosf(rad);
                 float ry = dx * sinf(rad);
@@ -2861,7 +2862,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             u32 dadCol = C2D_Color32f(dadR, dadG, dadB, dad_a / 255.0f);
             C2D_DrawRectRotated(dad_cx, dad_cy, hbW, hbH, healthBarAngle, dadCol, 0.92f);
 
-            float rad = healthBarAngle * (3.14159265f / 180.0f);
+            float rad = healthBarAngle * DEG_TO_RAD;
             float dx = hbW * 0.5f * (1.0f - healthPerc);
             float rx = dx * cosf(rad);
             float ry = dx * sinf(rad);
@@ -2939,7 +2940,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float scY = baseSc * iconP2ScaleY * (iconP2FlipY ? -1.0f : 1.0f);
             GPU_TEXTURE_FILTER_PARAM f = iconP2Antialiasing ? GPU_LINEAR : GPU_NEAREST;
             if (iconDad.loaded) C3D_TexSetFilter(&iconDad.tex, f, f);
-            C2D_DrawImageAtRotated(iconImg, drawX2, drawY2, 0.94f, iconP2Angle * (3.14159265f / 180.0f), tint2Ptr, scX, scY);
+            C2D_DrawImageAtRotated(iconImg, drawX2, drawY2, 0.94f, iconP2Angle * DEG_TO_RAD, tint2Ptr, scX, scY);
         }
         if (iconBf.loaded && iconP1Visible) {
             Tex3DS_SubTexture* sub = bfLosing ? &iconBf.losingSub : &iconBf.normalSub;
@@ -2950,7 +2951,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float drawnW = 64.0f * fabsf(scX);
             GPU_TEXTURE_FILTER_PARAM f = iconP1Antialiasing ? GPU_LINEAR : GPU_NEAREST;
             if (iconBf.loaded) C3D_TexSetFilter(&iconBf.tex, f, f);
-            C2D_DrawImageAtRotated(iconImg, drawX1 - drawnW * 0.5f, drawY1, 0.94f, iconP1Angle * (3.14159265f / 180.0f), tint1Ptr, scX, scY);
+            C2D_DrawImageAtRotated(iconImg, drawX1 - drawnW * 0.5f, drawY1, 0.94f, iconP1Angle * DEG_TO_RAD, tint1Ptr, scX, scY);
         }
     }
 
@@ -2963,7 +2964,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float lx = getLaneX(i, false);
             float ly = getLaneY(i, false);
             float oppAlpha = getLaneAlpha(i, false);
-            float oppAngle = getLaneAngle(i, false) * (3.14159265f / 180.0f);
+            float oppAngle = getLaneAngle(i, false) * DEG_TO_RAD;
             float sx = noteScale * customOpponentStrumScaleX[i];
             float sy = noteScale * customOpponentStrumScaleY[i];
 
@@ -3063,7 +3064,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         float lx = getLaneX(i, true);
         float ly = getLaneY(i, true);
         float playerAlpha = getLaneAlpha(i, true);
-        float playerAngle = getLaneAngle(i, true) * (3.14159265f / 180.0f);
+        float playerAngle = getLaneAngle(i, true) * DEG_TO_RAD;
         float sx = noteScale * customPlayerStrumScaleX[i];
         float sy = noteScale * customPlayerStrumScaleY[i];
 
@@ -3190,7 +3191,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         if (ClientPrefs::downscroll && strumDir == 90.0f) {
             strumDir = 270.0f;
         }
-        float dirRad = strumDir * (3.14159265f / 180.0f);
+        float dirRad = strumDir * DEG_TO_RAD;
 
         // Head position (start of sustain)
         float headDiff = diff;
@@ -3390,10 +3391,10 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float endDsY;
             float endDrawAngle;
             if (holdEnd.rotated) {
-                endDrawAngle = angleLine + n.angle * (3.14159265f / 180.0f);
+                endDrawAngle = angleLine + n.angle * DEG_TO_RAD;
                 endDsY = endTipH / holdEnd.sub.width;
             } else {
-                endDrawAngle = angleLine - (3.14159265f / 2.0f) + n.angle * (3.14159265f / 180.0f);
+                endDrawAngle = angleLine - (3.14159265f / 2.0f) + n.angle * DEG_TO_RAD;
                 endDsY = endTipH / holdEnd.sub.height;
             }
 
@@ -3447,7 +3448,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         if (ClientPrefs::downscroll && strumDir == 90.0f) {
             strumDir = 270.0f;
         }
-        float dirRad = strumDir * (3.14159265f / 180.0f);
+        float dirRad = strumDir * DEG_TO_RAD;
         float dist = diff * p3DS;
 
         float lx = targetRecX - cosf(dirRad) * dist;
@@ -3518,7 +3519,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         C2D_ImageTint alphaTint;
         C2D_ImageTint* passTint = nullptr;
         float baseAlpha = getLaneAlpha(n.noteData, n.isPlayer) * n.multAlpha;
-        float noteAngle = (getLaneAngle(n.noteData, n.isPlayer) + n.angle) * (3.14159265f / 180.0f);
+        float noteAngle = (getLaneAngle(n.noteData, n.isPlayer) + n.angle) * DEG_TO_RAD;
 
         bool useFastTintHead = ClientPrefs::fastNotes && fastNoteSheet && fastNoteSubtexs.size() >= 2
                                && n.texture.empty();
@@ -4422,7 +4423,7 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
         float centerX = drawX + (imgW * (ls.flipX ? -absScaleX : absScaleX)) / 2.0f;
         float centerY = drawY + (imgH * (ls.flipY ? -absScaleY : absScaleY)) / 2.0f;
 
-        float angleRad = ls.angle * (3.14159265f / 180.0f);
+        float angleRad = ls.angle * DEG_TO_RAD;
         if (frameRotated) {
             angleRad -= (3.14159265f / 2.0f);
         }

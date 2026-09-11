@@ -22,7 +22,7 @@ AccessControlInfo:
   DescVersion                   : 2
   MemoryType                    : Application
   HandleTableSize               : 0x200
-  SystemMode                    : 80MB
+  SystemMode                    : 96MB
   DisableDebug                  : true
   EnableForceDebug              : false
   CanWriteSharedPage            : true

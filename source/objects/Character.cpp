@@ -1377,8 +1377,9 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
                  C2D_PlainImageTint(&tint, C2D_Color32(100, 100, 100, (u8)(alpha * 255.0f)), 1.0f);
                  tintPtr = &tint;
                  if (!img.tex) {
-                     float finalScale = charScale * screenScale * zoom;
-                     C2D_DrawRectSolid(drawX, drawY, depth, 64.0f * finalScale, 64.0f * finalScale, C2D_Color32(100, 100, 100, (u8)(alpha * 255.0f)));
+                     float finalScaleX = charScaleX * screenScale * zoom;
+                     float finalScaleY = charScaleY * screenScale * zoom;
+                     C2D_DrawRectSolid(drawX, drawY, depth, 64.0f * finalScaleX, 64.0f * finalScaleY, C2D_Color32(100, 100, 100, (u8)(alpha * 255.0f)));
                      return;
                  }
              } else if (isHighlighted) {
@@ -1390,21 +1391,22 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
              }
              
              float totalAngle = angle;
-             float finalScale = charScale * screenScale * zoom;
+             float finalScaleX = charScaleX * screenScale * zoom;
+             float finalScaleY = charScaleY * screenScale * zoom;
              bool shouldFlip = (isPlayer != flipX);
              {
                  float angleRad = totalAngle * (3.14159265f / 180.0f);
                  if (f0.rotated) angleRad -= (3.14159265f / 2.0f);
                  float imgW = f0.rotated ? (float)f0.h : (float)f0.w;
                  float imgH = f0.rotated ? (float)f0.w : (float)f0.h;
-                 float centerX = drawX + imgW * (shouldFlip ? -finalScale : finalScale) / 2.0f;
-                 float centerY = drawY + imgH * finalScale / 2.0f;
+                 float centerX = drawX + imgW * (shouldFlip ? -finalScaleX : finalScaleX) / 2.0f;
+                 float centerY = drawY + imgH * finalScaleY / 2.0f;
 
-                 float scaleX = shouldFlip ? -finalScale : finalScale;
-                 float scaleY = finalScale;
+                 float scaleX = shouldFlip ? -finalScaleX : finalScaleX;
+                 float scaleY = finalScaleY;
                  if (f0.rotated) {
-                     scaleX = finalScale;
-                     scaleY = shouldFlip ? -finalScale : finalScale;
+                     scaleX = finalScaleX;
+                     scaleY = shouldFlip ? -finalScaleY : finalScaleY;
                  }
                  C2D_DrawImageAtRotated(img, centerX, centerY, depth, angleRad, tintPtr, scaleX, scaleY);
              }
@@ -1438,12 +1440,11 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
     float drawX = (baseX * screenScale * zoom) + (ScreenWidthTop / 2.0f) + shakeX + offset3D;
     float drawY = (baseY * screenScale * zoom) + (ScreenHeight / 2.0f) + shakeY;
 
-    // [FIX-2] Rotated frames: origin uses swapped atlas dimensions
     // HaxeFlixel scales from the origin (center of the frame).
-    // For rotated frames atlas w/h are swapped so visual width=frameH, visual height=frameW.
+    // Always use frameW/frameH — rotation is compensated by the -90° turn elsewhere.
     if (!PlayState::instance || !PlayState::instance->legacyPositioning) {
-        float originX = f.rotated ? f.frameH / 2.0f : f.frameW / 2.0f;
-        float originY = f.rotated ? f.frameW / 2.0f : f.frameH / 2.0f;
+        float originX = f.frameW / 2.0f;
+        float originY = f.frameH / 2.0f;
         drawX += originX * (1.0f - charScaleX) * screenScale * zoom;
         drawY += originY * (1.0f - charScaleY) * screenScale * zoom;
     }

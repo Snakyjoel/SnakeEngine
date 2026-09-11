@@ -112,7 +112,7 @@ public:
 
 private:
     static constexpr int CHANNEL    = 5;
-    static constexpr int BUF_COUNT  = 2;
+    static constexpr int BUF_COUNT  = 4;
     static constexpr int BUF_SMPLS  = 4096;
 
     static OggVorbis_File  vf;

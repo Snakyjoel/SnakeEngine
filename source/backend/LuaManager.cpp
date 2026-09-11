@@ -1790,7 +1790,9 @@ int LuaManager::lua_getProperty(lua_State* L) {
                 if (prop == "alpha") lua_pushnumber(L, c->alpha);
                 else if (prop == "x") lua_pushnumber(L, c->x);
                 else if (prop == "y") lua_pushnumber(L, c->y);
-                else if (prop == "scale.x" || prop == "scale.y" || prop == "scale") lua_pushnumber(L, c->charScale);
+                else if (prop == "scale.x") lua_pushnumber(L, c->charScaleX);
+                else if (prop == "scale.y") lua_pushnumber(L, c->charScaleY);
+                else if (prop == "scale") lua_pushnumber(L, c->charScaleX);
                 else if (prop == "visible") lua_pushboolean(L, c->visible);
                 else if (prop == "angle") lua_pushnumber(L, c->angle);
                 else if (prop == "curCharacter" || prop == "curCharacterName") lua_pushstring(L, c->curCharacterName.c_str());

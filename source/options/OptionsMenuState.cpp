@@ -972,10 +972,10 @@ void OptionsMenuState::update(float dt) {
             
             float dx = touch.px - cx;
             float dy = touch.py - cy;
-            float dist = sqrt(dx*dx + dy*dy);
+            float dist = sqrtf(dx*dx + dy*dy);
             
             if (dist <= radius) {
-                float angle = atan2(dy, dx) * 180.0f / M_PI;
+                float angle = atan2f(dy, dx) * 180.0f / (float)M_PI;
                 float hue = angle - 270.0f;
                 while (hue < 0.0f) hue += 360.0f;
                 while (hue >= 360.0f) hue -= 360.0f;

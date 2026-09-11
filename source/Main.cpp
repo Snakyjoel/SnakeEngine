@@ -149,6 +149,33 @@ int main(int argc, char* argv[]) {
             if (MusicBeatState::transProgress >= 1.0f) {
                 MusicBeatState::transProgress = 1.0f;
 
+                // Pre-fill audio buffers to prevent stutter during initial state load
+                MusicPlayer::update();
+
+                // Render and present 100% closed transition frame BEFORE blocking in init()
+                C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+                g_isRightEye = false;
+                if (currentState) currentState->draw(top, bottom);
+                if (g_current3DSlider > 0.001f) {
+                    g_isRightEye = true;
+                    if (currentState) currentState->draw(topRight, bottom);
+                }
+                g_isRightEye = false;
+
+                if (MusicBeatState::useStickerTransition) {
+                    MusicBeatState::drawStickerTransition(top, bottom);
+                    if (g_current3DSlider > 0.001f) {
+                        MusicBeatState::drawStickerTransition(topRight, nullptr);
+                    }
+                } else {
+                    drawWipeOverlay(top, 400.0f, 240.0f);
+                    if (g_current3DSlider > 0.001f) {
+                        drawWipeOverlay(topRight, 400.0f, 240.0f);
+                    }
+                    drawWipeOverlay(bottom, 320.0f, 240.0f);
+                }
+                C3D_FrameEnd(0);
+
                 if (currentState) {
                     currentState->exitState();
                     delete currentState;
@@ -264,8 +291,14 @@ int main(int argc, char* argv[]) {
             if (MusicBeatState::transPhase != TransitionPhase::NONE && !MusicBeatState::skipTransition) {
                 if (MusicBeatState::useStickerTransition) {
                     MusicBeatState::drawStickerTransition(top, bottom);
+                    if (g_current3DSlider > 0.001f) {
+                        MusicBeatState::drawStickerTransition(topRight, nullptr);
+                    }
                 } else {
                     drawWipeOverlay(top,    400.0f, 240.0f);
+                    if (g_current3DSlider > 0.001f) {
+                        drawWipeOverlay(topRight, 400.0f, 240.0f);
+                    }
                     drawWipeOverlay(bottom, 320.0f, 240.0f);
                 }
             }

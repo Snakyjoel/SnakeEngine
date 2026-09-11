@@ -38,22 +38,21 @@ void drawWipeOverlay(C3D_RenderTarget* screen, float screenW, float screenH) {
         }
 
     } else { // FADE_IN
-        float edgeY = p * (screenH + GRAD_H);
+        float edgeY = screenH - (p * (screenH + GRAD_H));
 
-        // Feathered gradient above the curtain body
+        // Solid curtain body above the leading edge
+        float solidH = edgeY;
+        if (solidH > 0.0f) {
+            C2D_DrawRectSolid(0, 0, 1.0f, screenW,
+                              std::min(solidH, screenH),
+                              opaqueBlack);
+        }
+
+        // Feathered gradient at the leading edge
         float gradTop = edgeY;
         if (gradTop + GRAD_H > 0.0f && gradTop < screenH) {
             C2D_DrawRectangle(0.0f, gradTop, 1.0f, screenW, GRAD_H,
-                              transparentBlack, transparentBlack, opaqueBlack, opaqueBlack);
-        }
-
-        // Solid curtain body below the gradient
-        float blackTop = edgeY + GRAD_H;
-        if (blackTop < screenH) {
-            float clampedTop = std::max(0.0f, blackTop);
-            C2D_DrawRectSolid(0, clampedTop, 1.0f, screenW,
-                              screenH - clampedTop,
-                              opaqueBlack);
+                              opaqueBlack, opaqueBlack, transparentBlack, transparentBlack);
         }
     }
 }

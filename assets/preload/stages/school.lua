@@ -110,7 +110,30 @@ function onCreate()
             playAnim('girl2-' .. i, 'idle', true)
         end
     end
-    --end
+
+    set3dDepth('camGame', -7.0)
+
+    set3dDepth('sky', -9.0)
+    set3dDepth('school', -7.0)
+    set3dDepth('weebTree1Back', -6.0)
+    set3dDepth('weebTree2Back', -6.0)
+    set3dDepth('trees1', -4.0)
+    set3dDepth('trees2', -4.0)
+    for i = 1, 3 do
+        set3dDepth('girl1-' .. i, -3.0)
+        set3dDepth('girl2-' .. i, -3.0)
+    end
+
+    set3dDepth('camHUD', 5.0)
+
+    set3dDepth('healthBar', 3.0)
+    set3dDepth('healthBarBG', 3.0)
+    set3dDepth('timeBar', 3.0)
+    set3dDepth('timeBarBG', 3.0)
+    set3dDepth('timeTxt', 3.0)
+
+    set3dDepth('iconP1', 5.0)
+    set3dDepth('iconP2', 5.0)
 end
 
 function onBeatHit()

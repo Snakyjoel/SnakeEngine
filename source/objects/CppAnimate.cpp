@@ -314,15 +314,16 @@ void CppAnimate::draw(float x, float y, float depth, float sx, float sy, C2D_Ima
             symName = curAnim;
         }
         // Root matrix: canvas-center → (x, y), with overall scale
-        float finalScale = spritemapScale * scaleX * sx;
+        float finalScaleX = spritemapScale * scaleX * sx;
+        float finalScaleY = spritemapScale * scaleY * sy;
         float canvasCX   = smData.canvasW * 0.5f;
         float canvasCY   = smData.canvasH * 0.5f;
         float rad = angle * (3.14159265f / 180.f);
         float cosA = cosf(rad);
         float sinA = sinf(rad);
 
-        float flipScaleX = finalScale * (flipX ? -1.f : 1.f);
-        float flipScaleY = finalScale * (flipY ? -1.f : 1.f);
+        float flipScaleX = finalScaleX * (flipX ? -1.f : 1.f);
+        float flipScaleY = finalScaleY * (flipY ? -1.f : 1.f);
 
         AffineMatrix rootMX;
         rootMX.a  = flipScaleX * cosA;
