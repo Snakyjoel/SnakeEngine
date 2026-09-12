@@ -1,4 +1,5 @@
 #include "../debug/DebugMenuState.hpp"
+#include "RamTestState.hpp"
 #include "TitleState.hpp"
 #include "MusicPlayerState.hpp"
 #include "SnakyPlayerState.hpp"
@@ -65,6 +66,7 @@ void DebugMenuState::init() {
     menuItems.push_back({"Outdated: GameBanana", "Test OutdatedState (GameBanana)", 11});
     menuItems.push_back({"Outdated: GameJolt", "Test OutdatedState (GameJolt)", 12});
     menuItems.push_back({"Outdated: Tester", "Test OutdatedState (Tester version)", 13});
+    menuItems.push_back({"RAM Test", "Verify available RAM", 14});
 }
 
 void DebugMenuState::update(float dt) {
@@ -106,6 +108,7 @@ void DebugMenuState::update(float dt) {
             case 11: switchState(new OutdatedState(-1, "9.9.9", "gamebanana")); break;
             case 12: switchState(new OutdatedState(-1, "9.9.9", "gamejolt")); break;
             case 13: switchState(new OutdatedState(1, MainMenuState::version)); break;
+            case 14: switchState(new RamTestState()); break;
         }
     }
 }

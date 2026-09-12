@@ -25,30 +25,81 @@ AccessControlInfo:
   SystemMode                    : 96MB
   DisableDebug                  : true
   EnableForceDebug              : false
-  CanWriteSharedPage            : true
+  SpecialMemoryArrange          : true
+  CanShareDeviceMemory          : true
   ServiceAccessControl:
     - apt:u
     - ac:u
     - am:app
-    - cam:u
     - cecd:u
     - cfg:i
     - cfg:s
     - cfg:u
     - csnd:SND
     - dsp::DSP
+    - dsp::u
     - frd:u
     - fs:USER
     - gsp::Gpu
     - gsp::Lcd
+    - hid:USER
+    - http:C
+    - mic:u
+    - ndm:u
+    - ptm:sysm
+    - soc:U
+    - ssl:C
   SystemCallAccess:
     ArbitrateAddress: 34
+    Break: 60
+    CancelTimer: 28
+    ClearEvent: 25
+    ClearTimer: 29
+    CloseHandle: 35
+    ConnectToPort: 45
     ControlMemory: 1
-    ExitProcess: 11
-    SleepThread: 10
-    CreateThread: 8
-    CreateMutex: 25
+    ControlProcessMemory: 70
+    CreateAddressArbiter: 33
     CreateEvent: 23
+    CreateMemoryBlock: 30
+    CreateMutex: 19
+    CreateSemaphore: 21
+    CreateThread: 8
+    CreateTimer: 26
+    DuplicateHandle: 39
+    ExitProcess: 3
+    ExitThread: 9
+    GetHandleInfo: 41
+    GetProcessId: 53
+    GetProcessIdOfThread: 54
+    GetProcessIdealProcessor: 6
+    GetSystemInfo: 42
+    GetSystemTick: 40
+    GetThreadId: 55
+    GetThreadIdealProcessor: 15
+    GetThreadPriority: 11
+    MapMemoryBlock: 31
+    MapProcessMemory: 71
+    MapProcessMemoryEx: 78
+    OutputDebugString: 61
+    QueryMemory: 2
+    ReleaseMutex: 20
+    ReleaseSemaphore: 22
+    SendSyncRequest1: 46
+    SendSyncRequest2: 47
+    SendSyncRequest3: 48
+    SendSyncRequest4: 49
+    SendSyncRequest: 50
+    SetThreadPriority: 12
+    SetTimer: 27
+    SignalEvent: 24
+    SleepThread: 10
+    UnmapMemoryBlock: 32
+    UnmapProcessMemory: 72
+    UnmapProcessMemoryEx: 79
+    WaitSynchronization1: 36
+    WaitSynchronizationN: 37
+
 
 SystemControlInfo:
   SaveDataSize: 0KB
@@ -56,4 +107,4 @@ SystemControlInfo:
   StackSize: 0x40000
 
 RomFs:
-  RootPath: romfs
+  RootPath: $(APP_ROMFS)

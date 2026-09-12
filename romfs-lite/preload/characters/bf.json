@@ -1,108 +1,141 @@
 {
 	"animations": [
 		{
-			"offsets": [
-				13,
-				1
-			],
-			"indices": [],
+			"anim": "cheer",
+			"name": "Boyfriend YEAH cheer",
 			"fps": 24,
-			"anim": "singLEFT",
 			"loop": false,
-			"name": "BF NOTE LEFT"
+			"offsets": [
+				-425,
+				-267
+			],
+			"indices": []
 		},
 		{
-			"offsets": [
-				3,
-				-9
-			],
-			"indices": [],
+			"anim": "hey",
+			"name": "BF HEY!!",
 			"fps": 24,
-			"anim": "singDOWN",
 			"loop": false,
-			"name": "BF NOTE DOWN"
+			"offsets": [
+				-492,
+				-296
+			],
+			"indices": []
 		},
 		{
-			"offsets": [
-				-6,
-				12
-			],
-			"indices": [],
-			"fps": 24,
-			"anim": "singUP",
-			"loop": false,
-			"name": "BF NOTE UP"
-		},
-		{
-			"offsets": [
-				-12,
-				1
-			],
-			"indices": [],
-			"fps": 24,
-			"anim": "singRIGHT",
-			"loop": false,
-			"name": "BF NOTE RIGHT"
-		},
-		{
-			"offsets": [
-				7,
-				3
-			],
-			"indices": [],
-			"fps": 24,
 			"anim": "idle",
+			"name": "BF idle dance",
+			"fps": 24,
 			"loop": false,
-			"name": "BF idle dance"
+			"offsets": [
+				-491,
+				-296
+			],
+			"indices": []
 		},
 		{
-			"offsets": [
-				-5,
-				12
-			],
-			"indices": [],
+			"anim": "scared",
+			"name": "BF idle shaking",
 			"fps": 24,
-			"anim": "singUPmiss",
 			"loop": false,
-			"name": "BF NOTE UP MISS"
+			"offsets": [
+				-492,
+				-296
+			],
+			"indices": []
 		},
 		{
-			"offsets": [
-				-7,
-				11
-			],
-			"indices": [],
+			"anim": "singDOWN",
+			"name": "BF NOTE DOWN",
 			"fps": 24,
-			"anim": "singRIGHTmiss",
 			"loop": false,
-			"name": "BF NOTE RIGHT MISS"
+			"offsets": [
+				-612,
+				-232
+			],
+			"indices": []
 		},
 		{
-			"offsets": [
-				13,
-				6
-			],
-			"indices": [],
-			"fps": 24,
-			"anim": "singLEFTmiss",
-			"loop": false,
-			"name": "BF NOTE LEFT MISS"
-		},
-		{
-			"offsets": [
-				5,
-				3
-			],
-			"indices": [],
-			"fps": 24,
 			"anim": "singDOWNmiss",
+			"name": "BF NOTE DOWN MISS",
+			"fps": 24,
 			"loop": false,
-			"name": "BF NOTE DOWN MISS"
+			"offsets": [
+				-611,
+				-232
+			],
+			"indices": []
+		},
+		{
+			"anim": "singLEFT",
+			"name": "BF NOTE LEFT",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				-493,
+				-296
+			],
+			"indices": []
+		},
+		{
+			"anim": "singLEFTmiss",
+			"name": "BF NOTE LEFT MISS",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				-494,
+				-296
+			],
+			"indices": []
+		},
+		{
+			"anim": "singRIGHT",
+			"name": "BF NOTE RIGHT",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				-491,
+				-296
+			],
+			"indices": []
+		},
+		{
+			"anim": "singRIGHTmiss",
+			"name": "BF NOTE RIGHT MISS",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				-491,
+				-296
+			],
+			"indices": []
+		},
+		{
+			"anim": "singUP",
+			"name": "BF NOTE UP",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				-614,
+				-189
+			],
+			"indices": []
+		},
+		{
+			"anim": "singUPmiss",
+			"name": "BF NOTE UP MISS",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				-614,
+				-191
+			],
+			"indices": []
 		}
 	],
 	"vocals_file": "",
 	"no_antialiasing": false,
-	"image": "characters/BOYFRIEND",
+	"image": "characters/bf",
 	"position": [
 		0,
 		0
@@ -115,10 +148,10 @@
 		209
 	],
 	"camera_position": [
-		0,
-		100
+		-190,
+		-525
 	],
 	"sing_duration": 4,
-	"scale": 3.1,
+	"scale": 3.2,
 	"_editor_isPlayer": true
 }

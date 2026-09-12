@@ -2,27 +2,27 @@
     "defaultZoom": 0.8,
     "camera_speed": 1,
     "boyfriend": [
-        800,
-        350
+        780,
+        650
     ],
     "boyfriend_camera": [
-        -289,
-        -320
+        0,
+        0
     ],
     "girlfriend": [
-        450,
-        50
+        2050,
+        1090
     ],
     "girlfriend_camera": [
-        -149,
-        -114
+        0,
+        0
     ],
     "opponent": [
-        -80,
-        20
+        1500,
+        1100
     ],
     "opponent_camera": [
-        -158,
-        -538
+        0,
+        0
     ]
 }

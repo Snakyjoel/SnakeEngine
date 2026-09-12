@@ -1,26 +1,28 @@
-local limoDancerCopies = 3 -
-1                              -- segun el original hay 5 (EL -1 NO SE TOCA, ES PARA QUE LOS OFFSETS EN EL BUCLE FUNCIONEN BIEN)
+local limoDancerCopies = 5 -
+	1 -- segun el original hay 5 (EL -1 NO SE TOCA, ES PARA QUE LOS OFFSETS EN EL BUCLE FUNCIONEN BIEN)
 
 function onCreate()
-	makeLuaSprite('back', 'stages/mom/back', -250, 0)
+	makeLuaSprite('back', 'stages/mom/back', -800, -500)
 	scaleObject('back', 2.3, 2.3)
-	setScrollFactor('back', 0.25, 0.25)
+	setScrollFactor('back', 0.1, 0.1)
 
 	makeAnimatedLuaSprite('limoDrive', 'stages/mom/limoDrive', 0, 400)
 	scaleObject('limoDrive', 2.3, 2.3)
 	addAnimationByPrefix('limoDrive', 'Limo stage', 'Limo stage', 24, true)
 	playAnim('limoDrive', 'Limo stage', true)
 
-	makeAnimatedLuaSprite('bgLimo', 'stages/mom/bgLimo', 0, 250)
+	local offsetXLimoAndDancer = -150
+
+	makeAnimatedLuaSprite('bgLimo', 'stages/mom/bgLimo', 0 + offsetXLimoAndDancer, 250)
 	scaleObject('bgLimo', 2.3, 2.3)
 	addAnimationByPrefix('bgLimo', 'background limo pink', 'background limo pink', 24, true)
 	playAnim('bgLimo', 'background limo pink', true)
 	setScrollFactor('bgLimo', 0.35, 0.35)
 
-	makeLuaSprite('car', 'stages/mom/fastCarLol', -2000, 100)
-	scaleObject('car', 1, 1)
+	makeLuaSprite('car', 'stages/mom/fastCarLol', -2000, 0)
+	scaleObject('car', 1.2, 1.2)
 
-	local limoDancerBaseX = -100
+	local limoDancerBaseX = -100 + offsetXLimoAndDancer
 	local limoDancerXOffset = 350
 
 	for i = 0, limoDancerCopies do
@@ -43,8 +45,30 @@ function onCreate()
 	end
 
 	addLuaSprite('limoDrive', false)
+	setProperty('limoDrive.depth', 0.38)
 	addLuaSprite('car', true)
-	setProperty('gf.visible', false)
+
+	set3dDepth('camGame', -7.0)
+
+	set3dDepth('bgLimo', -5.0)
+	for i = 0, limoDancerCopies do
+		set3dDepth('limoDancer' .. i, -5.0)
+	end
+
+	set3dDepth('gf', -2.0)
+	set3dDepth('back', -9.0)
+
+
+	set3dDepth('camHUD', 5.0)
+
+	set3dDepth('healthBar', 3.0)
+	set3dDepth('healthBarBG', 3.0)
+	set3dDepth('timeBar', 3.0)
+	set3dDepth('timeBarBG', 3.0)
+	set3dDepth('timeTxt', 3.0)
+
+	set3dDepth('iconP1', 5.0)
+	set3dDepth('iconP2', 5.0)
 end
 
 -- I was too lazy to edit the lua (SnakyJoel words 🙏🥀)
@@ -61,7 +85,7 @@ function onBeatHit()
 		setProperty('car.x', -2000)
 		playSound('carPass', 0.5)
 		doTweenX('car', 'car', 2000, 0.5, 'linear')
-		nextCar = curBeat + math.random(6, 12)
+		nextCar = curBeat + 40
 	end
 
 	for i = 0, limoDancerCopies do

@@ -186,7 +186,7 @@
         },
         {
           "id": "alphabetPause",
-          "name": "Alphabet Pause",
+          "name": "Enhanced Pause",
           "type": "bool",
           "default": true,
           "description": "If checked, uses Alphabet font in\nthe Pause Menu instead of VCR."
@@ -225,6 +225,13 @@
           "type": "bool",
           "default": true,
           "description": "If unchecked, disables anti-aliasing globally,\nimproving performance at the cost of jagged visuals."
+        },
+        {
+          "id": "enable3DEffect",
+          "name": "3D Screen Effect",
+          "type": "bool",
+          "default": true,
+          "description": "If unchecked, disables stereoscopic 3D rendering\non the top screen."
         },
         {
           "id": "fastNotes",

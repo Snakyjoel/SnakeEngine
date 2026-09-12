@@ -1,63 +1,128 @@
 {
 	"animations": [
 		{
+			"anim": "idle",
+			"name": "Mom Idle",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				15,
+				-6
+			],
+			"indices": [
+				10,
+				11,
+				12,
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9
+			]
+		},
+		{
+			"anim": "idle-loop",
+			"name": "Mom Idle",
+			"fps": 24,
 			"loop": true,
 			"offsets": [
 				15,
 				-6
 			],
-			"anim": "idle",
-			"fps": 24,
-			"name": "Mom Idle",
-			"indices": []
+			"indices": [
+				6,
+				7,
+				8,
+				9
+			]
 		},
 		{
+			"anim": "singDOWN",
+			"name": "MOM DOWN POSE",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				14,
+				-26
+			],
+			"indices": [
+				7,
+				8,
+				9,
+				10,
+				11,
+				12,
+				13,
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6
+			]
+		},
+		{
+			"anim": "singLEFT",
+			"name": "Mom Left Pose",
+			"fps": 24,
 			"loop": false,
 			"offsets": [
 				81,
 				-11
 			],
-			"anim": "singLEFT",
-			"fps": 24,
-			"name": "Mom Left Pose",
-			"indices": []
+			"indices": [
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				0,
+				1,
+				2
+			]
 		},
 		{
+			"anim": "singRIGHT",
+			"name": "Mom Pose Left",
+			"fps": 24,
 			"loop": false,
 			"offsets": [
-				13,
+				-17,
 				-16
 			],
-			"anim": "singRIGHT",
-			"fps": 24,
-			"name": "Mom Pose Left",
-			"indices": []
+			"indices": [
+				6,
+				7,
+				8,
+				0,
+				1,
+				2,
+				3,
+				4,
+				5
+			]
 		},
 		{
-			"loop": false,
-			"offsets": [
-				18,
-				-32
-			],
-			"anim": "singDOWN",
-			"fps": 24,
-			"name": "MOM DOWN POSE",
-			"indices": []
-		},
-		{
-			"loop": false,
-			"offsets": [
-				18,
-				14
-			],
 			"anim": "singUP",
-			"fps": 24,
 			"name": "Mom Up Pose",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				14,
+				17
+			],
 			"indices": []
 		}
 	],
 	"no_antialiasing": false,
-	"image": "characters/Mom_Assets",
+	"image": "characters/momCar",
 	"position": [
 		0,
 		0
@@ -70,9 +135,9 @@
 		142
 	],
 	"camera_position": [
-		0,
-		0
+		-1900,
+		-1250
 	],
 	"sing_duration": 4,
-	"scale": 3.3
+	"scale": 3.05
 }

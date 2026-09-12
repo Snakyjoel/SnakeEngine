@@ -23,14 +23,24 @@ AccessControlInfo:
   MemoryType                    : Application
   HandleTableSize               : 0x200
   SystemMode                    : 96MB
+  IdealProcessor                : 0
+  AffinityMask                  : 1
   DisableDebug                  : true
   EnableForceDebug              : false
   CanWriteSharedPage            : true
+  ReleaseKernelMajor            : "02"
+  ReleaseKernelMinor            : "33"
+  MaxCpu                        : 0x9E
+  IORegisterMapping:
+    - 1ff50000-1ff57fff
+    - 1ff70000-1ff77fff
+  MemoryMapping:
+    - 1f000000-1f5fffff:r
   ServiceAccessControl:
     - apt:u
     - ac:u
     - am:app
-    - cam:u
+    - am:net
     - cecd:u
     - cfg:i
     - cfg:s
@@ -39,16 +49,79 @@ AccessControlInfo:
     - dsp::DSP
     - frd:u
     - fs:USER
+    - fs:RO
     - gsp::Gpu
     - gsp::Lcd
+    - hid:SP
+    - hid:VP
+    - http:C
+    - ldr:ro
+    - ns:PM
+    - ns:su
+    - nwm:u
+    - pm:SM
+    - pm:u
+    - pm:WIN
+    - ptr:srv
+    - set:FD
+    - set:HS
+    - set:SM
+    - set:SS
+    - srv:pm
+    - ssl:C
+    - xdma:sys
   SystemCallAccess:
     ArbitrateAddress: 34
+    Break: 60
+    CancelTimer: 28
+    ClearEvent: 25
+    ClearTimer: 29
+    CloseHandle: 35
+    ConnectToPort: 45
     ControlMemory: 1
-    ExitProcess: 11
-    SleepThread: 10
-    CreateThread: 8
-    CreateMutex: 25
+    CreateAddressArbiter: 33
     CreateEvent: 23
+    CreateMemoryBlock: 30
+    CreateMutex: 19
+    CreateSemaphore: 21
+    CreateThread: 8
+    CreateTimer: 26
+    DuplicateHandle: 39
+    ExitProcess: 3
+    ExitThread: 9
+    GetCurrentProcessorNumber: 17
+    GetHandleInfo: 41
+    GetProcessId: 53
+    GetProcessIdOfThread: 54
+    GetProcessIdealProcessor: 6
+    GetProcessInfo: 43
+    GetResourceLimit: 56
+    GetResourceLimitCurrentValues: 58
+    GetResourceLimitLimitValues: 57
+    GetSystemInfo: 42
+    GetSystemTick: 40
+    GetThreadContext: 59
+    GetThreadId: 55
+    GetThreadIdealProcessor: 15
+    GetThreadInfo: 44
+    GetThreadPriority: 11
+    MapMemoryBlock: 31
+    OutputDebugString: 61
+    QueryMemory: 2
+    ReleaseMutex: 20
+    ReleaseSemaphore: 22
+    SendSyncRequest1: 46
+    SendSyncRequest2: 47
+    SendSyncRequest3: 48
+    SendSyncRequest4: 49
+    SendSyncRequest: 50
+    SetThreadPriority: 12
+    SetTimer: 27
+    SignalEvent: 24
+    SleepThread: 10
+    UnmapMemoryBlock: 32
+    WaitSynchronization1: 36
+    WaitSynchronizationN: 37
 
 SystemControlInfo:
   SaveDataSize: 0KB

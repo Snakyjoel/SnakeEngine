@@ -231,7 +231,7 @@ cia: all
 	@echo "Construyendo archivo .cia con RomFS (Estructura Psych)..."
 	@echo $(BANNER_MSG)
 	@$(BANNER_CMD)
-	@makerom -f cia -o "$(CURDIR)/export/$(TARGET).cia" -elf "$(CURDIR)/export/$(TARGET).elf" -rsf "$(CURDIR)/$(RSF)" -icon "$(CURDIR)/export/$(TARGET).smdh" -banner "$(CURDIR)/build/banner.bin" -exefslogo -target t -ver 1 -major 1 -minor 0 -micro 0 -desc app:7
+	@makerom -f cia -o "$(CURDIR)/export/$(TARGET).cia" -elf "$(CURDIR)/export/$(TARGET).elf" -rsf "$(CURDIR)/$(RSF)" -icon "$(CURDIR)/export/$(TARGET).smdh" -banner "$(CURDIR)/build/banner.bin" -DAPP_ROMFS="$(ROMFS_TARGET)" -exefslogo -target t -ver 1 -major 1 -minor 0 -micro 0
 
 cia-lite:
 	@$(MAKE) cia LITE=1

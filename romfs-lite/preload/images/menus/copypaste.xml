@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="copypaste.png" width="131" height="76">
+  <SubTexture name="copy" x="2" y="2"  width="64" height="72" frameX="-0" frameY="-0" frameWidth="64" frameHeight="72"/>
+  <SubTexture name="paste" x="70" y="2"  width="59" height="72" frameX="-0" frameY="-0" frameWidth="59" frameHeight="72"/>
+</TextureAtlas>

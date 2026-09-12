@@ -40,7 +40,32 @@ bool g_inTransition = false;
 
 extern "C" {
     u32 __ctru_heap_size = 12 * 1024 * 1024;        // 12MB heap
-    u32 __ctru_linear_heap_size = 48 * 1024 * 1024; // 48MB linear (textures/audio)
+    u32 __ctru_linear_heap_size = 80 * 1024 * 1024; // 80MB linear (textures/audio)
+
+    extern u32 __ctru_heap;
+    extern u32 __ctru_linear_heap;
+    extern char *fake_heap_start, *fake_heap_end;
+
+    void __system_allocateHeaps(void) {
+        u32 tmp = 0;
+        u64 region_size = osGetMemRegionSize(MEMREGION_APPLICATION);
+
+        u32 target_heap = __ctru_heap_size;
+        u32 target_linear = __ctru_linear_heap_size;
+
+        if (region_size < 96 * 1024 * 1024) {
+            if (target_linear > 52 * 1024 * 1024) target_linear = 52 * 1024 * 1024;
+        }
+
+        __ctru_heap = 0x08000000;
+        svcControlMemory(&tmp, __ctru_heap, 0, target_heap, MEMOP_ALLOC, (MemPerm)(MEMPERM_READ | MEMPERM_WRITE));
+        svcControlMemory(&__ctru_linear_heap, 0, 0, target_linear, MEMOP_ALLOC_LINEAR, (MemPerm)(MEMPERM_READ | MEMPERM_WRITE));
+
+        mappableInit(0x10000000, 0x14000000);
+
+        fake_heap_start = (char *)__ctru_heap;
+        fake_heap_end   = (char *)__ctru_heap + target_heap;
+    }
 }
 
 
@@ -70,19 +95,27 @@ static void aptHookFunc(APT_HookType hook, void* param) {
 int main(int argc, char* argv[]) {
     osSetSpeedupEnable(true); // N3DS 804MHz
     
+    Result ndspRes = ndspInit();
+    if (R_SUCCEEDED(ndspRes)) {
+        ndspSetOutputMode(NDSP_OUTPUT_STEREO);
+        ndspSetMasterVol(1.0f);
+    }
+
     if (R_FAILED(romfsInit())) {
         gfxInitDefault();
         consoleInit(GFX_BOTTOM, NULL);
         printf("\x1b[10;10HERROR: RomFS not mounted!\x1b[0K");
         while (aptMainLoop()) { gspWaitForVBlank(); hidScanInput(); if (hidKeysDown() & KEY_START) break; }
+        if (R_SUCCEEDED(ndspRes)) ndspExit();
         gfxExit();
         return 0;
     }
+
     gfxInitDefault();
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
     C2D_Prepare();
-    Result ndspRes = ndspInit();
+
     if (R_FAILED(ndspRes)) {
         C2D_Fini();
         C3D_Fini();

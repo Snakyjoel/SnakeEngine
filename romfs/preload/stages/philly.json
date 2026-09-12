@@ -3,11 +3,11 @@
     "camera_speed": 1,
     "boyfriend": [
         650,
-        550
+        350
     ],
     "boyfriend_camera": [
-        0,
-        0
+        -289,
+        -320
     ],
     "girlfriend": [
         250,

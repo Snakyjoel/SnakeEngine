@@ -126,14 +126,14 @@ bool AudioEngine::init(const char* instPath, const char* vocalsPath) {
     ndspChnSetInterp(0, NDSP_INTERP_LINEAR);
     ndspChnSetRate(0, actualSampleRate);
 
-    bufferData = (int16_t*)linearAlloc(BUFFER_SAMPLES * 2 * BUFFER_COUNT * sizeof(int16_t));
+    bufferData = (int16_t*)linearMemAlign(BUFFER_SAMPLES * 2 * BUFFER_COUNT * sizeof(int16_t), 0x80);
     memset(waveBuf, 0, sizeof(waveBuf));
 
     if (hasVocals) {
         ndspChnSetFormat(1, vocalsChannels == 2 ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16);
         ndspChnSetInterp(1, NDSP_INTERP_LINEAR);
         ndspChnSetRate(1, vocalsRate);
-        vocalsBufferData = (int16_t*)linearAlloc(BUFFER_SAMPLES * 2 * BUFFER_COUNT * sizeof(int16_t));
+        vocalsBufferData = (int16_t*)linearMemAlign(BUFFER_SAMPLES * 2 * BUFFER_COUNT * sizeof(int16_t), 0x80);
         memset(vocalsWaveBuf, 0, sizeof(vocalsWaveBuf));
     }
 
@@ -408,7 +408,7 @@ void AudioEngine::playSound(const std::string& path, float vol) {
         sound.rate = vi->rate;
         
         uint32_t bufferSize = totalSamples * vi->channels * sizeof(int16_t);
-        sound.buffer = (int16_t*)linearAlloc(bufferSize);
+        sound.buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
         if (sound.buffer) {
             uint32_t totalRead = 0;
             int bitstream = 0;
@@ -470,7 +470,7 @@ void AudioEngine::initMissSounds() {
         missSfx[i].channels = vi->channels;
         missSfx[i].rate = vi->rate;
         uint32_t bufferSize = totalSamples * vi->channels * sizeof(int16_t);
-        missSfx[i].buffer = (int16_t*)linearAlloc(bufferSize);
+        missSfx[i].buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
         if (missSfx[i].buffer) {
             uint32_t totalRead = 0; int bitstream = 0;
             while (totalRead < bufferSize) {
@@ -520,7 +520,7 @@ void AudioEngine::initCountdownSounds() {
         countdownSfx[i].channels = vi->channels;
         countdownSfx[i].rate = vi->rate;
         uint32_t bufferSize = totalSamples * vi->channels * sizeof(int16_t);
-        countdownSfx[i].buffer = (int16_t*)linearAlloc(bufferSize);
+        countdownSfx[i].buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
         if (countdownSfx[i].buffer) {
             uint32_t totalRead = 0; int bitstream = 0;
             while (totalRead < bufferSize) {
@@ -616,7 +616,7 @@ bool MusicPlayer::play(const char* path, float volume) {
     mSampleRate  = vi->rate;
 
     uint32_t bufSize = BUF_SMPLS * mChannels * sizeof(int16_t) * BUF_COUNT;
-    audioData = (int16_t*)linearAlloc(bufSize);
+    audioData = (int16_t*)linearMemAlign(bufSize, 0x80);
     if (!audioData) { ov_clear(&vf); return false; }
 
     memset(waveBuf, 0, sizeof(waveBuf));
