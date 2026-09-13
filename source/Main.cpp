@@ -39,33 +39,8 @@ static C2D_TextBuf menuDebugBuf = nullptr;
 bool g_inTransition = false;
 
 extern "C" {
-    u32 __ctru_heap_size = 12 * 1024 * 1024;        // 12MB heap
-    u32 __ctru_linear_heap_size = 80 * 1024 * 1024; // 80MB linear (textures/audio)
-
-    extern u32 __ctru_heap;
-    extern u32 __ctru_linear_heap;
-    extern char *fake_heap_start, *fake_heap_end;
-
-    void __system_allocateHeaps(void) {
-        u32 tmp = 0;
-        u64 region_size = osGetMemRegionSize(MEMREGION_APPLICATION);
-
-        u32 target_heap = __ctru_heap_size;
-        u32 target_linear = __ctru_linear_heap_size;
-
-        if (region_size < 96 * 1024 * 1024) {
-            if (target_linear > 52 * 1024 * 1024) target_linear = 52 * 1024 * 1024;
-        }
-
-        __ctru_heap = 0x08000000;
-        svcControlMemory(&tmp, __ctru_heap, 0, target_heap, MEMOP_ALLOC, (MemPerm)(MEMPERM_READ | MEMPERM_WRITE));
-        svcControlMemory(&__ctru_linear_heap, 0, 0, target_linear, MEMOP_ALLOC_LINEAR, (MemPerm)(MEMPERM_READ | MEMPERM_WRITE));
-
-        mappableInit(0x10000000, 0x14000000);
-
-        fake_heap_start = (char *)__ctru_heap;
-        fake_heap_end   = (char *)__ctru_heap + target_heap;
-    }
+    u32 __ctru_heap_size = 12 * 1024 * 1024;        // 12MB heap for game logic + Lua
+    u32 __ctru_linear_heap_size = 0;                // 0 = Autodetect remaining RAM for linear heap (textures/audio)
 }
 
 
