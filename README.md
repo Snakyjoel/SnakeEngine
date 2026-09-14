@@ -203,6 +203,51 @@ make clean
 
 ---
 
+## ❓ QnA
+
+### General
+
+**Q: What is Snake Engine?**
+A: It is a Friday Night Funkin engine and demake for the Nintendo 3DS/2DS and New Nintendo 3DS/2DS.
+
+**Q: What content will be included in the engine?**
+A: All the base game content—meaning all the songs and menus will be included in the engine (with the exception of debug menus, since the engine has its own).
+
+**Q: How do I install the engine?**
+A: Go to the engine's [Gamebanana](https://gamebanana.com/tools/23841) page, download the CIA of your choice (Standard or Lite), and copy it to your SD card; then, using a tool like FBI, locate the file and install it.
+
+**Q: How do I install mods?**
+A: To install mods for the engine, go to the root of your SD card and create a folder named "SnakeEngine" (or let the engine create the folder by launching the game), then create a folder named "mods" inside it; that is where you can place them.
+
+**Q: Can I install ANY mod?**
+A: The engine offers some support for the Psych Engine scripting API, but that doesn't mean mods will run on your 3DS right out of the box; they need to be adapted and tweaked to fit the 3DS's limitations. You also have to keep in mind that many features don't work exactly as they do in Psych Engine—so, for instance, stages or characters created there might look quite out of place here. It is recommended to create mods directly using Snake Engine.
+
+**Q: Will there be compatibility for Psych Online?**
+A: Ensure `-desc app:7` is in the makerom command (Makefile `cia` target). This sets `DescVersion: v7` required for 96 MB extended memory mode. Also verify `SystemMode: 96MB` is set in the RSF.
+
+**Q: Will there be additional content in the engine?**
+A: No, there won't be any extra content included from other mods or engines within the Snake Engine. While certain features might be added to enhance the experience—such as gameplay customization options or modifiers—content like the special events that occur during songs in Psych Engine, community-created playable characters (like Playable GF), or additional weeks won't be included. This DOES NOT mean the engine lacks or won't have support for such things; it simply means it won't come with that additional content built-in.
+
+**Q: Will this engine be available on other consoles? (Like PS Vita or Wii)**
+A: No, this engine is and will remain exclusively for the Nintendo 3DS; there are no plans to port it to other consoles. However, you have full authorization to port this engine to other consoles yourself.
+
+**Q: Why doesn't something I made in Psych Engine work the same way in Snake Engine?**
+A: The engine isn't 100% accurate to Psych Engine or even the base game; it's a recreation built using a completely different programming language. While *Friday Night Funkin'* uses HaxeFlixel, Snake Engine uses C++ and aims to replicate the original game's behavior as closely as possible. Also, since it isn't fully finished yet, you'll notice plenty of inconsistencies.
+
+**Q: Was this project created using AI?**
+A: For the most part, I built this project on my own without AI assistance; I only used AI—or let it handle things entirely—for specific parts that proved difficult, such as the project configuration, the 3D banner implementation, or the update checker. That said, I neither use nor support the use of AI for the artistic or musical aspects, or for anything unrelated to writing code.
+
+**I scanned a QR code for the engine and it's not working; what should I do?**
+A: Download the engine from GameBanana; I have not officially provided a download QR code for this engine, so any QR code currently circulating for its installation might not be updated to the latest version or may not even work.
+
+**Will there be support for Codename and/or V-Slice features?**
+A: I'm not entirely sure, but it's highly unlikely; this engine is based on Psych Engine for modding purposes. If support for Codename or V-Slice were to be implemented in the future, it would likely be limited to charts or characters—scripting from other engines won't be included.
+
+**How can I support the engine?**
+A: You can do this in various ways, such as joining the Discord, helping to fix bugs in the engine or community mods, donating (which is completely optional), or simply showing your support for the engine; any form of support is appreciated.
+
+---
+
 ## Credits & Licenses
 
 - **Snake Engine** by **Snakyjoel** and contributors.
