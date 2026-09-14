@@ -22,7 +22,8 @@ AccessControlInfo:
   DescVersion                   : 2
   MemoryType                    : Application
   HandleTableSize               : 0x200
-  SystemMode                    : 96MB
+  SystemMode                    : 80MB
+  SystemModeExt                 : 124MB
   IdealProcessor                : 0
   AffinityMask                  : 1
   DisableDebug                  : true
@@ -52,10 +53,13 @@ AccessControlInfo:
     - fs:RO
     - gsp::Gpu
     - gsp::Lcd
+    - hid:USER
     - hid:SP
     - hid:VP
     - http:C
     - ldr:ro
+    - mvd:7
+    - mvd:std
     - ns:PM
     - ns:su
     - nwm:u
