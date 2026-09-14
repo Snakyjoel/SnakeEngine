@@ -223,7 +223,7 @@ A: To install mods for the engine, go to the root of your SD card and create a f
 A: The engine offers some support for the Psych Engine scripting API, but that doesn't mean mods will run on your 3DS right out of the box; they need to be adapted and tweaked to fit the 3DS's limitations. You also have to keep in mind that many features don't work exactly as they do in Psych Engine—so, for instance, stages or characters created there might look quite out of place here. It is recommended to create mods directly using Snake Engine.
 
 **Q: Will there be compatibility for Psych Online?**
-A: Ensure `-desc app:7` is in the makerom command (Makefile `cia` target). This sets `DescVersion: v7` required for 96 MB extended memory mode. Also verify `SystemMode: 96MB` is set in the RSF.
+A: No.
 
 **Q: Will there be additional content in the engine?**
 A: No, there won't be any extra content included from other mods or engines within the Snake Engine. While certain features might be added to enhance the experience—such as gameplay customization options or modifiers—content like the special events that occur during songs in Psych Engine, community-created playable characters (like Playable GF), or additional weeks won't be included. This DOES NOT mean the engine lacks or won't have support for such things; it simply means it won't come with that additional content built-in.
