@@ -55,6 +55,15 @@ void ShaderManager::drawWave(
             ((yStrength * 2.0f) / stripH);
     }
 
+    // Make the strip wider and taller to hide the gaps
+    // created by the wave movement.
+    float drawScaleX = scaleX * horizontalStretch;
+    float drawScaleY = scaleY * verticalStretch;
+
+    // Keep the extra size centered around the original strip.
+    float extraWidth  = (textureWidth * (horizontalStretch - 1.0f) * scaleX) * 0.5f;
+    float extraHeight = (stripH * (verticalStretch - 1.0f) * scaleY) * 0.5f;
+
     for (int i = 0; i < numStrips; i++) {
 
         // Original vertical position of this strip.
@@ -108,34 +117,12 @@ void ShaderManager::drawWave(
         strip.subtex =
             &tempSubtex;
 
-        // Apply the wave offsets.
+        // Apply the wave offsets and extra padding centering.
         float drawX =
-            x + xOffset;
+            x + xOffset - extraWidth;
 
         float drawY =
-            y + offsetY + yOffset;
-
-        // Make the strip wider and taller to hide the gaps
-        // created by the wave movement.
-        float drawScaleX =
-            scaleX * horizontalStretch;
-
-        float drawScaleY =
-            scaleY * verticalStretch;
-
-        // Keep the extra size centered around the original strip.
-        float extraWidth =
-            (textureWidth *
-             (horizontalStretch - 1.0f) *
-             scaleX) * 0.5f;
-
-        float extraHeight =
-            (stripH *
-             (verticalStretch - 1.0f) *
-             scaleY) * 0.5f;
-
-        drawX -= extraWidth;
-        drawY -= extraHeight;
+            y + offsetY + yOffset - extraHeight;
 
         C2D_DrawImageAt(
             strip,

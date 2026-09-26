@@ -53,11 +53,11 @@ struct StageSprite {
         while (frameTimer >= 1.0f && !animFinished) {
             frameTimer -= 1.0f;
             curFrame++;
-            if (curFrame >= currentAnim->indices.size()) {
+            if (curFrame >= (float)currentAnim->indices.size()) {
                 if (currentAnim->loop) {
-                    curFrame = 0;
+                    curFrame = 0.0f;
                 } else {
-                    curFrame = currentAnim->indices.size() - 1;
+                    curFrame = (float)(currentAnim->indices.size() - 1);
                     animFinished = true;
                     frameTimer = 0.0f;
                 }
@@ -67,10 +67,13 @@ struct StageSprite {
 
     void playAnim(const std::string& animName, bool force = false) {
         if (!force && currentAnim && currentAnim->name == animName && !animFinished) return;
-        if (animations.count(animName)) {
+        auto it = animations.find(animName);
+        if (it != animations.end()) {
             isExternalAnim = false;
-            currentAnim = &animations[animName];
-            curFrame = 0; frameTimer = 0; animFinished = false;
+            currentAnim = &it->second;
+            curFrame = 0.0f;
+            frameTimer = 0.0f;
+            animFinished = false;
         }
     }
 
@@ -99,7 +102,9 @@ struct StageSprite {
             printf("\x1b[17;1HFES ERROR: Anim '%s' not found in external XML!\x1b[K\n", animName.c_str());
         } else {
             currentAnim = &externalAnimData;
-            curFrame = 0; frameTimer = 0; animFinished = false;
+            curFrame = 0.0f;
+            frameTimer = 0.0f;
+            animFinished = false;
         }
     }
 };
@@ -135,6 +140,7 @@ public:
     // Visibility flags
     bool hideGirlfriend = false;
     bool hideOpponent = false;
+    bool isPixelStage = false;
 
     std::vector<StageSprite> sprites;
 };

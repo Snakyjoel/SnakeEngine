@@ -209,12 +209,12 @@ static inline float frameLogicalH(const Frame& f) {
 static inline void drawFrameAt(const Frame& f, float x, float y, float depth, C2D_ImageTint* tint = nullptr, float sx = 1.0f, float sy = 1.0f) {
     if (!f.tex) return;
     C2D_Image img = { f.tex, &f.uv };
-    float drawX = x - (float)f.frameX * sx;
-    float drawY = y - (float)f.frameY * sy;
+    float drawX = x - (float)f.frameX * std::abs(sx);
+    float drawY = y - (float)f.frameY * std::abs(sy);
 
     if (f.rotated) {
-        float cx = drawX + (float)f.h * sx * 0.5f;
-        float cy = drawY + (float)f.w * sy * 0.5f;
+        float cx = drawX + (float)f.h * std::abs(sx) * 0.5f;
+        float cy = drawY + (float)f.w * std::abs(sy) * 0.5f;
         C2D_DrawImageAtRotated(img, cx, cy, depth, -(3.14159265f / 2.0f), tint, sx, sy);
     } else {
         C2D_DrawImageAt(img, drawX, drawY, depth, tint, sx, sy);

@@ -14,6 +14,7 @@
 #include "states/PlayState.hpp"
 
 C2D_Font globalVCRFont = nullptr;
+C2D_Font globalPixelFont = nullptr;
 
 // Force nearest-neighbor filtering on all glyph sheets so the font looks pixel-perfect
 void makeFontPixelPerfect(C2D_Font font) {
@@ -111,9 +112,13 @@ int main(int argc, char* argv[]) {
     }
 
     aptHook(&s_aptHookCookie, aptHookFunc, nullptr);
+    AudioEngine::startAudioThread();
 
     globalVCRFont = C2D_FontLoad("romfs:/fonts/vcr.bcfnt");
     makeFontPixelPerfect(globalVCRFont);
+
+    globalPixelFont = C2D_FontLoad("romfs:/fonts/pixel.bcfnt");
+    makeFontPixelPerfect(globalPixelFont);
     gfxSet3D(true);
     C3D_RenderTarget* top      = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     C3D_RenderTarget* topRight = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
@@ -351,6 +356,7 @@ int main(int argc, char* argv[]) {
 
     C2D_Fini();
     C3D_Fini();
+    AudioEngine::stopAudioThread();
     ndspExit();
     gfxExit();
     romfsExit();

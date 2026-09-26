@@ -26,6 +26,7 @@ void CppAnimate::addAnim(const std::string& name, const std::string& prefix,
 
     // Collect all frames matching the prefix, in order
     std::vector<int> matched;
+    matched.reserve(sheet->frames.size());
     for (int i = 0; i < (int)sheet->frames.size(); i++) {
         if (sheet->frames[i].name.find(prefix) == 0) {
             matched.push_back(i);
@@ -33,8 +34,9 @@ void CppAnimate::addAnim(const std::string& name, const std::string& prefix,
     }
 
     if (indices.empty()) {
-        anim.frameIndices = matched;
+        anim.frameIndices = std::move(matched);
     } else {
+        anim.frameIndices.reserve(indices.size());
         for (int idx : indices) {
             if (idx >= 0 && idx < (int)matched.size()) {
                 anim.frameIndices.push_back(matched[idx]);
@@ -42,10 +44,8 @@ void CppAnimate::addAnim(const std::string& name, const std::string& prefix,
         }
     }
 
-    anims[name] = anim;
+    anims[name] = std::move(anim);
 }
-
-
 
 const CppAnimate::AnimData* CppAnimate::getCurAnimData() const {
     if (curAnim.empty()) return nullptr;
@@ -72,12 +72,11 @@ const Frame* CppAnimate::currentFrame() const {
     if (!sheet) return nullptr;
     const AnimData* animData = getCurAnimData();
     if (!animData || animData->frameIndices.empty()) return nullptr;
+    if (curFrameIdx < 0 || curFrameIdx >= (int)animData->frameIndices.size()) return nullptr;
     int frameIdx = animData->frameIndices[curFrameIdx];
     if (frameIdx < 0 || frameIdx >= (int)sheet->frames.size()) return nullptr;
     return &sheet->frames[frameIdx];
 }
-
-
 
 void CppAnimate::drawCentered(float cx, float cy, float depth, float sx, float sy, C2D_ImageTint* tint) {
     if (!visible) return;
@@ -102,12 +101,15 @@ void CppAnimate::drawCentered(float cx, float cy, float depth, float sx, float s
 
 bool CppAnimate::hasAnim(const std::string& name) const {
     if (isSpritemapMode) {
-        return smAnims.count(name) > 0 || smData.symbols.count(name) > 0;
+        return smAnims.find(name) != smAnims.end() || smData.symbols.find(name) != smData.symbols.end();
     }
-    return anims.count(name) > 0;
+    return anims.find(name) != anims.end();
 }
 
 float CppAnimate::width() const {
+    if (isSpritemapMode) {
+        return smData.canvasW * spritemapScale * scaleX;
+    }
     const Frame* f = currentFrame();
     if (!f) return 0.0f;
     float w = ignoreFrameOffsets ? (f->rotated ? (float)f->h : (float)f->w) : frameLogicalW(*f);
@@ -115,6 +117,9 @@ float CppAnimate::width() const {
 }
 
 float CppAnimate::height() const {
+    if (isSpritemapMode) {
+        return smData.canvasH * spritemapScale * scaleY;
+    }
     const Frame* f = currentFrame();
     if (!f) return 0.0f;
     float h = ignoreFrameOffsets ? (f->rotated ? (float)f->w : (float)f->h) : frameLogicalH(*f);
@@ -155,8 +160,8 @@ bool CppAnimate::loadSpritemap(const std::string& t3xPath,
     isSpritemapMode = true;
 
     // Auto-scale: fit the canvas into the 3DS top screen (400 x 240)
-    float scX = 400.f / smData.canvasW;
-    float scY = 240.f / smData.canvasH;
+    float scX = 400.0f / smData.canvasW;
+    float scY = 240.0f / smData.canvasH;
     spritemapScale = (scX < scY) ? scX : scY;
 
     return true;
@@ -173,8 +178,9 @@ void CppAnimate::addSpritemapAnim(const std::string& name,
     bool foundAnim = false;
     for (const auto& a : smData.animations) {
         if (a.name == symbolName) {
-            d.symbolName = a.symbolName; // use the root symbol
+            d.symbolName = a.symbolName; // use root symbol
             if (d.indices.empty()) {
+                d.indices.reserve(a.duration);
                 for (int i = 0; i < a.duration; i++) {
                     d.indices.push_back(a.startFrame + i);
                 }
@@ -190,25 +196,25 @@ void CppAnimate::addSpritemapAnim(const std::string& name,
     if (!foundAnim && d.indices.empty()) {
         auto sit = smData.symbols.find(symbolName);
         int dur = (sit != smData.symbols.end()) ? sit->second.duration() : 1;
+        d.indices.reserve(dur);
         for (int i = 0; i < dur; i++) {
             d.indices.push_back(i);
         }
     }
 
-    d.fps  = (fps > 0.f) ? fps : (float)smData.frameRate;
+    d.fps  = (fps > 0.0f) ? fps : (float)smData.frameRate;
     d.loop = loop;
-    smAnims[name] = d;
+    smAnims[name] = std::move(d);
 }
 
 std::vector<std::string> CppAnimate::getSpritemapAnimNames() const {
     std::vector<std::string> names;
-    for (const auto& anim : smData.animations)
+    names.reserve(smData.animations.size());
+    for (const auto& anim : smData.animations) {
         names.push_back(anim.name);
+    }
     return names;
 }
-
-// play() and update() and draw() — patch existing Sparrow implementations
-// to dispatch to spritemap mode first.
 
 void CppAnimate::play(const std::string& name, bool forceRestart) {
     if (isSpritemapMode) {
@@ -223,11 +229,10 @@ void CppAnimate::play(const std::string& name, bool forceRestart) {
             loop       = it->second.loop;
             duration   = (int)it->second.indices.size();
         } else {
-            // direct symbol name
-            if (smData.symbols.find(name) == smData.symbols.end()) return;
+            auto sit = smData.symbols.find(name);
+            if (sit == smData.symbols.end()) return;
             symName = name;
-            auto sit = smData.symbols.find(symName);
-            duration = (sit != smData.symbols.end()) ? sit->second.duration() : 1;
+            duration = sit->second.duration();
         }
         if (curAnim == name && !forceRestart && !animFinished) return;
         curAnim        = name;
@@ -235,11 +240,12 @@ void CppAnimate::play(const std::string& name, bool forceRestart) {
         smLoop         = loop;
         animFinished   = false;
         paused         = false;
-        smFrameTimer   = 0.f;
+        smFrameTimer   = 0.0f;
         smLogicalFrame = 0;
         smTotalFrames  = duration;
         return;
     }
+    
     // Original Sparrow path
     if (!hasAnim(name)) return;
     if (curAnim == name && !forceRestart && !animFinished) return;
@@ -251,15 +257,19 @@ void CppAnimate::play(const std::string& name, bool forceRestart) {
 }
 
 void CppAnimate::setLoop(const std::string& name, bool loop) {
-    if (smAnims.count(name)) smAnims[name].loop = loop;
-    if (anims.count(name)) anims[name].loop = loop;
+    auto smIt = smAnims.find(name);
+    if (smIt != smAnims.end()) smIt->second.loop = loop;
+
+    auto aIt = anims.find(name);
+    if (aIt != anims.end()) aIt->second.loop = loop;
+
     if (curAnim == name) smLoop = loop;
 }
 
 void CppAnimate::update(float dt) {
     if (isSpritemapMode) {
         if (paused || animFinished || smTotalFrames <= 0) return;
-        float frameDur = (smFPS > 0.f) ? (1.f / smFPS) : (1.f / 24.f);
+        float frameDur = (smFPS > 0.0f) ? (1.0f / smFPS) : (1.0f / 24.0f);
         smFrameTimer += dt;
         while (smFrameTimer >= frameDur) {
             smFrameTimer -= frameDur;
@@ -277,6 +287,7 @@ void CppAnimate::update(float dt) {
         }
         return;
     }
+    
     // Original XML path
     const AnimData* animData = getCurAnimData();
     if (!animData || paused || animFinished) return;
@@ -310,20 +321,22 @@ void CppAnimate::draw(float x, float y, float depth, float sx, float sy, C2D_Ima
         if (it != smAnims.end()) {
             symName = it->second.symbolName;
         } else {
-            if (smData.symbols.find(curAnim) == smData.symbols.end()) return;
+            auto sit = smData.symbols.find(curAnim);
+            if (sit == smData.symbols.end()) return;
             symName = curAnim;
         }
+        
         // Root matrix: canvas-center → (x, y), with overall scale
         float finalScaleX = spritemapScale * scaleX * sx;
         float finalScaleY = spritemapScale * scaleY * sy;
         float canvasCX   = smData.canvasW * 0.5f;
         float canvasCY   = smData.canvasH * 0.5f;
-        float rad = angle * (3.14159265f / 180.f);
+        float rad = angle * (3.14159265f / 180.0f);
         float cosA = cosf(rad);
         float sinA = sinf(rad);
 
-        float flipScaleX = finalScaleX * (flipX ? -1.f : 1.f);
-        float flipScaleY = finalScaleY * (flipY ? -1.f : 1.f);
+        float flipScaleX = finalScaleX * (flipX ? -1.0f : 1.0f);
+        float flipScaleY = finalScaleY * (flipY ? -1.0f : 1.0f);
 
         AffineMatrix rootMX;
         rootMX.a  = flipScaleX * cosA;
@@ -332,6 +345,7 @@ void CppAnimate::draw(float x, float y, float depth, float sx, float sy, C2D_Ima
         rootMX.d  = flipScaleY * cosA;
         rootMX.tx = -canvasCX * rootMX.a - canvasCY * rootMX.c + x;
         rootMX.ty = -canvasCX * rootMX.b - canvasCY * rootMX.d + y;
+        
         int drawFrame = smLogicalFrame;
         if (it != smAnims.end() && smLogicalFrame >= 0 && smLogicalFrame < (int)it->second.indices.size()) {
             drawFrame = it->second.indices[smLogicalFrame];
@@ -354,7 +368,10 @@ void CppAnimate::draw(float x, float y, float depth, float sx, float sy, C2D_Ima
     }
     C2D_ImageTint alphaTint;
     C2D_ImageTint* usedTint = tint;
-    if (alpha < 1.0f && !tint) { C2D_AlphaImageTint(&alphaTint, alpha); usedTint = &alphaTint; }
+    if (alpha < 1.0f && !tint) {
+        C2D_AlphaImageTint(&alphaTint, alpha);
+        usedTint = &alphaTint;
+    }
     C3D_TexSetFilter(f->tex, antialiasing ? GPU_LINEAR : GPU_NEAREST, antialiasing ? GPU_LINEAR : GPU_NEAREST);
     drawFrameAt(*f, finalX, finalY, depth, usedTint, finalSX, finalSY);
 }
@@ -500,7 +517,10 @@ void CppAnimate::drawPiece(const std::string& pieceName,
 
     C2D_ImageTint alphaTint;
     const C2D_ImageTint* usedTint = nullptr;
-    if (alpha < 1.0f) { C2D_AlphaImageTint(&alphaTint, alpha); usedTint = &alphaTint; }
+    if (alpha < 1.0f) {
+        C2D_AlphaImageTint(&alphaTint, alpha);
+        usedTint = &alphaTint;
+    }
 
     float shearY = 0.0f;
     float divisor = rawScaleX;

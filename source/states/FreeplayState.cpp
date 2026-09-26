@@ -50,7 +50,7 @@ std::string FreeplayState::savedSongName = "";
 std::string FreeplayState::savedCategory = "all";
 
 static void drawRotatedRect(float cx, float cy, float w, float h, float angleRad, u32 color, float depth) {
-    float c = std::cos(angleRad), s = std::sin(angleRad);
+    float c = cosf(angleRad), s = sinf(angleRad);
     float hw = w * 0.5f, hh = h * 0.5f;
 
     auto rot = [&](float dx, float dy, float& ox, float& oy) {
@@ -146,32 +146,86 @@ void FreeplayState::init() {
     }
     categoryBounceY = 0.0f;
 
-    // Load letterStuff sprite sheet and XML
-    std::string lsImgPath = Paths::image("freeplay/letterStuff");
-    letterStuffSheet = C2D_SpriteSheetLoad(lsImgPath.c_str());
+    // Load unified freeplayAssetsBF sprite sheet and XML
+    std::string bfAssetsImgPath = Paths::image("freeplay/freeplayAssetsBF");
+    std::string bfAssetsXmlPath = Paths::xml("freeplay/freeplayAssetsBF");
+    freeplayBFSheet = C2D_SpriteSheetLoad(bfAssetsImgPath.c_str());
+
     letterStuffFrames.clear();
-    if (letterStuffSheet) {
-        C2D_Image mainImg = C2D_SpriteSheetGetImage(letterStuffSheet, 0);
+    for (int i = 0; i < 10; i++) {
+        numberFrames[i].clear();
+        clearedNumberFrames[i].clear();
+    }
+    clearedBoxFrame.tex = nullptr;
+    bfBgFrame.tex = nullptr;
+    capsuleFrame.tex = nullptr;
+    arrowFrame.tex = nullptr;
+
+    if (freeplayBFSheet) {
+        C2D_Image mainImg = C2D_SpriteSheetGetImage(freeplayBFSheet, 0);
         if (mainImg.tex) C3D_TexSetFilter(mainImg.tex, GPU_LINEAR, GPU_LINEAR);
 
-        std::string xmlPath = Paths::xml("freeplay/letterStuff");
-        SparrowParser::parseXml(xmlPath, letterStuffFrames);
+        std::vector<Frame> tempFrames;
+        SparrowParser::parseXml(bfAssetsXmlPath, tempFrames);
         float rw = mainImg.subtex->right - mainImg.subtex->left;
         float rh = mainImg.subtex->bottom - mainImg.subtex->top;
 
-        for (auto& f : letterStuffFrames) {
+        for (auto& f : tempFrames) {
             f.tex = mainImg.tex;
             f.uv.width = (u16)f.w;
             f.uv.height = (u16)f.h;
-            f.uv.left = mainImg.subtex->left + ((float)f.x * rw / (float)mainImg.subtex->width);
-            f.uv.top = mainImg.subtex->top + ((float)f.y * rh / (float)mainImg.subtex->height);
-            f.uv.right = mainImg.subtex->left + ((float)(f.x + f.w) * rw / (float)mainImg.subtex->width);
-            f.uv.bottom = mainImg.subtex->top + ((float)(f.y + f.h) * rh / (float)mainImg.subtex->height);
+            f.uv.left   = mainImg.subtex->left + ((float)f.x * rw / (float)mainImg.subtex->width);
+            f.uv.top    = mainImg.subtex->top  + ((float)f.y * rh / (float)mainImg.subtex->height);
+            f.uv.right  = mainImg.subtex->left + ((float)(f.x + f.w) * rw / (float)mainImg.subtex->width);
+            f.uv.bottom = mainImg.subtex->top  + ((float)(f.y + f.h) * rh / (float)mainImg.subtex->height);
+
+            std::string nl = f.name;
+            for (char& c : nl) c = (char)tolower((unsigned char)c);
+
+            // 1. Background sprite
+            if (nl == "bffreeplayrbg" || nl.find("bffreeplayrbg") != std::string::npos) {
+                bfBgFrame = f;
+            }
+            // 2. Song capsule
+            else if (nl == "capsule" || nl.find("capsule") == 0) {
+                capsuleFrame = f;
+            }
+            // 3. Arrow
+            else if (nl == "arrow" || (nl.find("arrow") == 0 && nl.find("mini") == std::string::npos)) {
+                arrowFrame = f;
+            }
+            // 4. clearBox
+            else if (nl.find("clearbox") != std::string::npos) {
+                clearedBoxFrame = f;
+            }
+            // 5. Digital numbers
+            else if (nl.find("zero digital")  != std::string::npos) numberFrames[0].push_back(f);
+            else if (nl.find("one digital")   != std::string::npos) numberFrames[1].push_back(f);
+            else if (nl.find("two digital")   != std::string::npos) numberFrames[2].push_back(f);
+            else if (nl.find("three digital") != std::string::npos) numberFrames[3].push_back(f);
+            else if (nl.find("four digital")  != std::string::npos) numberFrames[4].push_back(f);
+            else if (nl.find("five digital")  != std::string::npos) numberFrames[5].push_back(f);
+            else if (nl.find("six digital")   != std::string::npos) numberFrames[6].push_back(f);
+            else if (nl.find("seven digital") != std::string::npos) numberFrames[7].push_back(f);
+            else if (nl.find("eight digital") != std::string::npos) numberFrames[8].push_back(f);
+            else if (nl.find("nine digital")  != std::string::npos) numberFrames[9].push_back(f);
+
+            // 6. Cleared accuracy numbers
+            for (int i = 0; i < 10; i++) {
+                std::string numExact = std::to_string(i);
+                std::string numZeros = std::to_string(i) + "0000";
+                if (nl == numExact || nl == numZeros) {
+                    clearedNumberFrames[i].push_back(f);
+                    break;
+                }
+            }
+
+            // 7. LetterStuff items
+            if (nl.find("instance") != std::string::npos || nl.find("seperator") != std::string::npos) {
+                letterStuffFrames.push_back(f);
+            }
         }
     }
-
-    getBfBackgroundImage();
-    getCapsuleImage();
 
     scrollingText = "";
     lastScrolledSongIndex = -1;
@@ -186,15 +240,6 @@ void FreeplayState::init() {
     std::string bgPath = "romfs:/shared/images/menuBG.t3x";
     if (Paths::fileExists(bgPath)) {
         menuBgSheet = C2D_SpriteSheetLoad(bgPath.c_str());
-    }
-    
-    std::string arrowPath = Paths::image("freeplay/arrow");
-    if (Paths::fileExists(arrowPath)) {
-        arrowSheet = C2D_SpriteSheetLoad(arrowPath.c_str());
-        if (arrowSheet) {
-            C2D_Image img = C2D_SpriteSheetGetImage(arrowSheet, 0);
-            if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
-        }
     }
 
     std::string hsPath = Paths::image("freeplay/highscore");
@@ -220,90 +265,16 @@ void FreeplayState::init() {
         }
     }
 
-    std::string numPath = Paths::image("freeplay/digital_numbers");
-    numbersSheet = C2D_SpriteSheetLoad(numPath.c_str());
-    for (int i = 0; i < 10; i++) numberFrames[i].clear();
-
-    if (numbersSheet) {
-        C2D_Image mainImg = C2D_SpriteSheetGetImage(numbersSheet, 0);
-        if (mainImg.tex) C3D_TexSetFilter(mainImg.tex, GPU_LINEAR, GPU_LINEAR);
-
-        std::vector<Frame> tempFrames;
-        std::string xmlPath = Paths::xml("freeplay/digital_numbers");
-        SparrowParser::parseXml(xmlPath, tempFrames);
-        float rw = mainImg.subtex->right - mainImg.subtex->left;
-        float rh = mainImg.subtex->bottom - mainImg.subtex->top;
-
-        for (auto& f : tempFrames) {
-            f.tex = mainImg.tex;
-            f.uv.width = (u16)f.w;
-            f.uv.height = (u16)f.h;
-            f.uv.left   = mainImg.subtex->left + ((float)f.x * rw / (float)mainImg.subtex->width);
-            f.uv.top    = mainImg.subtex->top  + ((float)f.y * rh / (float)mainImg.subtex->height);
-            f.uv.right  = mainImg.subtex->left + ((float)(f.x + f.w) * rw / (float)mainImg.subtex->width);
-            f.uv.bottom = mainImg.subtex->top  + ((float)(f.y + f.h) * rh / (float)mainImg.subtex->height);
-
-            std::string nl = f.name;
-            std::transform(nl.begin(), nl.end(), nl.begin(), ::tolower);
-            if      (nl.find("zero")  != std::string::npos) numberFrames[0].push_back(f);
-            else if (nl.find("one")   != std::string::npos) numberFrames[1].push_back(f);
-            else if (nl.find("two")   != std::string::npos) numberFrames[2].push_back(f);
-            else if (nl.find("three") != std::string::npos) numberFrames[3].push_back(f);
-            else if (nl.find("four")  != std::string::npos) numberFrames[4].push_back(f);
-            else if (nl.find("five")  != std::string::npos) numberFrames[5].push_back(f);
-            else if (nl.find("six")   != std::string::npos) numberFrames[6].push_back(f);
-            else if (nl.find("seven") != std::string::npos) numberFrames[7].push_back(f);
-            else if (nl.find("eight") != std::string::npos) numberFrames[8].push_back(f);
-            else if (nl.find("nine")  != std::string::npos) numberFrames[9].push_back(f);
-        }
-    }
-
-    std::string clPath = Paths::image("freeplay/cleared");
-    clearedSheet = C2D_SpriteSheetLoad(clPath.c_str());
-    for (int i = 0; i < 10; i++) clearedNumberFrames[i].clear();
-    clearedBoxFrame.tex = nullptr;
-    
-    if (clearedSheet) {
-        C2D_Image mainImg = C2D_SpriteSheetGetImage(clearedSheet, 0);
-        if (mainImg.tex) C3D_TexSetFilter(mainImg.tex, GPU_LINEAR, GPU_LINEAR);
-
-        std::vector<Frame> tempFrames;
-        std::string xmlPath = Paths::xml("freeplay/cleared");
-        SparrowParser::parseXml(xmlPath, tempFrames);
-        float rw = mainImg.subtex->right - mainImg.subtex->left;
-        float rh = mainImg.subtex->bottom - mainImg.subtex->top;
-
-        for (auto& f : tempFrames) {
-            f.tex = mainImg.tex;
-            f.uv.width = (u16)f.w;
-            f.uv.height = (u16)f.h;
-            f.uv.left = mainImg.subtex->left + ((float)f.x * rw / (float)mainImg.subtex->width);
-            f.uv.top = mainImg.subtex->top + ((float)f.y * rh / (float)mainImg.subtex->height);
-            f.uv.right = mainImg.subtex->left + ((float)(f.x + f.w) * rw / (float)mainImg.subtex->width);
-            f.uv.bottom = mainImg.subtex->top + ((float)(f.y + f.h) * rh / (float)mainImg.subtex->height);
-
-            if (f.name.find("clearBox") != std::string::npos) {
-                clearedBoxFrame = f;
-            } else {
-                std::string nameLower = f.name;
-                std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
-                for (int i = 0; i < 10; i++) {
-                    std::string numPrefix = std::to_string(i) + "0000";
-                    if (nameLower.find(numPrefix) != std::string::npos) {
-                        clearedNumberFrames[i].push_back(f);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
     bfdjAnimate.loadSheet("preload/images/freeplay/bf/bfdj");
     bfdjAnimate.addAnim("Boyfriend DJ", "Boyfriend DJ", 24.0f, true);
     bfdjAnimate.play("Boyfriend DJ");
 
     highscoreAnimTime = 0.0f;
     numbersAnimTime = 0.0f;
+    for (int i = 0; i < 7; i++) {
+        lastDigit[i] = -1;
+        digitAnimTimer[i] = 1.0f;
+    }
     if (!songs.empty()) {
         std::string diff = curWeekDiffs[curDifficulty];
         std::string suffix = "";
@@ -311,7 +282,7 @@ void FreeplayState::init() {
         else if (diff == "Hard") suffix = "hard";
         else if (diff != "Normal") {
             suffix = diff;
-            std::transform(suffix.begin(), suffix.end(), suffix.begin(), ::tolower);
+            for (char& c : suffix) c = (char)tolower((unsigned char)c);
         }
         targetScore = Highscores::getScore(songs[curSelected].name, suffix);
         lerpScore = (float)targetScore;
@@ -327,90 +298,109 @@ void FreeplayState::init() {
     LightLock_Init(&loadLock);
     LightEvent_Init(&loadEvent, RESET_ONESHOT);
     threadRunning = true;
-    requestPending = false;
-    loadCompleted = false;
+    pendingRequests.clear();
+    completedDataQueue.clear();
     loadThread = threadCreate(threadMain, this, 32 * 1024, 30, -1, false);
 
     lastSelectedCheck = -1;
     lastDifficultyCheck = -1;
+    triggerAsyncLoad();
 }
 
 void FreeplayState::update(float dt) {
     loadingAngle += dt * 3.14159f * 2.0f;
-    
-    // Check if background load has finished and consume it
-    bool loaded = false;
-    LoadedRawData localDiff;
-    LoadedRawData localIcon;
-    LoadedRawData localAlbum;
-    LoadedRawData localAlbumText;
-    bool localIconIsChar = false;
-    int localSongIndex = -1;
+    cacheFrameCount++;
 
+    if (leftArrowVisibleTime > 0.0f) {
+        leftArrowVisibleTime -= dt;
+        if (leftArrowVisibleTime < 0.0f) leftArrowVisibleTime = 0.0f;
+    }
+    if (rightArrowVisibleTime > 0.0f) {
+        rightArrowVisibleTime -= dt;
+        if (rightArrowVisibleTime < 0.0f) rightArrowVisibleTime = 0.0f;
+    }
+    diffOffsetX += (0.0f - diffOffsetX) * (1.0f - exp2f(-20.0f * dt));
+
+    // Consume loaded asset buffers from background thread (max 2 sheets per frame to prevent frame drops)
+    std::vector<LoadedRawData> localCompleted;
     LightLock_Lock(&loadLock);
-    if (loadCompleted) {
-        localDiff = loadedDiffData;
-        localIcon = loadedIconData;
-        localAlbum = loadedAlbumData;
-        localAlbumText = loadedAlbumTextData;
-        localIconIsChar = loadedIconIsChar;
-        localSongIndex = loadedSongIndex;
-        
-        // Reset buffers in shared state to prevent double-free in worker thread
-        loadedDiffData.buffer = nullptr;
-        loadedIconData.buffer = nullptr;
-        loadedAlbumData.buffer = nullptr;
-        loadedAlbumTextData.buffer = nullptr;
-        loadCompleted = false;
-        loaded = true;
+    if (!completedDataQueue.empty()) {
+        int takeCount = std::min((int)completedDataQueue.size(), 2);
+        localCompleted.assign(completedDataQueue.begin(), completedDataQueue.begin() + takeCount);
+        completedDataQueue.erase(completedDataQueue.begin(), completedDataQueue.begin() + takeCount);
     }
     LightLock_Unlock(&loadLock);
 
-    if (loaded) {
-        // Free all old sheets — worker always delivers all assets now
-        if (activeDiffSheet)      { C2D_SpriteSheetFree(activeDiffSheet);      activeDiffSheet      = nullptr; }
-        if (activeIconSheet)      { C2D_SpriteSheetFree(activeIconSheet);      activeIconSheet      = nullptr; }
-        if (activeAlbumSheet)     { C2D_SpriteSheetFree(activeAlbumSheet);     activeAlbumSheet     = nullptr; }
-        if (activeAlbumTextSheet) { C2D_SpriteSheetFree(activeAlbumTextSheet); activeAlbumTextSheet = nullptr; }
-        
-        // Instantiate new sheets from memory on main thread
-        if (localDiff.buffer) {
-            activeDiffSheet = C2D_SpriteSheetLoadFromMem(localDiff.buffer, localDiff.size);
-            linearFree(localDiff.buffer);
+    for (auto& item : localCompleted) {
+        CacheEntry entry;
+        entry.sheet = nullptr;
+        entry.lastAccessFrame = ++cacheFrameCount;
+        entry.isCharIcon = item.req.iconIsChar;
+
+        if (!item.req.resolvedPath.empty()) {
+            entry.sheet = Paths_loadSpriteSheet(item.req.resolvedPath.c_str());
+        } else if (item.buffer && item.size > 0) {
+            entry.sheet = C2D_SpriteSheetLoadFromMem(item.buffer, item.size);
         }
-        if (localIcon.buffer) {
-            activeIconSheet = C2D_SpriteSheetLoadFromMem(localIcon.buffer, localIcon.size);
-            linearFree(localIcon.buffer);
+        if (item.buffer) {
+            linearFree(item.buffer);
+            item.buffer = nullptr;
         }
-        if (localAlbum.buffer) {
-            activeAlbumSheet = C2D_SpriteSheetLoadFromMem(localAlbum.buffer, localAlbum.size);
-            linearFree(localAlbum.buffer);
+
+        switch (item.req.type) {
+            case AsyncLoadRequest::AssetType::ICON: {
+                if (iconCache.find(item.req.key) != iconCache.end() && iconCache[item.req.key].sheet) {
+                    C2D_SpriteSheetFree(iconCache[item.req.key].sheet);
+                }
+                if (entry.sheet) {
+                    C2D_Image img = C2D_SpriteSheetGetImage(entry.sheet, 0);
+                    if (img.tex) C3D_TexSetFilter(img.tex, GPU_NEAREST, GPU_NEAREST);
+                }
+                iconCache[item.req.key] = entry;
+                break;
+            }
+            case AsyncLoadRequest::AssetType::ALBUM: {
+                if (albumCache.find(item.req.key) != albumCache.end() && albumCache[item.req.key].sheet) {
+                    C2D_SpriteSheetFree(albumCache[item.req.key].sheet);
+                }
+                if (entry.sheet) {
+                    C2D_Image img = C2D_SpriteSheetGetImage(entry.sheet, 0);
+                    if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
+                }
+                albumCache[item.req.key] = entry;
+                break;
+            }
+            case AsyncLoadRequest::AssetType::ALBUM_TEXT: {
+                if (albumTextCache.find(item.req.key) != albumTextCache.end() && albumTextCache[item.req.key].sheet) {
+                    C2D_SpriteSheetFree(albumTextCache[item.req.key].sheet);
+                }
+                if (entry.sheet) {
+                    C2D_Image img = C2D_SpriteSheetGetImage(entry.sheet, 0);
+                    if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
+                }
+                albumTextCache[item.req.key] = entry;
+                break;
+            }
+            case AsyncLoadRequest::AssetType::DIFFICULTY: {
+                if (diffCache.find(item.req.key) != diffCache.end() && diffCache[item.req.key].sheet) {
+                    C2D_SpriteSheetFree(diffCache[item.req.key].sheet);
+                }
+                if (entry.sheet) {
+                    C2D_Image img = C2D_SpriteSheetGetImage(entry.sheet, 0);
+                    if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
+                }
+                diffCache[item.req.key] = entry;
+                break;
+            }
         }
-        if (localAlbumText.buffer) {
-            activeAlbumTextSheet = C2D_SpriteSheetLoadFromMem(localAlbumText.buffer, localAlbumText.size);
-            linearFree(localAlbumText.buffer);
-        }
-        
-        activeIconIsChar = localIconIsChar;
-        activeSongIndex = localSongIndex;
-        
-        // Apply linear/nearest filter
-        if (activeDiffSheet) {
-            C2D_Image img = C2D_SpriteSheetGetImage(activeDiffSheet, 0);
-            if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
-        }
-        if (activeIconSheet) {
-            C2D_Image img = C2D_SpriteSheetGetImage(activeIconSheet, 0);
-            if (img.tex) C3D_TexSetFilter(img.tex, GPU_NEAREST, GPU_NEAREST);
-        }
-        if (activeAlbumSheet) {
-            C2D_Image img = C2D_SpriteSheetGetImage(activeAlbumSheet, 0);
-            if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
-        }
-        if (activeAlbumTextSheet) {
-            C2D_Image img = C2D_SpriteSheetGetImage(activeAlbumTextSheet, 0);
-            if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
-        }
+        evictLruCacheIfNeeded();
+    }
+
+    if (curSelected != lastSelectedCheck || curDifficulty != lastDifficultyCheck) {
+        lastSelectedCheck = curSelected;
+        lastDifficultyCheck = curDifficulty;
+        prunePendingRequests();
+        triggerAsyncLoad();
     }
 
     if (isExiting) {
@@ -551,7 +541,7 @@ void FreeplayState::update(float dt) {
                         scrollState = 2;
                         scrollStateTime = 0.0f;
                     } else {
-                        float ease = -0.5f * (std::cos(3.14159265f * t) - 1.0f);
+                        float ease = -0.5f * (cosf(3.1415926535f * t) - 1.0f);
                         scrollOffset = ease * maxScroll;
                     }
                 }
@@ -569,7 +559,7 @@ void FreeplayState::update(float dt) {
                         scrollState = 0;
                         scrollStateTime = 0.0f;
                     } else {
-                        float ease = -0.5f * (std::cos(3.14159265f * t) - 1.0f);
+                        float ease = -0.5f * (cosf(3.1415926535f * t) - 1.0f);
                         scrollOffset = (1.0f - ease) * maxScroll;
                     }
                 }
@@ -617,7 +607,7 @@ void FreeplayState::update(float dt) {
             AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
             FreeplaySong& fs = songs[curSelected];
             std::string lname = fs.name;
-            std::transform(lname.begin(), lname.end(), lname.begin(), ::tolower);
+            for (char& c : lname) c = (char)tolower((unsigned char)c);
             
             if (WeekData::weeksLoaded.count(fs.week)) {
                 ModHandler::get().currentModFolder = WeekData::weeksLoaded[fs.week].modFolder;
@@ -630,7 +620,7 @@ void FreeplayState::update(float dt) {
             else if (diff == "Hard") suffix = "hard";
             else if (diff != "Normal") {
                 suffix = diff;
-                std::transform(suffix.begin(), suffix.end(), suffix.begin(), ::tolower);
+                for (char& c : suffix) c = (char)tolower((unsigned char)c);
             }
 
             if (!fs.info.introVideo.empty()) {
@@ -662,7 +652,7 @@ void FreeplayState::update(float dt) {
                             icon.subtex = &defaultSubtex;
                         }
                         float iconScale = 1.5f;
-                        if (activeIconIsChar && icon.subtex) {
+                        if (icon.subtex && icon.subtex->width > 75.0f) {
                             iconScale = 70.0f / (float)icon.subtex->width;
                         }
                         float iconW = icon.subtex->width * iconScale;
@@ -760,7 +750,7 @@ void FreeplayState::update(float dt) {
                         else if (diff == "Hard") suffix = "hard";
                         else if (diff != "Normal") {
                             suffix = diff;
-                            std::transform(suffix.begin(), suffix.end(), suffix.begin(), ::tolower);
+                            for (char& c : suffix) c = (char)tolower((unsigned char)c);
                         }
                         switchState(new PlayState(fs.name, suffix));
                         return;
@@ -824,6 +814,9 @@ void FreeplayState::update(float dt) {
 
     highscoreAnimTime += dt;
     numbersAnimTime += dt;
+    for (int i = 0; i < 7; i++) {
+        digitAnimTimer[i] += dt;
+    }
 
     for (auto& pair : heartBounceAnim) {
         if (pair.second > 0.0f) {
@@ -842,7 +835,7 @@ void FreeplayState::update(float dt) {
         else if (diff == "Hard") suffix = "hard";
         else if (diff != "Normal") {
             suffix = diff;
-            std::transform(suffix.begin(), suffix.end(), suffix.begin(), ::tolower);
+            for (char& c : suffix) c = (char)tolower((unsigned char)c);
         }
         targetScore = Highscores::getScore(songs[curSelected].name, suffix);
         targetAccuracy = Highscores::getAccuracy(songs[curSelected].name, suffix);
@@ -901,7 +894,7 @@ void FreeplayState::update(float dt) {
                         icon.subtex = &defaultSubtex;
                     }
                     float iconScale = 1.5f;
-                    if (activeIconIsChar && icon.subtex) {
+                    if (icon.subtex && icon.subtex->width > 75.0f) {
                         iconScale = 70.0f / (float)icon.subtex->width;
                     }
                     float iconW = icon.subtex->width * iconScale;
@@ -1025,7 +1018,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         else if (diff == "Hard") currentDifficultyStr = "hard";
         else if (diff != "Normal") {
             currentDifficultyStr = diff;
-            std::transform(currentDifficultyStr.begin(), currentDifficultyStr.end(), currentDifficultyStr.begin(), ::tolower);
+            for (char& c : currentDifficultyStr) c = (char)tolower((unsigned char)c);
         }
     }
 
@@ -1051,7 +1044,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     float botIntroRightX = 400.0f * (1.0f - introEaseOut);
     float botIntroBottomY = 200.0f * (1.0f - introEaseOut);
 
-    float exitAlpha = isExiting ? std::max(0.0f, 1.0f - (exitTimer / 0.35f)) : 1.0f;
+    float exitAlpha = isExiting ? fmaxf(0.0f, 1.0f - (exitTimer / 0.35f)) : 1.0f;
     float renderAlpha = introTimer * exitAlpha;
 
     // Difficulty selector
@@ -1060,61 +1053,99 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         float diffY = 40.0f + topIntroY;
         std::string curDiffStr = curWeekDiffs[curDifficulty];
         std::string lowerDiff = curDiffStr;
-        std::transform(lowerDiff.begin(), lowerDiff.end(), lowerDiff.begin(), ::tolower);
+        for (char& c : lowerDiff) c = (char)tolower((unsigned char)c);
 
         C2D_Image dImg = getDifficultyImage(lowerDiff);
 
         float dW = 0, dH = 0;
+        float scale = 0.6f;
+        float diffDrawX = diffCenterX;
+        
+        C2D_ImageTint diffTint;
+        C2D_AlphaImageTint(&diffTint, exitAlpha);
+
+        std::string week = songs[curSelected].week;
+        std::string fullDiffKey = week + ":" + lowerDiff;
+        bool isDiffCached = (diffCache.find(fullDiffKey) != diffCache.end() || diffCache.find(lowerDiff) != diffCache.end());
+
         if (dImg.tex) {
             dW = dImg.subtex->width;
             dH = dImg.subtex->height;
-            float scale = 0.6f;
-            
             float dW_scaled = dW * scale;
-            float dH_scaled = dH * scale;
-            
-            float diffDrawX = diffCenterX - (dW_scaled / 2.0f);
-            
-            C2D_ImageTint diffTint;
-            C2D_AlphaImageTint(&diffTint, exitAlpha);
+            diffDrawX = diffCenterX - (dW_scaled / 2.0f);
 
-            // Draw difficulty sprite with displacement offset (behind bfFreeplayRBG, in front of scroll text)
+            // Draw difficulty sprite with displacement offset
             C2D_DrawImageAt(dImg, diffDrawX + diffOffsetX, diffY, 0.08f, &diffTint, scale, scale);
-
-            if (arrowSheet) {
-                C2D_Image arrowImg = C2D_SpriteSheetGetImage(arrowSheet, 0);
-                if (arrowImg.tex) {
-                    float aW = arrowImg.subtex->width * scale;
-                    float aH = arrowImg.subtex->height * scale;
-                    
-                    float arrowSpacing = 8.0f;
-                    float leftArrowX = diffDrawX - arrowSpacing - aW;
-                    float rightArrowX = diffDrawX + dW_scaled + arrowSpacing - 10.0f; // Adjust right arrow slightly left to account for flipX offset
-                    
-                    // Draw left arrow if visibility timer is up (arrow points left naturally)
-                    if (leftArrowVisibleTime <= 0.0f) {
-                        C2D_DrawImageAt(arrowImg, leftArrowX, diffY + (dH_scaled - aH) / 2.0f, 0.5f, &diffTint, scale, scale);
-                    }
-                    
-                    // Draw right arrow if visibility timer is up (arrow flipped horizontally)
-                    if (rightArrowVisibleTime <= 0.0f) {
-                        C2D_DrawImageAt(arrowImg, rightArrowX + aW, diffY + (dH_scaled - aH) / 2.0f, 0.5f, &diffTint, -scale, scale);
-                    }
-                }
-            }
         } else {
-            drawRotatedRect(diffCenterX, diffY, 20.0f, 20.0f, loadingAngle, C2D_Color32(255, 255, 255, (u8)(exitAlpha * 255.0f)), 0.5f);
+            if (!isDiffCached) {
+                // Still loading from SD card: draw rotating loading square
+                dW = 75.0f;
+                dH = 20.0f;
+                float dW_scaled = dW * scale;
+                float dH_scaled = dH * scale;
+                diffDrawX = diffCenterX - (dW_scaled / 2.0f);
+                float loadingCenterY = diffY + (dH_scaled * 0.5f);
+                drawRotatedRect(diffCenterX, loadingCenterY, 20.0f, 20.0f, loadingAngle, C2D_Color32(255, 255, 255, (u8)(exitAlpha * 255.0f)), 0.5f);
+            } else {
+                // Asset is cached BUT no sprite exists in any of the 3 paths:
+                // Draw VCR font text showing the difficulty name (e.g. "Normal", "Hard")
+                ClearTextBuf();
+                C2D_Text diffTextObj;
+                std::string upperDiffStr = curDiffStr;
+                for (char& c : upperDiffStr) c = (char)toupper((unsigned char)c);
+                C2D_TextFontParse(&diffTextObj, vcrFont, vcrFontBuf, upperDiffStr.c_str());
+                C2D_TextOptimize(&diffTextObj);
+                float dtW = 0.0f, dtH = 0.0f;
+                C2D_TextGetDimensions(&diffTextObj, scale, scale, &dtW, &dtH);
+                dW = (dtW > 0) ? (dtW / scale) : 75.0f;
+                dH = (dtH > 0) ? (dtH / scale) : 20.0f;
+                float dW_scaled = dW * scale;
+                diffDrawX = diffCenterX - (dW_scaled / 2.0f);
+
+                C2D_DrawText(&diffTextObj, C2D_WithColor, diffDrawX + diffOffsetX, diffY, 0.08f, scale, scale, C2D_Color32(255, 255, 255, (u8)(exitAlpha * 255.0f)));
+            }
+        }
+
+        // Draw left and right arrows next to difficulty selector ALWAYS
+        if (arrowFrame.tex) {
+            float aW = frameLogicalW(arrowFrame) * scale;
+            float aH = frameLogicalH(arrowFrame) * scale;
+            float dH_scaled = (dH > 0 ? dH : 20.0f) * scale;
+            float dW_scaled = (dW > 0 ? dW : 75.0f) * scale;
+            
+            // Fixed positions based on static diffDrawX (so arrows don't move with diffOffsetX animation)
+            float leftArrowX = diffDrawX - 6.0f - aW;
+            float rightArrowX = diffDrawX + dW_scaled + 6.0f - aW;
+            float arrowY = diffY + (dH_scaled - aH) * 0.5f;
+            
+            C2D_ImageTint arrowLeftTint = diffTint;
+            C2D_ImageTint arrowRightTint = diffTint;
+            if (leftArrowVisibleTime > 0.0f) {
+                C2D_PlainImageTint(&arrowLeftTint, C2D_Color32(255, 255, 0, (u8)(exitAlpha * 255.0f)), 1.0f);
+            }
+            if (rightArrowVisibleTime > 0.0f) {
+                C2D_PlainImageTint(&arrowRightTint, C2D_Color32(255, 255, 0, (u8)(exitAlpha * 255.0f)), 1.0f);
+            }
+
+            // Left arrow (points left naturally, 6px separated to the left)
+            drawFrameAt(arrowFrame, leftArrowX, arrowY, 0.5f, &arrowLeftTint, scale, scale);
+
+            // Right arrow (flipped horizontally to point right, 6px separated to the right)
+            if (arrowFrame.rotated) {
+                drawFrameAt(arrowFrame, rightArrowX, arrowY, 0.5f, &arrowRightTint, scale, -scale);
+            } else {
+                drawFrameAt(arrowFrame, rightArrowX, arrowY, 0.5f, &arrowRightTint, -scale, scale);
+            }
         }
     }
 
     // Draw background sprite (right side, behind the song list)
-    C2D_Image bgImg = getBfBackgroundImage();
-    if (bgImg.tex) {
-        float bgW = bgImg.subtex->width;
+    if (bfBgFrame.tex) {
+        float bgW = frameLogicalW(bfBgFrame);
         float drawX = 400.0f - bgW;
         C2D_ImageTint tint;
         C2D_AlphaImageTint(&tint, renderAlpha);
-        C2D_DrawImageAt(bgImg, drawX, 0, 0.1f, &tint);
+        drawFrameAt(bfBgFrame, drawX, 0, 0.1f, &tint);
     }
 
     // Black title bar
@@ -1132,7 +1163,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             }
         }
     }
-    std::transform(ostName.begin(), ostName.end(), ostName.begin(), ::toupper);
+    for (char& c : ostName) c = (char)toupper((unsigned char)c);
 
     ClearTextBuf();
     C2D_Text ostTextObj;
@@ -1226,7 +1257,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     }
 
     // Draw cleared box and accuracy inside (top screen, upper right, below the black bar)
-    if (clearedSheet && clearedBoxFrame.tex) {
+    if (clearedBoxFrame.tex) {
         float scale = 0.65f;
         float cbX = 400.0f - (82.4f * scale) - 10.0f;
         float cbY = 32.0f + topIntroY;
@@ -1273,17 +1304,16 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         float itemCenterX = 270.0f + itemOffsetX + topIntroX;
 
         // Draw capsule for all songs (no scaling, fixed size)
-        C2D_Image capsule = getCapsuleImage();
-        if (capsule.tex) {
+        if (capsuleFrame.tex) {
             // Position capsule centered horizontally at song item location
-            float capsuleW = capsule.subtex->width;
+            float capsuleW = frameLogicalW(capsuleFrame);
             float capsuleX = itemCenterX - (capsuleW / 2.0f);
             
             float itemAlpha = isSelected ? exitAlpha : (0.6f * exitAlpha);
 
             C2D_ImageTint capTint;
             C2D_AlphaImageTint(&capTint, itemAlpha);
-            C2D_DrawImageAt(capsule, capsuleX, itemY - 5, 0.2f, &capTint);
+            drawFrameAt(capsuleFrame, capsuleX, itemY - 5, 0.2f, &capTint);
 // Draw heart for favorites
             bool isFav = (favorites.count(fs.name) > 0);
             float animTime = heartBounceAnim[fs.name];
@@ -1419,7 +1449,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         C2D_AlphaImageTint(&uiTint, exitAlpha);
 
         // Draw highscore & digital numbers UI
-        if (highscoreSheet && numbersSheet) {
+        if (highscoreSheet) {
             float scale = 0.7f;
             float padding = 5.0f;
             
@@ -1445,18 +1475,33 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 }
                 
                 float numStartX = hsX + hsW + padding;
-                float numSpacing = 25.0f * scale; // 17.5px spacing at 0.7 scale
+                float maxDigitW = 37.0f;
+                float digitCellW = maxDigitW * scale;
+                float digitSpacing = -3.0f; // -3 pixel distance between numbers
                 
-                for (size_t i = 0; i < scoreStr.length(); i++) {
+                for (size_t i = 0; i < scoreStr.length() && i < 7; i++) {
                     int digit = scoreStr[i] - '0';
+                    if (digit != lastDigit[i]) {
+                        lastDigit[i] = digit;
+                        digitAnimTimer[i] = 0.0f;
+                    }
+
                     if (digit >= 0 && digit <= 9 && !numberFrames[digit].empty()) {
-                        // Digital numbers animation at 24 fps
-                        int numFrameIdx = (int)(numbersAnimTime * 24.0f) % numberFrames[digit].size();
+                        int maxFrames = (int)numberFrames[digit].size();
+                        int idleFrame = maxFrames - 1;
+                        int animFrame = (int)(digitAnimTimer[i] * 24.0f);
+                        int numFrameIdx = (animFrame < maxFrames) ? animFrame : idleFrame;
+
                         const Frame& numFrame = numberFrames[digit][numFrameIdx];
                         
+                        float numW = frameLogicalW(numFrame) * scale;
                         float numH = frameLogicalH(numFrame) * scale;
-                        float numX = numStartX + (float)i * numSpacing;
-                        float numY = 20.0f - numH / 2.0f + topIntroY;
+                        
+                        // Fixed column position + -2px spacing
+                        float cellX = numStartX + (float)i * (digitCellW + digitSpacing);
+                        // Center digit inside its fixed width cell so '1' looks natural and aligned
+                        float numX = cellX + (digitCellW - numW) * 0.5f;
+                        float numY = 20.0f - numH * 0.5f + topIntroY;
                         
                         drawFrameAt(numFrame, numX, numY, 0.7f, &uiTint, scale, scale);
                     }
@@ -1472,7 +1517,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             const WeekData& data = WeekData::weeksLoaded[fs.week];
             weekDisplayName = data.storyName.empty() ? data.weekName : data.storyName;
         }
-        std::transform(weekDisplayName.begin(), weekDisplayName.end(), weekDisplayName.begin(), ::toupper);
+        for (char& c : weekDisplayName) c = (char)toupper((unsigned char)c);
 
         // Split by space and wrap words to fit in maxAlphaW
         std::vector<std::string> lines;
@@ -1530,7 +1575,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                     icon.subtex = &defaultSubtex;
                 }
                 float iconScale = 1.5f;
-                if (activeIconIsChar && icon.subtex) {
+                if (icon.subtex && icon.subtex->width > 75.0f) {
                     iconScale = 70.0f / (float)icon.subtex->width;
                 }
                 float iconW = icon.subtex->width * iconScale;
@@ -1674,14 +1719,8 @@ void FreeplayState::exitState() {
         savedCategory = categories[curCategoryIdx];
     }
 
-    if (bfBgSheet) C2D_SpriteSheetFree(bfBgSheet);
-    bfBgSheet = nullptr;
-    
-    if (capsuleSheet) C2D_SpriteSheetFree(capsuleSheet);
-    capsuleSheet = nullptr;
-    
-    if (arrowSheet) C2D_SpriteSheetFree(arrowSheet);
-    arrowSheet = nullptr;
+    if (freeplayBFSheet) C2D_SpriteSheetFree(freeplayBFSheet);
+    freeplayBFSheet = nullptr;
     
     threadRunning = false;
     LightEvent_Signal(&loadEvent);
@@ -1691,38 +1730,27 @@ void FreeplayState::exitState() {
         loadThread = nullptr;
     }
 
-    if (loadedDiffData.buffer) { linearFree(loadedDiffData.buffer); loadedDiffData.buffer = nullptr; }
-    if (loadedIconData.buffer) { linearFree(loadedIconData.buffer); loadedIconData.buffer = nullptr; }
-    if (loadedAlbumData.buffer) { linearFree(loadedAlbumData.buffer); loadedAlbumData.buffer = nullptr; }
-    if (loadedAlbumTextData.buffer) { linearFree(loadedAlbumTextData.buffer); loadedAlbumTextData.buffer = nullptr; }
+    LightLock_Lock(&loadLock);
+    for (auto& data : completedDataQueue) {
+        if (data.buffer) linearFree(data.buffer);
+    }
+    completedDataQueue.clear();
+    pendingRequests.clear();
+    LightLock_Unlock(&loadLock);
 
-    if (activeDiffSheet) C2D_SpriteSheetFree(activeDiffSheet);
-    activeDiffSheet = nullptr;
-    if (activeIconSheet) C2D_SpriteSheetFree(activeIconSheet);
-    activeIconSheet = nullptr;
-    if (activeAlbumSheet) C2D_SpriteSheetFree(activeAlbumSheet);
-    activeAlbumSheet = nullptr;
-    if (activeAlbumTextSheet) C2D_SpriteSheetFree(activeAlbumTextSheet);
-    activeAlbumTextSheet = nullptr;
+    clearAssetCache();
     
     if (highscoreSheet) C2D_SpriteSheetFree(highscoreSheet);
     highscoreSheet = nullptr;
     highscoreFrames.clear();
 
-    if (numbersSheet) C2D_SpriteSheetFree(numbersSheet);
-    numbersSheet = nullptr;
     for (int i = 0; i < 10; i++) numberFrames[i].clear();
 
     if (menuBgSheet) C2D_SpriteSheetFree(menuBgSheet);
     menuBgSheet = nullptr;
 
-    if (clearedSheet) C2D_SpriteSheetFree(clearedSheet);
-    clearedSheet = nullptr;
     for (int i = 0; i < 10; i++) clearedNumberFrames[i].clear();
 
-
-    if (letterStuffSheet) C2D_SpriteSheetFree(letterStuffSheet);
-    letterStuffSheet = nullptr;
     letterStuffFrames.clear();
 
     currentAlbumName = "";
@@ -1731,46 +1759,34 @@ void FreeplayState::exitState() {
 }
 
 C2D_Image FreeplayState::getBfBackgroundImage() {
-    if (bfBgSheet) {
-        return C2D_SpriteSheetGetImage(bfBgSheet, 0);
-    }
-
-    std::string path = Paths::image("freeplay/bf/bfFreeplayRBG", "preload");
-    if (Paths::fileExists(path)) {
-        C2D_SpriteSheet s = C2D_SpriteSheetLoad(path.c_str());
-        if (s) {
-            C2D_Image img = C2D_SpriteSheetGetImage(s, 0);
-            if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
-            bfBgSheet = s;
-            return img;
-        }
+    if (bfBgFrame.tex) {
+        return { bfBgFrame.tex, &bfBgFrame.uv };
     }
     return {nullptr, nullptr};
 }
 
 C2D_Image FreeplayState::getDifficultyImage(const std::string& name) {
-    if (activeDiffSheet && activeSongIndex == curSelected) {
-        return C2D_SpriteSheetGetImage(activeDiffSheet, 0);
+    if (songs.empty() || curSelected < 0 || curSelected >= (int)songs.size()) return {nullptr, nullptr};
+    std::string week = songs[curSelected].week;
+    std::string lower = name;
+    for (char& c : lower) c = (char)tolower((unsigned char)c);
+
+    std::string fullKey = week + ":" + lower;
+    auto it = diffCache.find(fullKey);
+    if (it == diffCache.end()) it = diffCache.find(lower);
+
+    if (it != diffCache.end()) {
+        it->second.lastAccessFrame = ++cacheFrameCount;
+        if (it->second.sheet) {
+            return C2D_SpriteSheetGetImage(it->second.sheet, 0);
+        }
     }
     return {nullptr, nullptr};
 }
 
-
-
 C2D_Image FreeplayState::getCapsuleImage() {
-    if (capsuleSheet) {
-        return C2D_SpriteSheetGetImage(capsuleSheet, 0);
-    }
-
-    std::string path = Paths::image("freeplay/bf/capsule", "preload");
-    if (Paths::fileExists(path)) {
-        C2D_SpriteSheet s = C2D_SpriteSheetLoad(path.c_str());
-        if (s) {
-            C2D_Image img = C2D_SpriteSheetGetImage(s, 0);
-            if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
-            capsuleSheet = s;
-            return img;
-        }
+    if (capsuleFrame.tex) {
+        return { capsuleFrame.tex, &capsuleFrame.uv };
     }
     return {nullptr, nullptr};
 }
@@ -1822,42 +1838,76 @@ void FreeplayState::updateDifficulties() {
 }
 
 C2D_Image FreeplayState::getIconImage(const std::string& name) {
-    if (activeIconSheet && activeSongIndex == curSelected) {
-        C2D_Image img = C2D_SpriteSheetGetImage(activeIconSheet, 0);
-        if (activeIconIsChar && img.subtex != nullptr) {
-            static Tex3DS_SubTexture sub;
-            sub = *img.subtex;
-            float u0 = img.subtex->left;
-            float du = img.subtex->right - u0;
-            sub.width = img.subtex->width / 2;
-            sub.right = u0 + du * 0.5f;
-            img.subtex = &sub;
+    if (songs.empty() || curSelected < 0 || curSelected >= (int)songs.size()) return {nullptr, nullptr};
+    std::string week = songs[curSelected].week;
+
+    std::string fullKey = week + ":" + name;
+    auto it = iconCache.find(fullKey);
+    if (it == iconCache.end()) it = iconCache.find(name);
+
+    if (it != iconCache.end()) {
+        it->second.lastAccessFrame = ++cacheFrameCount;
+        if (it->second.sheet) {
+            C2D_Image img = C2D_SpriteSheetGetImage(it->second.sheet, 0);
+            if (it->second.isCharIcon && img.subtex != nullptr) {
+                static Tex3DS_SubTexture sub;
+                sub = *img.subtex;
+                float u0 = img.subtex->left;
+                float du = img.subtex->right - u0;
+                sub.width = img.subtex->width / 2;
+                sub.right = u0 + du * 0.5f;
+                img.subtex = &sub;
+            }
+            return img;
         }
-        return img;
     }
     return {nullptr, nullptr};
 }
 
 C2D_Image FreeplayState::getAlbumImage(const std::string& name) {
-    if (activeAlbumSheet && activeSongIndex == curSelected) {
-        return C2D_SpriteSheetGetImage(activeAlbumSheet, 0);
+    if (songs.empty() || curSelected < 0 || curSelected >= (int)songs.size()) return {nullptr, nullptr};
+    std::string week = songs[curSelected].week;
+
+    std::string fullKey = week + ":" + name;
+    auto it = albumCache.find(fullKey);
+    if (it == albumCache.end()) it = albumCache.find(name);
+
+    if (it != albumCache.end()) {
+        it->second.lastAccessFrame = ++cacheFrameCount;
+        if (it->second.sheet) {
+            return C2D_SpriteSheetGetImage(it->second.sheet, 0);
+        }
     }
     return {nullptr, nullptr};
 }
 
 C2D_Image FreeplayState::getAlbumTextImage(const std::string& name) {
-    if (activeAlbumTextSheet && activeSongIndex == curSelected) {
-        return C2D_SpriteSheetGetImage(activeAlbumTextSheet, 0);
+    if (songs.empty() || curSelected < 0 || curSelected >= (int)songs.size()) return {nullptr, nullptr};
+    std::string week = songs[curSelected].week;
+
+    std::string textName = (name.length() >= 5 && name.substr(name.length() - 5) == "-text") ? name : (name + "-text");
+    std::string fullKey = week + ":" + textName;
+    auto it = albumTextCache.find(fullKey);
+    if (it == albumTextCache.end()) it = albumTextCache.find(textName);
+    if (it == albumTextCache.end()) it = albumTextCache.find(week + ":" + name);
+    if (it == albumTextCache.end()) it = albumTextCache.find(name);
+
+    if (it != albumTextCache.end()) {
+        it->second.lastAccessFrame = ++cacheFrameCount;
+        if (it->second.sheet) {
+            return C2D_SpriteSheetGetImage(it->second.sheet, 0);
+        }
     }
     return {nullptr, nullptr};
 }
 
-std::string FreeplayState::getAlbumNameForSelected() {
-    if (songs.empty() || curSelected < 0 || curSelected >= (int)songs.size()) {
+std::string FreeplayState::getAlbumNameForSelected(int songIdx) {
+    int idx = (songIdx >= 0) ? songIdx : curSelected;
+    if (songs.empty() || idx < 0 || idx >= (int)songs.size()) {
         return "placeholder";
     }
     
-    const FreeplaySong& fs = songs[curSelected];
+    const FreeplaySong& fs = songs[idx];
     if (WeekData::weeksLoaded.find(fs.week) == WeekData::weeksLoaded.end()) {
         return "placeholder";
     }
@@ -1865,12 +1915,12 @@ std::string FreeplayState::getAlbumNameForSelected() {
     const WeekData& wd = WeekData::weeksLoaded[fs.week];
     
     std::string songNameLower = fs.name;
-    std::transform(songNameLower.begin(), songNameLower.end(), songNameLower.begin(), ::tolower);
+    for (char& c : songNameLower) c = (char)tolower((unsigned char)c);
     
     std::string diffLower = "";
     if (curDifficulty >= 0 && curDifficulty < (int)curWeekDiffs.size()) {
         diffLower = curWeekDiffs[curDifficulty];
-        std::transform(diffLower.begin(), diffLower.end(), diffLower.begin(), ::tolower);
+        for (char& c : diffLower) c = (char)tolower((unsigned char)c);
     }
     
     std::string lookupKeyWithDiff = songNameLower + "-" + diffLower;
@@ -1956,11 +2006,11 @@ void FreeplayState::applyCategoryFilter(bool keepSelection) {
         }
 
         std::string targetDiffLower = lastDifficultyName;
-        std::transform(targetDiffLower.begin(), targetDiffLower.end(), targetDiffLower.begin(), ::tolower);
+        for (char& c : targetDiffLower) c = (char)tolower((unsigned char)c);
 
         for (const auto& d : songDiffs) {
             std::string dLower = d;
-            std::transform(dLower.begin(), dLower.end(), dLower.begin(), ::tolower);
+            for (char& c : dLower) c = (char)tolower((unsigned char)c);
             if (dLower == targetDiffLower) {
                 supportsDifficulty = true;
                 break;
@@ -2175,81 +2225,255 @@ void FreeplayState::drawCategoryOrganizer(float topIntroY, float exitAlpha, floa
         drawFrameCentered(curFrame, centerX, centerY + categoryBounceY, depth, &tint, baseScale * 1.25f, baseScale * 1.25f);
     }
 }
+void FreeplayState::evictLruCacheIfNeeded() {
+    while (iconCache.size() > MAX_ICON_CACHE) {
+        auto oldest = iconCache.begin();
+        for (auto it = iconCache.begin(); it != iconCache.end(); ++it) {
+            if (it->second.lastAccessFrame < oldest->second.lastAccessFrame) {
+                oldest = it;
+            }
+        }
+        if (oldest != iconCache.end()) {
+            if (oldest->second.sheet) C2D_SpriteSheetFree(oldest->second.sheet);
+            iconCache.erase(oldest);
+        }
+    }
+
+    while (albumCache.size() > MAX_ALBUM_CACHE) {
+        auto oldest = albumCache.begin();
+        for (auto it = albumCache.begin(); it != albumCache.end(); ++it) {
+            if (it->second.lastAccessFrame < oldest->second.lastAccessFrame) {
+                oldest = it;
+            }
+        }
+        if (oldest != albumCache.end()) {
+            if (oldest->second.sheet) C2D_SpriteSheetFree(oldest->second.sheet);
+            albumCache.erase(oldest);
+        }
+    }
+
+    while (albumTextCache.size() > MAX_ALBUM_TEXT_CACHE) {
+        auto oldest = albumTextCache.begin();
+        for (auto it = albumTextCache.begin(); it != albumTextCache.end(); ++it) {
+            if (it->second.lastAccessFrame < oldest->second.lastAccessFrame) {
+                oldest = it;
+            }
+        }
+        if (oldest != albumTextCache.end()) {
+            if (oldest->second.sheet) C2D_SpriteSheetFree(oldest->second.sheet);
+            albumTextCache.erase(oldest);
+        }
+    }
+
+    while (diffCache.size() > MAX_DIFF_CACHE) {
+        auto oldest = diffCache.begin();
+        for (auto it = diffCache.begin(); it != diffCache.end(); ++it) {
+            if (it->second.lastAccessFrame < oldest->second.lastAccessFrame) {
+                oldest = it;
+            }
+        }
+        if (oldest != diffCache.end()) {
+            if (oldest->second.sheet) C2D_SpriteSheetFree(oldest->second.sheet);
+            diffCache.erase(oldest);
+        }
+    }
+}
+
+void FreeplayState::clearAssetCache() {
+    for (auto& pair : iconCache) {
+        if (pair.second.sheet) C2D_SpriteSheetFree(pair.second.sheet);
+    }
+    iconCache.clear();
+
+    for (auto& pair : albumCache) {
+        if (pair.second.sheet) C2D_SpriteSheetFree(pair.second.sheet);
+    }
+    albumCache.clear();
+
+    for (auto& pair : albumTextCache) {
+        if (pair.second.sheet) C2D_SpriteSheetFree(pair.second.sheet);
+    }
+    albumTextCache.clear();
+
+    for (auto& pair : diffCache) {
+        if (pair.second.sheet) C2D_SpriteSheetFree(pair.second.sheet);
+    }
+    diffCache.clear();
+}
+
+void FreeplayState::prunePendingRequests() {
+    LightLock_Lock(&loadLock);
+    int totalSongs = (int)songs.size();
+    auto it = pendingRequests.begin();
+    while (it != pendingRequests.end()) {
+        int diff = std::abs(it->songIndex - curSelected);
+        if (totalSongs > 0) {
+            diff = std::min(diff, totalSongs - diff);
+        }
+        if (diff > 2) {
+            it = pendingRequests.erase(it);
+        } else {
+            if (it->songIndex == curSelected) {
+                it->priority = 0;
+            } else {
+                it->priority = diff * 2;
+            }
+            ++it;
+        }
+    }
+    std::sort(pendingRequests.begin(), pendingRequests.end(), [](const AsyncLoadRequest& a, const AsyncLoadRequest& b) {
+        return a.priority < b.priority;
+    });
+    LightLock_Unlock(&loadLock);
+}
+
+void FreeplayState::queueAssetLoad(AsyncLoadRequest::AssetType type, const std::string& key, const AsyncLoadRequest& baseReq, int priority) {
+    if (key.empty()) return;
+
+    if (type == AsyncLoadRequest::AssetType::ICON && iconCache.count(key) > 0) return;
+    if (type == AsyncLoadRequest::AssetType::ALBUM && albumCache.count(key) > 0) return;
+    if (type == AsyncLoadRequest::AssetType::ALBUM_TEXT && albumTextCache.count(key) > 0) return;
+    if (type == AsyncLoadRequest::AssetType::DIFFICULTY && diffCache.count(key) > 0) return;
+
+    LightLock_Lock(&loadLock);
+    for (auto& req : pendingRequests) {
+        if (req.type == type && req.key == key) {
+            if (priority < req.priority) req.priority = priority;
+            LightLock_Unlock(&loadLock);
+            return;
+        }
+    }
+
+    AsyncLoadRequest req = baseReq;
+    req.type = type;
+    req.key = key;
+    req.priority = priority;
+
+    pendingRequests.push_back(req);
+
+    std::sort(pendingRequests.begin(), pendingRequests.end(), [](const AsyncLoadRequest& a, const AsyncLoadRequest& b) {
+        return a.priority < b.priority;
+    });
+
+    LightLock_Unlock(&loadLock);
+}
 
 void FreeplayState::triggerAsyncLoad() {
     if (songs.empty() || curSelected < 0 || curSelected >= (int)songs.size()) return;
-    
-    // Free old sheets immediately to show loading rects
-    if (activeDiffSheet) { C2D_SpriteSheetFree(activeDiffSheet); activeDiffSheet = nullptr; }
-    if (activeIconSheet) { C2D_SpriteSheetFree(activeIconSheet); activeIconSheet = nullptr; }
-    if (activeAlbumSheet) { C2D_SpriteSheetFree(activeAlbumSheet); activeAlbumSheet = nullptr; }
-    if (activeAlbumTextSheet) { C2D_SpriteSheetFree(activeAlbumTextSheet); activeAlbumTextSheet = nullptr; }
-    activeSongIndex = -1;
-    
-    // Set up request
-    AsyncLoadRequest req;
-    req.songIndex = curSelected;
-    
-    std::string diffName = "";
-    if (curDifficulty >= 0 && curDifficulty < (int)curWeekDiffs.size()) {
-        diffName = curWeekDiffs[curDifficulty];
-    } else {
-        diffName = "Normal";
-    }
-    req.difficultyName = diffName;
-    req.iconName = songs[curSelected].info.icon;
-    req.albumName = getAlbumNameForSelected();
-    req.songName = songs[curSelected].name;
-    req.week = songs[curSelected].week;
 
-    // 1. Difficulty sprite
-    {
-        std::string diffNameLower = diffName;
-        std::transform(diffNameLower.begin(), diffNameLower.end(), diffNameLower.begin(), ::tolower);
-        std::string p = Paths::image("freeplay/" + diffNameLower, "preload");
-        if (!Paths::fileExists(p))
-            p = Paths::image("menudifficulties/placeholder", "preload");
-        req.resolvedDiffPath = p;
+    int totalSongs = (int)songs.size();
+    int offsets[] = {0, 1, -1, 2, -2};
+
+    std::string diffName = (curDifficulty >= 0 && curDifficulty < (int)curWeekDiffs.size()) ? curWeekDiffs[curDifficulty] : "Normal";
+    std::string diffNameLower = diffName;
+    for (char& c : diffNameLower) c = (char)tolower((unsigned char)c);
+
+    for (int i = 0; i < 5; i++) {
+        int targetIdx = (curSelected + offsets[i] + totalSongs) % totalSongs;
+        if (targetIdx < 0 || targetIdx >= totalSongs) continue;
+
+        int prio = i;
+        const FreeplaySong& fs = songs[targetIdx];
+
+        AsyncLoadRequest baseReq;
+        baseReq.songIndex = targetIdx;
+        baseReq.songName = fs.name;
+        baseReq.week = fs.week;
+        baseReq.iconName = fs.info.icon;
+        baseReq.albumName = getAlbumNameForSelected(targetIdx);
+        baseReq.difficultyName = diffName;
+
+        // 1. Difficulty sprite (curSelected only)
+        if (offsets[i] == 0) {
+            std::string diffKey = fs.week + ":" + diffNameLower;
+            queueAssetLoad(AsyncLoadRequest::AssetType::DIFFICULTY, diffKey, baseReq, prio);
+        }
+
+        // 2. Icon sprite
+        std::string iconToLoad = fs.info.icon.empty() ? "face" : fs.info.icon;
+        baseReq.iconName = iconToLoad;
+        std::string iconKey = fs.week + ":" + iconToLoad;
+        queueAssetLoad(AsyncLoadRequest::AssetType::ICON, iconKey, baseReq, prio);
+
+        // 3. Album sprite & text
+        std::string albumToLoad = baseReq.albumName.empty() ? "placeholder" : baseReq.albumName;
+        baseReq.albumName = albumToLoad;
+        std::string albumKey = fs.week + ":" + albumToLoad;
+        queueAssetLoad(AsyncLoadRequest::AssetType::ALBUM, albumKey, baseReq, prio);
+
+        std::string albumTextKey = fs.week + ":" + albumToLoad + "-text";
+        queueAssetLoad(AsyncLoadRequest::AssetType::ALBUM_TEXT, albumTextKey, baseReq, prio);
     }
 
-    // 2. Icon sprite
-    {
-        std::string iconName = req.iconName;
-        std::string p = Paths::image("freeplayIcons/" + iconName, "preload");
-        bool isChar = false;
-        if (!Paths::fileExists(p)) {
-            std::string prevMod = ModHandler::get().currentModFolder;
-            if (WeekData::weeksLoaded.count(req.week) && WeekData::weeksLoaded[req.week].isMod)
-                ModHandler::get().currentModFolder = WeekData::weeksLoaded[req.week].modFolder;
-            else
-                ModHandler::get().currentModFolder = "";
-            p = Paths::healthIcon(iconName);
+    LightEvent_Signal(&loadEvent);
+}
+
+FreeplayState::LoadedRawData FreeplayState::loadRawFile(AsyncLoadRequest& req) {
+    LoadedRawData data;
+
+    std::string path = "";
+    bool isChar = false;
+
+    // Save previous mod folder and set currentModFolder to this song's mod folder
+    std::string prevMod = ModHandler::get().currentModFolder;
+    std::string modFolder = "";
+
+    if (WeekData::weeksLoaded.count(req.week) && !WeekData::weeksLoaded[req.week].modFolder.empty()) {
+        modFolder = WeekData::weeksLoaded[req.week].modFolder;
+    }
+    if (modFolder.empty()) {
+        std::string songLower = req.songName;
+        for (char& c : songLower) c = (char)tolower((unsigned char)c);
+        modFolder = ModHandler::get().getModFolderOfFile("data/" + songLower + "/" + songLower + ".json");
+    }
+
+    ModHandler::get().currentModFolder = modFolder;
+
+    if (req.type == AsyncLoadRequest::AssetType::DIFFICULTY) {
+        std::string diffNameLower = req.difficultyName;
+        for (char& c : diffNameLower) c = (char)tolower((unsigned char)c);
+
+        // 1. images/freeplay/<diff> (.t3x or .rawtex)
+        path = Paths::image("freeplay/" + diffNameLower);
+        if (!Paths::fileExists(path)) path = Paths::image("freeplay/" + req.difficultyName);
+
+        // 2. images/freeplay/diff/<diff> (.t3x or .rawtex)
+        if (!Paths::fileExists(path)) path = Paths::image("freeplay/diff/" + diffNameLower);
+        if (!Paths::fileExists(path)) path = Paths::image("freeplay/diff/" + req.difficultyName);
+
+        // 3. images/menudifficulties/<diff> (.t3x or .rawtex)
+        if (!Paths::fileExists(path)) path = Paths::image("menudifficulties/" + diffNameLower);
+        if (!Paths::fileExists(path)) path = Paths::image("menudifficulties/" + req.difficultyName);
+
+        if (!Paths::fileExists(path)) path.clear();
+    }
+    else if (req.type == AsyncLoadRequest::AssetType::ICON) {
+        std::string iconName = req.iconName.empty() ? "face" : req.iconName;
+
+        path = Paths::image("freeplayIcons/" + iconName);
+        if (Paths::fileExists(path)) {
+            isChar = false;
+        } else {
+            path = Paths::healthIcon(iconName);
             isChar = true;
-            if (!Paths::fileExists(p)) { p = Paths::image("freeplayIcons/placeholder", "preload"); isChar = false; }
-            if (!Paths::fileExists(p)) { p = Paths::healthIcon("face"); isChar = true; }
-            ModHandler::get().currentModFolder = prevMod;
+
+            if (!Paths::fileExists(path)) {
+                path = Paths::image("freeplayIcons/placeholder", "preload");
+                isChar = false;
+            }
+            if (!Paths::fileExists(path)) {
+                path = Paths::healthIcon("face");
+                isChar = true;
+            }
         }
-        req.resolvedIconPath = p;
-        req.iconIsChar = isChar;
     }
+    else if (req.type == AsyncLoadRequest::AssetType::ALBUM) {
+        std::string albumName = req.albumName.empty() ? "placeholder" : req.albumName;
 
-    // 3. Album sprite
-    {
-        std::string albumName = req.albumName;
-        std::string modFolder = "";
-        if (WeekData::weeksLoaded.count(req.week) && WeekData::weeksLoaded[req.week].isMod)
-            modFolder = WeekData::weeksLoaded[req.week].modFolder;
-        if (modFolder.empty()) {
-            std::string songLower = req.songName;
-            std::transform(songLower.begin(), songLower.end(), songLower.begin(), ::tolower);
-            modFolder = ModHandler::get().getModFolderOfFile("data/" + songLower + "/" + songLower + ".json");
-        }
-
-        std::string albumPath = "";
         bool albumFound = false;
         if (albumName != "placeholder") {
-            albumPath = Paths::image("freeplay/album/" + albumName);
-            albumFound = Paths::fileExists(albumPath);
+            path = Paths::image("freeplay/album/" + albumName);
+            albumFound = Paths::fileExists(path);
         }
         if (!albumFound && !modFolder.empty()) {
             std::string bases[] = {
@@ -2262,143 +2486,56 @@ void FreeplayState::triggerAsyncLoad() {
                 if (base.empty()) continue;
                 if (base.back() != '/') base += "/";
                 std::string p = base + modFolder + "/pack.t3x";
-                if (Paths::fileExists(p)) { albumPath = p; albumFound = true; break; }
+                if (Paths::fileExists(p)) { path = p; albumFound = true; break; }
                 p = base + modFolder + "/pack.rawtex";
-                if (Paths::fileExists(p)) { albumPath = p; albumFound = true; break; }
+                if (Paths::fileExists(p)) { path = p; albumFound = true; break; }
+                p = base + modFolder + "/images/pack.t3x";
+                if (Paths::fileExists(p)) { path = p; albumFound = true; break; }
+                p = base + modFolder + "/images/pack.rawtex";
+                if (Paths::fileExists(p)) { path = p; albumFound = true; break; }
             }
         }
-        if (!albumFound)
-            albumPath = Paths::image("freeplay/album/placeholder");
-        req.resolvedAlbumPath = albumPath; // worker does the actual fread
-
-        // Album text sprite
-        std::string textPath = Paths::image("freeplay/album/" + albumName + "-text");
-        req.resolvedAlbumTextPath = Paths::fileExists(textPath) ? textPath : "";
+        if (!albumFound) path = Paths::image("freeplay/album/placeholder");
     }
-    // ────────────────────────────────────────────────────────────────────────
-
-    // Send request to worker thread
-    LightLock_Lock(&loadLock);
-    currentRequest = req;
-    requestPending = true;
-    LightLock_Unlock(&loadLock);
-    
-    LightEvent_Signal(&loadEvent);
-}
-
-FreeplayState::LoadedRawData FreeplayState::loadRawFile(const std::string& path) {
-    LoadedRawData data;
-    if (path.empty()) return data;
-    FILE* f = fopen(path.c_str(), "rb");
-    if (f) {
-        fseek(f, 0, SEEK_END);
-        size_t size = ftell(f);
-        fseek(f, 0, SEEK_SET);
-        void* buffer = linearAlloc(size);
-        if (buffer) {
-            uint8_t* ptr = (uint8_t*)buffer;
-            size_t remaining = size;
-            const size_t CHUNK_SIZE = 64 * 1024;
-            while (remaining > 0 && !requestPending && threadRunning) {
-                size_t toRead = (remaining < CHUNK_SIZE) ? remaining : CHUNK_SIZE;
-                if (fread(ptr, 1, toRead, f) != toRead) {
-                    linearFree(buffer);
-                    buffer = nullptr;
-                    break;
-                }
-                ptr += toRead;
-                remaining -= toRead;
-                svcSleepThread(100000LL); // 100 microseconds
-            }
-            if ((requestPending || !threadRunning) && buffer) {
-                linearFree(buffer);
-                buffer = nullptr;
-            }
-            if (buffer) {
-                GSPGPU_FlushDataCache(buffer, size);
-                data.buffer = buffer;
-                data.size = size;
-                data.path = path;
-            }
+    else if (req.type == AsyncLoadRequest::AssetType::ALBUM_TEXT) {
+        std::string albumName = req.albumName.empty() ? "placeholder" : req.albumName;
+        if (albumName != "placeholder") {
+            std::string textPath = Paths::image("freeplay/album/" + albumName + "-text");
+            if (Paths::fileExists(textPath)) path = textPath;
         }
-        fclose(f);
     }
+
+    ModHandler::get().currentModFolder = prevMod;
+
+    req.resolvedPath = path;
+    req.iconIsChar = isChar;
+    data.req = req;
+
     return data;
 }
 
 void FreeplayState::threadMain(void* arg) {
     FreeplayState* state = (FreeplayState*)arg;
     while (state->threadRunning) {
+        AsyncLoadRequest req;
+        bool hasRequest = false;
+
         LightLock_Lock(&state->loadLock);
-        if (!state->requestPending) {
-            LightLock_Unlock(&state->loadLock);
+        if (!state->pendingRequests.empty()) {
+            req = state->pendingRequests.front();
+            state->pendingRequests.erase(state->pendingRequests.begin());
+            hasRequest = true;
+        }
+        LightLock_Unlock(&state->loadLock);
+
+        if (!hasRequest) {
             LightEvent_Wait(&state->loadEvent);
             continue;
         }
-        // Copy the request (paths already resolved by the main thread)
-        AsyncLoadRequest req = state->currentRequest;
-        state->requestPending = false;
-        LightLock_Unlock(&state->loadLock);
 
-        // Free any previously loaded but unconsumed raw buffers (just in case)
-        if (state->loadedDiffData.buffer) { linearFree(state->loadedDiffData.buffer); state->loadedDiffData.buffer = nullptr; }
-        if (state->loadedIconData.buffer) { linearFree(state->loadedIconData.buffer); state->loadedIconData.buffer = nullptr; }
-        if (state->loadedAlbumData.buffer) { linearFree(state->loadedAlbumData.buffer); state->loadedAlbumData.buffer = nullptr; }
-        if (state->loadedAlbumTextData.buffer) { linearFree(state->loadedAlbumTextData.buffer); state->loadedAlbumTextData.buffer = nullptr; }
-
-        if (state->requestPending || !state->threadRunning) continue;
-
-        // 1. Load difficulty sprite (path pre-resolved on main thread) I NEED TO CHANGE THIS
-        LoadedRawData diffData = state->loadRawFile(req.resolvedDiffPath);
-        if (state->requestPending || !state->threadRunning) {
-            if (diffData.buffer) linearFree(diffData.buffer);
-            continue;
-        }
-
-        // 2. Load icon sprite (path pre-resolved on main thread) I NEED TO CHANGE THIS
-        LoadedRawData iconData = state->loadRawFile(req.resolvedIconPath);
-        if (state->requestPending || !state->threadRunning) {
-            if (diffData.buffer) linearFree(diffData.buffer);
-            if (iconData.buffer) linearFree(iconData.buffer);
-            continue;
-        }
-
-        // 3. Load album sprite (path pre-resolved on main thread) I NEED TO CHANGE THIS
-        LoadedRawData albumData = state->loadRawFile(req.resolvedAlbumPath);
-        if (state->requestPending || !state->threadRunning) {
-            if (diffData.buffer) linearFree(diffData.buffer);
-            if (iconData.buffer) linearFree(iconData.buffer);
-            if (albumData.buffer) linearFree(albumData.buffer);
-            continue;
-        }
-
-        // 4. Load album text sprite (path pre-resolved on main thread, may be empty) I NEED TO CHANGE THIS
-        LoadedRawData albumTextData;
-        if (!req.resolvedAlbumTextPath.empty()) {
-            albumTextData = state->loadRawFile(req.resolvedAlbumTextPath);
-            if (state->requestPending || !state->threadRunning) {
-                if (diffData.buffer) linearFree(diffData.buffer);
-                if (iconData.buffer) linearFree(iconData.buffer);
-                if (albumData.buffer) linearFree(albumData.buffer);
-                if (albumTextData.buffer) linearFree(albumTextData.buffer);
-                continue;
-            }
-        }
-
-        // All loaded — hand results back to main thread I NEED TO CHANGE THIS I NEED TO CHANGE THIS I NEED TO CHANGE THIS I NEED TO CHANGE THIS I NEED TO CHANGE THIS I NEED TO CHANGE THIS I NEED TO CHANGE THIS I NEED TO CHANGE THIS I NEED TO CHANGE THIS I NEED TO CHANGE THIS I NEED TO CHANGE THIS
+        LoadedRawData raw = state->loadRawFile(req);
         LightLock_Lock(&state->loadLock);
-        state->loadedDiffData = diffData;
-        state->loadedIconData = iconData;
-        state->loadedAlbumData = albumData;
-        state->loadedAlbumTextData = albumTextData;
-        state->loadedIconIsChar = req.iconIsChar;
-        
-        state->loadedDiffName = req.difficultyName;
-        state->loadedIconName = req.iconName;
-        state->loadedAlbumName = req.albumName;
-        state->loadedSongIndex = req.songIndex;
-        
-        state->loadCompleted = true;
+        state->completedDataQueue.push_back(raw);
         LightLock_Unlock(&state->loadLock);
     }
 }

@@ -1,78 +1,78 @@
 {
 	"animations": [
 		{
+			"anim": "idle",
+			"name": "Idle",
+			"fps": 24,
 			"loop": false,
 			"offsets": [
 				0,
 				0
 			],
-			"fps": 24,
-			"anim": "idle",
-			"indices": [],
-			"name": "Pico Idle Dance"
+			"indices": []
 		},
 		{
-			"loop": false,
-			"offsets": [
-				20,
-				2
-			],
-			"fps": 24,
-			"anim": "singLEFT",
-			"indices": [],
-			"name": "Pico Note Right0"
-		},
-		{
-			"loop": false,
-			"offsets": [
-				-35,
-				-1
-			],
-			"fps": 24,
-			"anim": "singRIGHT",
-			"indices": [],
-			"name": "Pico NOTE LEFT0"
-		},
-		{
-			"loop": false,
-			"offsets": [
-				-13,
-				10
-			],
-			"fps": 24,
-			"anim": "singUP",
-			"indices": [],
-			"name": "pico Up note0"
-		},
-		{
-			"loop": false,
-			"offsets": [
-				41,
-				-18
-			],
-			"fps": 24,
 			"anim": "singDOWN",
-			"indices": [],
-			"name": "Pico Down Note0"
+			"name": "Down",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				0,
+				0
+			],
+			"indices": []
+		},
+		{
+			"anim": "singLEFT",
+			"name": "Left",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				0,
+				0
+			],
+			"indices": []
+		},
+		{
+			"anim": "singRIGHT",
+			"name": "Right",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				0,
+				0
+			],
+			"indices": []
+		},
+		{
+			"anim": "singUP",
+			"name": "Up",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				0,
+				0
+			],
+			"indices": []
 		}
 	],
-	"no_antialiasing": false,
-	"image": "characters/Pico_FNF_assetss",
-	"position": [
-		-300,
-		300
-	],
+	"image": "characters/pico",
 	"healthicon": "pico",
 	"flip_x": true,
+	"no_antialiasing": false,
+	"scale": 2.45,
+	"sing_duration": 4.0,
+	"position": [
+		0,
+		0
+	],
+	"camera_position": [
+		1000,
+		-650
+	],
 	"healthbar_colors": [
 		183,
 		216,
 		85
-	],
-	"camera_position": [
-		0,
-		0
-	],
-	"sing_duration": 4,
-	"scale": 3.1
+	]
 }

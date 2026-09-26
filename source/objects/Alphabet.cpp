@@ -5,6 +5,21 @@
 
 static const Frame* findAlphabetFrame(CachedSpritesheet* sheet, char c) {
     if (!sheet) return nullptr;
+
+    static CachedSpritesheet* cachedSheet = nullptr;
+    static const Frame* charCache[256] = { nullptr };
+    static bool searched[256] = { false };
+
+    if (cachedSheet != sheet) {
+        cachedSheet = sheet;
+        std::fill(std::begin(charCache), std::end(charCache), nullptr);
+        std::fill(std::begin(searched), std::end(searched), false);
+    }
+
+    unsigned char idx = (unsigned char)c;
+    if (searched[idx]) {
+        return charCache[idx];
+    }
     
     // Step 1: Check new format first: e.g. "character-a0000", "character-zero0000", symbols
     std::string newPrefix;
@@ -64,7 +79,11 @@ static const Frame* findAlphabetFrame(CachedSpritesheet* sheet, char c) {
     if (!newPrefix.empty()) {
         std::string targetName = newPrefix + "0000";
         for (const auto& f : sheet->frames) {
-            if (f.name == targetName) return &f;
+            if (f.name == targetName) {
+                charCache[idx] = &f;
+                searched[idx] = true;
+                return &f;
+            }
         }
     }
     
@@ -95,10 +114,16 @@ static const Frame* findAlphabetFrame(CachedSpritesheet* sheet, char c) {
     if (!oldPrefix.empty()) {
         std::string targetName = oldPrefix + "0000";
         for (const auto& f : sheet->frames) {
-            if (f.name == targetName) return &f;
+            if (f.name == targetName) {
+                charCache[idx] = &f;
+                searched[idx] = true;
+                return &f;
+            }
         }
     }
     
+    charCache[idx] = nullptr;
+    searched[idx] = true;
     return nullptr;
 }
 

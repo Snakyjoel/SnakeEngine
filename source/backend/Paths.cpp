@@ -77,7 +77,19 @@ std::string Paths::resolve(const std::string& path) {
     return currentPath;
 }
 
+static bool checkAndResolve(const std::string& candidatePath, std::string& outPath) {
+    if (candidatePath.empty()) return false;
+    std::string resolved = Paths::resolve(candidatePath);
+    struct stat st;
+    if (stat(resolved.c_str(), &st) == 0) {
+        outPath = resolved;
+        return true;
+    }
+    return false;
+}
+
 bool Paths::fileExists(const std::string& path) {
+    if (path.empty()) return false;
     struct stat buffer;
     return (stat(resolve(path).c_str(), &buffer) == 0);
 }
@@ -95,27 +107,33 @@ std::string Paths::getPath(const std::string& file, const std::string& type, con
         if (!rawMod.empty()) return resolve(rawMod);
     }
 
+    std::string resolvedCandidate;
+
     if (!library.empty()) {
-        std::string path = "romfs:/" + library + "/" + type + "/" + file;
-        if (fileExists(path)) return resolve(path);
+        if (checkAndResolve("romfs:/" + library + "/" + type + "/" + file, resolvedCandidate)) {
+            return resolvedCandidate;
+        }
     }
 
-    std::vector<std::string> libs = {"shared", "preload"};
-    for (const auto& lib : libs) {
-        std::string path = "romfs:/" + lib + "/" + type + "/" + file;
-        if (fileExists(path)) return resolve(path);
+    static const std::string defaultLibs[2] = {"shared", "preload"};
+    for (const auto& lib : defaultLibs) {
+        if (checkAndResolve("romfs:/" + lib + "/" + type + "/" + file, resolvedCandidate)) {
+            return resolvedCandidate;
+        }
     }
     
     // Automatic .rawtex fallback for .t3x files in romfs!
     if (file.find(".t3x") != std::string::npos) {
         std::string rawFile = file.substr(0, file.find_last_of(".")) + ".rawtex";
         if (!library.empty()) {
-            std::string path = "romfs:/" + library + "/" + type + "/" + rawFile;
-            if (fileExists(path)) return resolve(path);
+            if (checkAndResolve("romfs:/" + library + "/" + type + "/" + rawFile, resolvedCandidate)) {
+                return resolvedCandidate;
+            }
         }
-        for (const auto& lib : libs) {
-            std::string path = "romfs:/" + lib + "/" + type + "/" + rawFile;
-            if (fileExists(path)) return resolve(path);
+        for (const auto& lib : defaultLibs) {
+            if (checkAndResolve("romfs:/" + lib + "/" + type + "/" + rawFile, resolvedCandidate)) {
+                return resolvedCandidate;
+            }
         }
     }
 
@@ -148,22 +166,27 @@ std::string Paths::audio(const std::string& folder, const std::string& filename)
         normFolder = prefix + song;
     }
 
-    std::vector<std::string> extensions = {".ogg", ".adp"};
-    std::vector<std::string> fileCases = {filename};
+    static const char* const extensions[] = {".ogg", ".adp", ".wav"};
+    std::vector<std::string> fileCases;
+    fileCases.reserve(2);
+    fileCases.push_back(filename);
     
     std::string capped = filename;
-    if (!capped.empty() && islower(capped[0])) {
-        capped[0] = toupper(capped[0]);
+    if (!capped.empty() && islower((unsigned char)capped[0])) {
+        capped[0] = toupper((unsigned char)capped[0]);
         fileCases.push_back(capped);
     }
 
-    for (const auto& ext : extensions) {
-        for (auto& baseName : fileCases) {
+    for (const char* ext : extensions) {
+        for (const auto& baseName : fileCases) {
             std::string finalName = baseName;
-            if (finalName.find(".ogg") != std::string::npos && ext == ".adp") {
-                finalName.replace(finalName.find(".ogg"), 4, ".adp");
-            } else if (finalName.find(".adp") != std::string::npos && ext == ".ogg") {
-                finalName.replace(finalName.find(".adp"), 4, ".ogg");
+            size_t extPos;
+            if ((extPos = finalName.find(".ogg")) != std::string::npos && strcmp(ext, ".ogg") != 0) {
+                finalName.replace(extPos, 4, ext);
+            } else if ((extPos = finalName.find(".adp")) != std::string::npos && strcmp(ext, ".adp") != 0) {
+                finalName.replace(extPos, 4, ext);
+            } else if ((extPos = finalName.find(".wav")) != std::string::npos && strcmp(ext, ".wav") != 0) {
+                finalName.replace(extPos, 4, ext);
             }
 
             std::string modPath = ModHandler::get().getModPath(normFolder + "/" + finalName);
@@ -173,12 +196,14 @@ std::string Paths::audio(const std::string& folder, const std::string& filename)
         }
     }
 
+    std::string resolvedCandidate;
+
     std::string path1 = "romfs:/" + normFolder + "/" + filename;
-    if (fileExists(path1)) return resolve(path1);
+    if (checkAndResolve(path1, resolvedCandidate)) return resolvedCandidate;
 
     if (capped != filename) {
         std::string path2 = "romfs:/" + normFolder + "/" + capped;
-        if (fileExists(path2)) return resolve(path2);
+        if (checkAndResolve(path2, resolvedCandidate)) return resolvedCandidate;
     }
 
     auto toAdp = [](std::string s) {
@@ -187,10 +212,10 @@ std::string Paths::audio(const std::string& folder, const std::string& filename)
         return s;
     };
     std::string adp1 = toAdp(path1);
-    if (fileExists(adp1)) return resolve(adp1);
+    if (checkAndResolve(adp1, resolvedCandidate)) return resolvedCandidate;
     if (capped != filename) {
         std::string adp2 = toAdp("romfs:/" + normFolder + "/" + capped);
-        if (fileExists(adp2)) return resolve(adp2);
+        if (checkAndResolve(adp2, resolvedCandidate)) return resolvedCandidate;
     }
 
     return resolve(path1);

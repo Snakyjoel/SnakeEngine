@@ -42,6 +42,7 @@ private:
     
     C2D_Font vcrFont = nullptr;
     C2D_TextBuf vcrFontBuf = nullptr;
+    std::string versionDisplayStr;
 
     bool isTransitioningToFreeplay = false;
     float transitionTimer = 0.0f;

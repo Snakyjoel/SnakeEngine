@@ -53,11 +53,19 @@ static const Frame* findButtonFrame(CachedSpritesheet* sheet, const std::string&
     return nullptr;
 }
 
-void ButtonPrompt::drawButton(const std::string& button, float x, float y, float scale, float alpha, float depth) {
-    CachedSpritesheet* sheet = SpritesheetCache::get().load("shared/images/buttons");
-    if (!sheet) return;
+static float calcFrameWidth(const Frame* f, float scale) {
+    if (!f) return 0.0f;
+    float w = (f->frameW > 0) ? (float)f->frameW : (f->rotated ? (float)f->h : (float)f->w);
+    return w * scale;
+}
 
-    const Frame* f = findButtonFrame(sheet, button);
+static float calcFrameHeight(const Frame* f, float scale) {
+    if (!f) return 0.0f;
+    float h = (f->frameH > 0) ? (float)f->frameH : (f->rotated ? (float)f->w : (float)f->h);
+    return h * scale;
+}
+
+static void renderButtonFrame(const Frame* f, float x, float y, float scale, float alpha, float depth) {
     if (!f || !f->tex) return;
 
     C2D_Image img;
@@ -84,33 +92,36 @@ void ButtonPrompt::drawButton(const std::string& button, float x, float y, float
     }
 }
 
+void ButtonPrompt::drawButton(const std::string& button, float x, float y, float scale, float alpha, float depth) {
+    CachedSpritesheet* sheet = SpritesheetCache::get().load("shared/images/buttons");
+    if (!sheet) return;
+    const Frame* f = findButtonFrame(sheet, button);
+    renderButtonFrame(f, x, y, scale, alpha, depth);
+}
+
 float ButtonPrompt::getButtonWidth(const std::string& button, float scale) {
     CachedSpritesheet* sheet = SpritesheetCache::get().load("shared/images/buttons");
     if (!sheet) return 0.0f;
-
     const Frame* f = findButtonFrame(sheet, button);
-    if (!f) return 0.0f;
-
-    float w = (f->frameW > 0) ? (float)f->frameW : (f->rotated ? (float)f->h : (float)f->w);
-    return w * scale;
+    return calcFrameWidth(f, scale);
 }
 
 float ButtonPrompt::getButtonHeight(const std::string& button, float scale) {
     CachedSpritesheet* sheet = SpritesheetCache::get().load("shared/images/buttons");
     if (!sheet) return 0.0f;
-
     const Frame* f = findButtonFrame(sheet, button);
-    if (!f) return 0.0f;
-
-    float h = (f->frameH > 0) ? (float)f->frameH : (f->rotated ? (float)f->w : (float)f->h);
-    return h * scale;
+    return calcFrameHeight(f, scale);
 }
 
 void ButtonPrompt::drawPrompt(const std::string& button, const std::string& text, float x, float y, float scale, float alpha, u32 textColor, float depth, float textScaleMultiplier, bool buttonOnRight) {
     if (!ClientPrefs::buttonPrompts) return;
+
+    CachedSpritesheet* sheet = SpritesheetCache::get().load("shared/images/buttons");
+    const Frame* f = findButtonFrame(sheet, button);
+
     float btnScale = scale * 0.75f;
-    float btnW = getButtonWidth(button, btnScale);
-    float btnH = getButtonHeight(button, btnScale);
+    float btnW = calcFrameWidth(f, btnScale);
+    float btnH = calcFrameHeight(f, btnScale);
 
     float textScale = scale * 1.25f * textScaleMultiplier;
     float fontScreenScale = (240.0f / 720.0f) * 1.25f * textScaleMultiplier;
@@ -127,10 +138,10 @@ void ButtonPrompt::drawPrompt(const std::string& button, const std::string& text
         float textW = Alphabet::getTextWidth(text, textScale);
         float btnX = x + textW + spacing;
         float btnY = y + (promptH - btnH) * 0.5f;
-        drawButton(button, btnX, btnY, btnScale, alpha, depth);
+        renderButtonFrame(f, btnX, btnY, btnScale, alpha, depth);
     } else {
         float btnY = y + (promptH - btnH) * 0.5f;
-        drawButton(button, x, btnY, btnScale, alpha, depth);
+        renderButtonFrame(f, x, btnY, btnScale, alpha, depth);
 
         float textX = x + btnW + spacing;
         float textY = y + (promptH - textVisualH) * 0.5f + (7.0f * scale * textScaleMultiplier);
@@ -140,11 +151,16 @@ void ButtonPrompt::drawPrompt(const std::string& button, const std::string& text
 
 void ButtonPrompt::drawPrompt2(const std::string& btn1, const std::string& btn2, const std::string& text, float x, float y, float scale, float alpha, u32 textColor, float depth, float textScaleMultiplier) {
     if (!ClientPrefs::buttonPrompts) return;
+
+    CachedSpritesheet* sheet = SpritesheetCache::get().load("shared/images/buttons");
+    const Frame* f1 = findButtonFrame(sheet, btn1);
+    const Frame* f2 = findButtonFrame(sheet, btn2);
+
     float btnScale = scale * 0.75f;
-    float btn1W = getButtonWidth(btn1, btnScale);
-    float btn1H = getButtonHeight(btn1, btnScale);
-    float btn2W = getButtonWidth(btn2, btnScale);
-    float btn2H = getButtonHeight(btn2, btnScale);
+    float btn1W = calcFrameWidth(f1, btnScale);
+    float btn1H = calcFrameHeight(f1, btnScale);
+    float btn2W = calcFrameWidth(f2, btnScale);
+    float btn2H = calcFrameHeight(f2, btnScale);
     float maxBtnH = std::max(btn1H, btn2H);
 
     float textScale = scale * 1.25f * textScaleMultiplier;
@@ -153,12 +169,12 @@ void ButtonPrompt::drawPrompt2(const std::string& btn1, const std::string& btn2,
     float promptH = std::max(maxBtnH, textVisualH);
 
     float btn1Y = y + (promptH - btn1H) * 0.5f;
-    drawButton(btn1, x, btn1Y, btnScale, alpha, depth);
+    renderButtonFrame(f1, x, btn1Y, btnScale, alpha, depth);
 
     float btnGap = 4.0f * (scale / 0.55f);
     float btn2X = x + btn1W + btnGap;
     float btn2Y = y + (promptH - btn2H) * 0.5f;
-    drawButton(btn2, btn2X, btn2Y, btnScale, alpha, depth);
+    renderButtonFrame(f2, btn2X, btn2Y, btnScale, alpha, depth);
 
     float textGap = 6.0f * (scale / 0.55f);
     float textX = btn2X + btn2W + textGap;

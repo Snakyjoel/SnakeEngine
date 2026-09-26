@@ -626,10 +626,11 @@ void CustomizeComboState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
     C2D_DrawRectSolid(previewX, previewY, 0.2f, previewW, previewH, C2D_Color32(0, 0, 0, 150));
     
     // Draw grid lines inside preview box
-    for (float x = previewX; x < previewX + previewW; x += 15.0f * mapScale) {
+    float gridStep = 15.0f * mapScale;
+    for (float x = previewX; x < previewX + previewW; x += gridStep) {
         C2D_DrawRectSolid(x, previewY, 0.21f, 1.0f, previewH, C2D_Color32(255, 255, 255, 30));
     }
-    for (float y = previewY; y < previewY + previewH; y += 15.0f * mapScale) {
+    for (float y = previewY; y < previewY + previewH; y += gridStep) {
         C2D_DrawRectSolid(previewX, y, 0.21f, previewW, 1.0f, C2D_Color32(255, 255, 255, 30));
     }
 

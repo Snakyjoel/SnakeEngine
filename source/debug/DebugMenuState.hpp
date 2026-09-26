@@ -3,7 +3,6 @@
 #include <vector>
 #include "../backend/MusicBeatState.hpp"
 #include <citro2d.h>
-#include "EggRoomState.hpp"
 #include "ResultState.hpp"
 
 class DebugMenuState : public MusicBeatState {

@@ -12,6 +12,25 @@
 
 static std::string lastDifficultyName = "Normal";
 
+static void drawRotatedRect(float cx, float cy, float w, float h, float angleRad, u32 color, float depth) {
+    float c = cosf(angleRad), s = sinf(angleRad);
+    float hw = w * 0.5f, hh = h * 0.5f;
+
+    auto rot = [&](float dx, float dy, float& ox, float& oy) {
+        ox = cx + dx * c - dy * s;
+        oy = cy + dx * s + dy * c;
+    };
+
+    float x1, y1, x2, y2, x3, y3, x4, y4;
+    rot(-hw, -hh, x1, y1);
+    rot( hw, -hh, x2, y2);
+    rot( hw,  hh, x3, y3);
+    rot(-hw,  hh, x4, y4);
+
+    C2D_DrawTriangle(x1, y1, color, x2, y2, color, x3, y3, color, depth);
+    C2D_DrawTriangle(x1, y1, color, x3, y3, color, x4, y4, color, depth);
+}
+
 
 void StoryMenuState::init() {
     ModHandler::get().currentModFolder = "";
@@ -162,28 +181,40 @@ void StoryMenuState::update(float dt) {
         LightLock_Unlock(&loadLock);
 
         for (auto& res : local) {
-            if (!res.buffer) continue;
-            C2D_SpriteSheet s = C2D_SpriteSheetLoadFromMem(res.buffer, res.size);
-            linearFree(res.buffer);
-            if (!s) continue;
+            C2D_SpriteSheet s = nullptr;
+            if (!res.resolvedPath.empty()) {
+                s = Paths_loadSpriteSheet(res.resolvedPath.c_str());
+            } else if (res.buffer && res.size > 0) {
+                s = C2D_SpriteSheetLoadFromMem(res.buffer, res.size);
+            }
+            if (res.buffer) {
+                linearFree(res.buffer);
+                res.buffer = nullptr;
+            }
 
             if (res.type == AsyncLoadRequest::WEEK_BANNER) {
                 // Free any old sheet at this slot
                 auto it = weekSheets.find(res.weekIndex);
                 if (it != weekSheets.end() && it->second) Paths_freeSpriteSheet(it->second);
                 weekSheets[res.weekIndex] = s;
-                C2D_Image img = C2D_SpriteSheetGetImage(s, 0);
-                if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
+                if (s) {
+                    C2D_Image img = C2D_SpriteSheetGetImage(s, 0);
+                    if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
+                }
             } else if (res.type == AsyncLoadRequest::BACKGROUND) {
                 if (activeBgSheet) Paths_freeSpriteSheet(activeBgSheet);
                 activeBgSheet = s;
-                C2D_Image img = C2D_SpriteSheetGetImage(s, 0);
-                if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
+                if (s) {
+                    C2D_Image img = C2D_SpriteSheetGetImage(s, 0);
+                    if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
+                }
             } else if (res.type == AsyncLoadRequest::DIFFICULTY) {
                 if (activeDiffSheet) Paths_freeSpriteSheet(activeDiffSheet);
                 activeDiffSheet = s;
-                C2D_Image img = C2D_SpriteSheetGetImage(s, 0);
-                if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
+                if (s) {
+                    C2D_Image img = C2D_SpriteSheetGetImage(s, 0);
+                    if (img.tex) C3D_TexSetFilter(img.tex, GPU_LINEAR, GPU_LINEAR);
+                }
             }
         }
     }
@@ -381,7 +412,7 @@ void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         WeekData& data = WeekData::weeksLoaded[weekName];
         
         std::string storyText = data.storyName.empty() ? data.weekName : data.storyName;
-        std::transform(storyText.begin(), storyText.end(), storyText.begin(), ::toupper);
+        for (char& c : storyText) c = (char)toupper((unsigned char)c);
         
         AddText(storyText, 200 + get3DOffset(10.0f), 12, 0.45f, true, 0.0f, C2D_Color32(0xB2, 0xB2, 0xB2, 255), 0.0f);
         AddText("LEVEL SCORE: 0", 200 + get3DOffset(10.0f), 31, 0.45f, true, 0.0f, CWhite, 0.0f);
@@ -394,26 +425,36 @@ void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
 
         std::string curDiffStr = curWeekDiffs[curDifficulty];
         std::string lowerDiff = curDiffStr;
-        std::transform(lowerDiff.begin(), lowerDiff.end(), lowerDiff.begin(), ::tolower);
+        for (char& c : lowerDiff) c = (char)tolower((unsigned char)c);
 
         C2D_Image dImg = getDiffImage(lowerDiff);
         float diffY = 217.0f;
+        float dW = 75.0f;
+        float dH = 20.0f;
+
         if (dImg.tex) {
-            float dW = dImg.subtex->width;
-            float dH = dImg.subtex->height;
+            dW = dImg.subtex->width;
+            dH = dImg.subtex->height;
             drawImage(dImg, 200 - (dW / 2.0f) + get3DOffset(10.0f), diffY - (dH / 2.0f), 0.85f);
-            
-            if (aLeftFrame && aLeftFrame->tex) {
-                float aH = frameLogicalH(*aLeftFrame);
-                drawFrameAt(*aLeftFrame, 200 - (dW / 2.0f) - 35 + get3DOffset(10.0f), diffY - (aH / 2.0f), 0.85f);
-            }
-            if (aRightFrame && aRightFrame->tex) {
-                float aW = frameLogicalW(*aRightFrame);
-                float aH = frameLogicalH(*aRightFrame);
-                drawFrameAt(*aRightFrame, 200 + (dW / 2.0f) + 35 - aW + get3DOffset(10.0f), diffY - (aH / 2.0f), 0.85f);
-            }
+        } else if (activeDiffPathExists) {
+            // File exists on disk but sprite is loading -> draw rotating white loading square
+            drawRotatedRect(200 + get3DOffset(10.0f), diffY, 20.0f, 20.0f, loadingAngle, CWhite, 0.85f);
         } else {
-            AddText("< " + curDiffStr + " >", 200 + get3DOffset(10.0f), diffY, 0.6f, true, 0.0f, CWhite, 0.0f);
+            // File does NOT exist -> draw VCR text for difficulty name (uppercase)
+            std::string upperDiffStr = curDiffStr;
+            for (char& c : upperDiffStr) c = (char)toupper((unsigned char)c);
+            AddText(upperDiffStr, 200 + get3DOffset(10.0f), diffY, 0.6f, true, 0.0f, CWhite, 0.0f);
+        }
+
+        // Left & Right arrows are ALWAYS drawn
+        if (aLeftFrame && aLeftFrame->tex) {
+            float aH = frameLogicalH(*aLeftFrame);
+            drawFrameAt(*aLeftFrame, 200 - (dW / 2.0f) - 35 + get3DOffset(10.0f), diffY - (aH / 2.0f), 0.85f);
+        }
+        if (aRightFrame && aRightFrame->tex) {
+            float aW = frameLogicalW(*aRightFrame);
+            float aH = frameLogicalH(*aRightFrame);
+            drawFrameAt(*aRightFrame, 200 + (dW / 2.0f) + 35 - aW + get3DOffset(10.0f), diffY - (aH / 2.0f), 0.85f);
         }
     }
  
@@ -478,9 +519,15 @@ void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                     float lH = frameLogicalH(*lockFrame) * scale;
                     drawFrameAt(*lockFrame, listX - (lW / 2.0f), itemY - (lH / 2.0f), 0.51f, nullptr, scale, scale);
                 }
+            } else if (weekBannerFileExists(selectableWeeks[i])) {
+                // File exists on disk but sprite is loading -> draw rotating white loading square
+                drawRotatedRect(listX, itemY, 20.0f, 20.0f, loadingAngle, CWhite, 0.5f);
             } else {
-                u32 textCol = isSelected ? CWhite : C2D_Color32(110, 110, 110, 154); // 154 ≈ 0.6*255
-                std::string weekDisplayName = WeekData::weeksLoaded[selectableWeeks[i]].weekName;
+                // File does NOT exist -> draw VCR text for week name (uppercase)
+                u32 textCol = isSelected ? CWhite : C2D_Color32(110, 110, 110, 154);
+                std::string weekDisplayName = WeekData::weeksLoaded[selectableWeeks[i]].storyName;
+                if (weekDisplayName.empty()) weekDisplayName = WeekData::weeksLoaded[selectableWeeks[i]].weekName;
+                for (char& c : weekDisplayName) c = (char)toupper((unsigned char)c);
                 AddText(weekDisplayName, listX, itemY, isSelected ? 0.65f : 0.45f, true, isSelected ? 2.0f : 0.0f, textCol, 0.0f);
             }
         }
@@ -589,28 +636,10 @@ void StoryMenuState::threadMain(void* arg) {
         state->requestQueue.pop_front();
         LightLock_Unlock(&state->loadLock);
 
-        // fread with the pre-resolved path (safe from secondary thread)
         LoadedResult result;
-        result.type      = req.type;
-        result.weekIndex = req.weekIndex;
-
-        FILE* f = fopen(req.resolvedPath.c_str(), "rb");
-        if (f) {
-            fseek(f, 0, SEEK_END);
-            size_t size = (size_t)ftell(f);
-            fseek(f, 0, SEEK_SET);
-            void* buf = linearAlloc(size);
-            if (buf) {
-                if (fread(buf, 1, size, f) == size) {
-                    GSPGPU_FlushDataCache(buf, size);
-                    result.buffer = buf;
-                    result.size   = size;
-                } else {
-                    linearFree(buf);
-                }
-            }
-            fclose(f);
-        }
+        result.type         = req.type;
+        result.weekIndex    = req.weekIndex;
+        result.resolvedPath = req.resolvedPath;
 
         LightLock_Lock(&state->loadLock);
         state->resultQueue.push_back(result);
@@ -745,21 +774,36 @@ void StoryMenuState::triggerDiffLoad() {
         ModHandler::get().currentModFolder = wd.isMod ? wd.modFolder : "";
     }
     std::string p = Paths::image("menudifficulties/" + lower);
+    if (!Paths::fileExists(p)) p = Paths::image("menudifficulties/" + diffStr);
     if (!Paths::fileExists(p)) p = Paths::image("menudifficulties/placeholder");
+    if (!Paths::fileExists(p)) p.clear();
+
+    activeDiffPathExists = !p.empty();
     ModHandler::get().currentModFolder = "";
 
-    if (Paths::fileExists(p)) {
-        AsyncLoadRequest req;
-        req.type         = AsyncLoadRequest::DIFFICULTY;
-        req.resolvedPath = p;
-        // Cancel previous diff request, push at front
-        LightLock_Lock(&loadLock);
-        requestQueue.erase(
-            std::remove_if(requestQueue.begin(), requestQueue.end(),
-                [](const AsyncLoadRequest& r){ return r.type == AsyncLoadRequest::DIFFICULTY; }),
-            requestQueue.end());
-        requestQueue.push_front(req);
-        LightLock_Unlock(&loadLock);
-        LightEvent_Signal(&loadEvent);
+    AsyncLoadRequest req;
+    req.type         = AsyncLoadRequest::DIFFICULTY;
+    req.resolvedPath = p;
+    // Cancel previous diff request, push at front
+    LightLock_Lock(&loadLock);
+    requestQueue.erase(
+        std::remove_if(requestQueue.begin(), requestQueue.end(),
+            [](const AsyncLoadRequest& r){ return r.type == AsyncLoadRequest::DIFFICULTY; }),
+        requestQueue.end());
+    requestQueue.push_front(req);
+    LightLock_Unlock(&loadLock);
+    LightEvent_Signal(&loadEvent);
+}
+
+bool StoryMenuState::weekBannerFileExists(const std::string& weekName) {
+    if (WeekData::weeksLoaded.find(weekName) != WeekData::weeksLoaded.end()) {
+        WeekData& wd = WeekData::weeksLoaded[weekName];
+        std::string prevMod = ModHandler::get().currentModFolder;
+        ModHandler::get().currentModFolder = wd.isMod ? wd.modFolder : "";
+        std::string p = Paths::image("storymenu/" + weekName);
+        if (!Paths::fileExists(p)) p = Paths::image("storymenu/placeholder");
+        ModHandler::get().currentModFolder = prevMod;
+        return Paths::fileExists(p);
     }
+    return false;
 }

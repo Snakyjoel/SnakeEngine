@@ -26,6 +26,9 @@ public:
     static bool isFinished();
     static void clearSoundCache();
 
+    static void startAudioThread();
+    static void stopAudioThread();
+
     static void setVocalsVolume(float vol);
     static void playSound(const std::string& path, float vol = 1.0f);
     
@@ -59,12 +62,14 @@ private:
     static OggVorbis_File vf;
     static int fillBuf;
     static uint64_t totalSamples;
+    static bool oggEof;
 
     // Vocals
     static ndspWaveBuf vocalsWaveBuf[BUFFER_COUNT];
     static int16_t *vocalsBufferData;
     static OggVorbis_File vocalsVf;
     static int vocalsFillBuf;
+    static bool vocalsOggEof;
     
     // ADP state
     static FILE* adpFile;
@@ -78,7 +83,23 @@ private:
     static AdpcmDecoder::State vocalsAdpState;
     static uint32_t vocalsAdpTotalSamples;
     static uint32_t vocalsAdpSamplesRead;
+
+    // WAV state
+    static FILE* wavFile;
+    static bool isWav;
+    static uint32_t wavDataOffset;
+    static uint32_t wavTotalSamples;
+    static uint32_t wavSamplesRead;
+
+    static FILE* vocalsWavFile;
+    static bool vocalsIsWav;
+    static uint32_t vocalsWavDataOffset;
+    static uint32_t vocalsWavTotalSamples;
+    static uint32_t vocalsWavSamplesRead;
     
+    static int instNumChannels;
+    static int vocalsNumChannels;
+
     static double lastSampleTick;
     static double pauseOffset;
 
@@ -109,12 +130,16 @@ public:
     static double getPosition(); // Returns elapsed time in milliseconds
     static double getDuration(); // Returns total track duration in milliseconds (0 if unknown)
     static void setVolume(float volume);
+    static void getRealtimeWaveform(float* outWave, int count);
+    static float getRealtimePeak();
 
 private:
     static constexpr int CHANNEL    = 5;
-    static constexpr int BUF_COUNT  = 4;
+    static constexpr int BUF_COUNT  = 8;
     static constexpr int BUF_SMPLS  = 4096;
 
+    static float           realtimePcm[64];
+    static float           realtimePeak;
     static OggVorbis_File  vf;
     static ndspWaveBuf     waveBuf[BUF_COUNT];
     static int16_t*        audioData;
@@ -131,6 +156,18 @@ private:
     static double          trackDurationMs;
 
     static std::string     currentTrackPath;
+    static bool            isAdpMode;
+    static FILE*           adpFile;
+    static uint32_t        adpTotalSamples;
+    static uint32_t        adpSamplesRead;
+    static AdpcmDecoder::State adpDecState;
+
+    static bool            isWavMode;
+    static FILE*           wavFile;
+    static uint32_t        wavDataOffset;
+    static uint32_t        wavTotalSamples;
+    static uint32_t        wavSamplesRead;
+
     static void fillBuffer(int idx);
 };
 

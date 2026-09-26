@@ -9,7 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
-#include <math.h>
+#include <cmath>
 
 struct RawTexHeader {
     char magic[4];
@@ -18,6 +18,57 @@ struct RawTexHeader {
     uint16_t origW;
     uint16_t origH;
 };
+
+static void drawRotatedRect(float cx, float cy, float w, float h, float angleRad, u32 color, float depth) {
+    float c = cosf(angleRad), s = sinf(angleRad);
+    float hw = w * 0.5f, hh = h * 0.5f;
+
+    auto rot = [cx, cy, c, s](float dx, float dy, float& ox, float& oy) {
+        ox = cx + dx * c - dy * s;
+        oy = cy + dx * s + dy * c;
+    };
+
+    float x1, y1, x2, y2, x3, y3, x4, y4;
+    rot(-hw, -hh, x1, y1);
+    rot( hw, -hh, x2, y2);
+    rot( hw,  hh, x3, y3);
+    rot(-hw,  hh, x4, y4);
+
+    C2D_DrawTriangle(x1, y1, color, x2, y2, color, x3, y3, color, depth);
+    C2D_DrawTriangle(x1, y1, color, x3, y3, color, x4, y4, color, depth);
+}
+
+static int countParagraphLines(const std::string& str, int charsPerLine) {
+    if (str.empty()) return 1;
+    int lines = 0;
+    size_t start = 0;
+    while (start < str.length()) {
+        size_t end = str.find('\n', start);
+        if (end == std::string::npos) {
+            lines += 1 + (int)((str.length() - start) / charsPerLine);
+            break;
+        }
+        lines += 1 + (int)((end - start) / charsPerLine);
+        start = end + 1;
+    }
+    return lines;
+}
+
+static float getEntryHeight(const CreditEntry& entry) {
+    if (entry.isTitle) {
+        int lines = countParagraphLines(entry.text1, 20);
+        return (float)lines * 24.0f + 25.0f;
+    }
+    
+    int lines1 = countParagraphLines(entry.text1, 26);
+    float height = (float)lines1 * 18.0f;
+    
+    if (!entry.text2.empty()) {
+        int lines2 = countParagraphLines(entry.text2, 34);
+        height += (float)lines2 * 14.0f + 6.0f;
+    }
+    return height + 24.0f; // margins
+}
 
 void CreditsState::init() {
     VCRFontFix();
@@ -112,7 +163,7 @@ void CreditsState::init() {
     }
     {
         CreditsGroup psych;
-        psych.name = "Psych Engine (From Version 0.6.3)";
+        psych.name = "Psych Engine";
         psych.iconFrame = "psychEngine";
         psych.isMod = false;
         
@@ -196,8 +247,6 @@ void CreditsState::init() {
         addTitle("TOP DONATORS, THANKS <3");
         addEntry("SG Lara", "US$ 28,08");
 
-        
-
         groups.push_back(snake);
     }
 
@@ -247,6 +296,12 @@ void CreditsState::init() {
     }
     
     updateIconCache();
+
+    quanticoFont = C2D_FontLoad("romfs:/fonts/Quantico-Bold.bcfnt");
+    quanticoFontBuf = C2D_TextBufNew(4096);
+    inconsolataFont = C2D_FontLoad("romfs:/fonts/Inconsolata-Black.bcfnt");
+    inconsolataFontBuf = C2D_TextBufNew(4096);
+    textScrollTime = 0.0f;
 }
 
 void CreditsState::parseCreditsFile(CreditsGroup& group, const std::string& filePath) {
@@ -266,20 +321,12 @@ void CreditsState::parseCreditsFile(CreditsGroup& group, const std::string& file
 
         size_t split = trimmed.find("::");
         if (split != std::string::npos) {
-            std::vector<std::string> parts;
-            std::string temp = trimmed;
-            size_t pos = 0;
-            while ((pos = temp.find("::")) != std::string::npos) {
-                parts.push_back(temp.substr(0, pos));
-                temp.erase(0, pos + 2);
-            }
-            parts.push_back(temp);
-
-            if (parts.size() >= 3) {
+            size_t secondSplit = trimmed.find("::", split + 2);
+            if (secondSplit != std::string::npos) {
                 CreditEntry e;
                 e.isTitle = false;
-                e.text1 = parts[0];
-                e.text2 = parts[2];
+                e.text1 = trimmed.substr(0, split);
+                e.text2 = trimmed.substr(secondSplit + 2);
                 group.entries.push_back(e);
             }
         } else {
@@ -446,10 +493,7 @@ void CreditsState::updateIconCache() {
     for (int i = 0; i < count; i++) {
         if (groups[i].isMod) {
             float diff = (float)i - scrollPercent;
-            while (diff < -count / 2.0f) diff += count;
-            while (diff > count / 2.0f) diff -= count;
-
-            if (std::abs(diff) <= 1.8f) {
+            if (std::abs(diff) <= 5.8f) { // Sliding window caching
                 loadModIcon(groups[i]);
             } else {
                 freeModIcon(groups[i]);
@@ -458,47 +502,12 @@ void CreditsState::updateIconCache() {
     }
 }
 
-static float getEntryHeight(const CreditEntry& entry) {
-    if (entry.isTitle) {
-        int lines = 0;
-        std::stringstream ss(entry.text1);
-        std::string para;
-        while (std::getline(ss, para, '\n')) {
-            lines += 1 + (int)(para.length() / 22);
-        }
-        return (float)lines * 20.0f + 25.0f;
-    }
-    
-    int lines1 = 0;
-    {
-        std::stringstream ss(entry.text1);
-        std::string para;
-        while (std::getline(ss, para, '\n')) {
-            lines1 += 1 + (int)(para.length() / 32);
-        }
-    }
-    float height = (float)lines1 * 14.0f;
-    
-    if (!entry.text2.empty()) {
-        int lines2 = 0;
-        std::stringstream ss(entry.text2);
-        std::string para;
-        while (std::getline(ss, para, '\n')) {
-            lines2 += 1 + (int)(para.length() / 42);
-        }
-        height += (float)lines2 * 11.0f + 6.0f;
-    }
-    return height + 24.0f; // margins
-}
-
 void CreditsState::update(float dt) {
     u32 kDown = hidKeysDown();
     u32 kHeld = hidKeysHeld();
     int count = (int)groups.size();
     
     if (subState == STATE_SELECTING) {
-        int oldSelected = curSelected;
-        
         if (kDown & (KEY_DUP | KEY_CPAD_UP)) {
             curSelected--;
             if (curSelected < 0) curSelected = count - 1;
@@ -508,14 +517,6 @@ void CreditsState::update(float dt) {
             curSelected++;
             if (curSelected >= count) curSelected = 0;
             AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
-        }
-        
-        if (count > 0 && oldSelected != curSelected) {
-            if (curSelected - oldSelected == 1 - count) {
-                scrollPercent -= count;
-            } else if (curSelected - oldSelected == count - 1) {
-                scrollPercent += count;
-            }
         }
 
         if (kDown & KEY_B) {
@@ -566,43 +567,45 @@ void CreditsState::update(float dt) {
     }
 
     if (count > 0) {
-        scrollPercent += (curSelected - scrollPercent) * 12.0f * dt;
-        
-        if (scrollPercent < 0.0f) {
-            scrollPercent += count;
-        } else if (scrollPercent >= count) {
-            scrollPercent -= count;
-        }
-        
+        scrollPercent += ((float)curSelected - scrollPercent) * 12.0f * dt;
         updateIconCache();
     }
+    textScrollTime += dt;
 }
 
 void CreditsState::drawScrollText(const std::string& text, float x, float y, float scale, bool centered, float border, u32 color, float wrapWidth) {
+    C2D_Font fontToUse = inconsolataFont ? inconsolataFont : vcrFont;
+    C2D_TextBuf bufToUse = inconsolataFontBuf ? inconsolataFontBuf : vcrFontBuf;
+
     std::vector<std::string> paragraphs;
-    std::string currentParagraph = "";
-    for (char c : text) {
-        if (c == '\n') {
-            paragraphs.push_back(currentParagraph);
-            currentParagraph = "";
-        } else {
-            currentParagraph += c;
+    size_t start = 0;
+    while (start <= text.length()) {
+        size_t end = text.find('\n', start);
+        if (end == std::string::npos) {
+            paragraphs.push_back(text.substr(start));
+            break;
         }
+        paragraphs.push_back(text.substr(start, end - start));
+        start = end + 1;
     }
-    paragraphs.push_back(currentParagraph);
 
     std::vector<std::string> lines;
+    lines.reserve(paragraphs.size());
     for (const auto& para : paragraphs) {
         if (wrapWidth <= 0.0f || para.empty()) {
             lines.push_back(para);
         } else {
-            std::stringstream ss(para);
-            std::string word;
             std::string line = "";
-            while (ss >> word) {
+            size_t pStart = 0;
+            while (pStart < para.length()) {
+                size_t pSpace = para.find(' ', pStart);
+                std::string word = (pSpace == std::string::npos) ? para.substr(pStart) : para.substr(pStart, pSpace - pStart);
+                pStart = (pSpace == std::string::npos) ? para.length() : pSpace + 1;
+                if (word.empty()) continue;
+
                 std::string testLine = line.empty() ? word : line + " " + word;
                 C2D_Text gText;
-                C2D_TextFontParse(&gText, vcrFont, vcrFontBuf, testLine.c_str());
+                C2D_TextFontParse(&gText, fontToUse, bufToUse, testLine.c_str());
                 float tw, th;
                 C2D_TextGetDimensions(&gText, scale, scale, &tw, &th);
                 
@@ -620,56 +623,133 @@ void CreditsState::drawScrollText(const std::string& text, float x, float y, flo
     }
 
     float lineHeight = 28.0f * scale;
-    float totalHeight = lines.size() * lineHeight;
-    float startY = centered ? (y - totalHeight / 2.0f) : y;
+    float totalHeight = (float)lines.size() * lineHeight;
+    float startY = centered ? (y - totalHeight * 0.5f) : y;
 
     for (size_t i = 0; i < lines.size(); i++) {
         if (lines[i].empty()) continue;
         C2D_Text gText;
-        C2D_TextFontParse(&gText, vcrFont, vcrFontBuf, lines[i].c_str());
+        C2D_TextFontParse(&gText, fontToUse, bufToUse, lines[i].c_str());
         C2D_TextOptimize(&gText);
         float tw, th;
         C2D_TextGetDimensions(&gText, scale, scale, &tw, &th);
         
-        float dx = centered ? (x - tw / 2.0f) : x;
+        float lineScale = scale;
+        if (wrapWidth > 0.0f && tw > wrapWidth) {
+            lineScale = scale * (wrapWidth / tw);
+            C2D_TextGetDimensions(&gText, lineScale, lineScale, &tw, &th);
+        }
+
+        float dx = centered ? (x - tw * 0.5f) : x;
         float dy = startY + (float)i * lineHeight;
         dx = std::round(dx); dy = std::round(dy);
         if (border > 0.0f) {
-            DrawTextBorderFull(&gText, dx, dy, 0.84f, scale, scale, border, CBlack);
+            DrawTextBorderFull(&gText, dx, dy, 0.84f, lineScale, lineScale, border, CBlack);
         }
-        C2D_DrawText(&gText, C2D_WithColor, dx, dy, 0.85f, scale, scale, color);
+        C2D_DrawText(&gText, C2D_WithColor, dx, dy, 0.85f, lineScale, lineScale, color);
+    }
+}
+
+static std::vector<std::string> wrapAlphabetText(const std::string& text, float scale, float maxWidth) {
+    std::vector<std::string> lines;
+    std::string currentLine = "";
+    size_t start = 0;
+
+    while (start < text.length()) {
+        size_t spacePos = text.find(' ', start);
+        std::string word = (spacePos == std::string::npos) ? text.substr(start) : text.substr(start, spacePos - start);
+        start = (spacePos == std::string::npos) ? text.length() : spacePos + 1;
+        if (word.empty()) continue;
+
+        std::string testLine = currentLine.empty() ? word : currentLine + " " + word;
+        float tw = Alphabet::getTextWidth(testLine, scale);
+        if (tw > maxWidth && !currentLine.empty()) {
+            lines.push_back(currentLine);
+            currentLine = word;
+        } else {
+            currentLine = testLine;
+        }
+    }
+    if (!currentLine.empty()) {
+        lines.push_back(currentLine);
+    }
+    if (lines.empty()) {
+        lines.push_back(text);
+    }
+    return lines;
+}
+
+static void drawGrid(float width, float height, float textScrollTime, float depth) {
+    float size = 36.0f;
+    float offset = fmodf(textScrollTime * 25.0f, size);
+    u32 gridCol = C2D_Color32(0, 0, 0, 50);
+
+    int xi = 0;
+    for (float x = -size * 2.0f + offset; x < width + size; x += size, xi++) {
+        int yi = 0;
+        for (float y = -size * 2.0f + offset; y < height + size; y += size, yi++) {
+            if ((xi + yi) & 1) continue;
+            C2D_DrawRectSolid(x, y, depth, size, size, gridCol);
+        }
     }
 }
 
 void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     C2D_SetTintMode(C2D_TintMult);
     ClearTextBuf();
+    if (quanticoFontBuf) C2D_TextBufClear(quanticoFontBuf);
+    if (inconsolataFontBuf) C2D_TextBufClear(inconsolataFontBuf);
+
+    u32 bgColor = C2D_Color32(43, 0, 135, 255);
+    float angleRad = -6.0f * (3.14159265f / 180.0f);
 
     if (subState == STATE_SELECTING) {
+        // ── TOP SCREEN ────────────────────────────────────────────────────────
         C2D_SceneBegin(top);
-        C2D_TargetClear(top, C2D_Color32(146, 113, 253, 255));
+        C2D_TargetClear(top, bgColor);
         
-        if (bgSheet) {
+        // Infinite scrolling transparent black checkerboard grid
+        drawGrid(400.0f, 240.0f, textScrollTime, 0.05f);
+
+        if (bgSheet && topBG.tex) {
             C2D_ImageTint tint;
-            C2D_PlainImageTint(&tint, C2D_Color32(39, 71, 220, 255), 1.0f);
-            drawCenteredBG(topBG, 400.0f, 240.0f, 0.1f, &tint);
+            C2D_PlainImageTint(&tint, C2D_Color32(255, 255, 255, 255), 1.0f);
+            drawCenteredBG(topBG, 400.0f, 240.0f, 0.10f, &tint);
         }
         
-        Alphabet::draw("CREDITS MENU", 200.0f, 20.0f, 1.1f, 1.0f, true, CWhite);
-        
-        C2D_SceneBegin(bottom);
-        C2D_TargetClear(bottom, C2D_Color32(146, 113, 253, 255));
+        // Rotated black rectangle on left side of top screen
+        drawRotatedRect(25.0f, 120.0f, 110.0f, 450.0f, angleRad, C2D_Color32(0, 0, 0, 255), 0.25f);
 
-        if (bottomBGSheet) {
-            C2D_ImageTint tint;
-            C2D_PlainImageTint(&tint, C2D_Color32(39, 71, 220, 255), 1.0f);
-            drawCenteredBG(bottomBG, 320.0f, 240.0f, 0.1f, &tint);
+        // Vertical CREDITS text in Quantico-Bold font
+        const char* creditsLetters[] = {"C", "R", "E", "D", "I", "T", "S", " "};
+        float letterStep = 40.0f;
+        float loopHeight = 8.0f * letterStep;
+        float vScrollOffset = fmodf(textScrollTime * 15.0f, loopHeight);
+
+        for (float baseY = -loopHeight; baseY < 270.0f; baseY += loopHeight) {
+            for (int i = 0; i < 8; i++) {
+                if (creditsLetters[i][0] == ' ') continue;
+                float charY = baseY + vScrollOffset + (float)i * letterStep;
+                if (charY > -60.0f && charY < 260.0f) {
+                    C2D_Text letterObj;
+                    C2D_TextFontParse(&letterObj, quanticoFont ? quanticoFont : vcrFont, quanticoFontBuf ? quanticoFontBuf : vcrFontBuf, creditsLetters[i]);
+                    C2D_TextOptimize(&letterObj);
+                    
+                    // Shadow
+                    DrawTextBorderFull(&letterObj, 18.5f, charY + 4.5f, 0.28f, 1.725f, 1.725f, 1.5f, C2D_Color32(50, 50, 50, 255));
+                    C2D_DrawText(&letterObj, C2D_WithColor, 18.5f, charY + 4.5f, 0.285f, 1.725f, 1.725f, C2D_Color32(50, 50, 50, 255));
+
+                    // Main border & text
+                    DrawTextBorderFull(&letterObj, 12.0f, charY, 0.29f, 1.725f, 1.725f, 1.5f, CBlack);
+                    C2D_DrawText(&letterObj, C2D_WithColor, 12.0f, charY, 0.30f, 1.725f, 1.725f, CWhite);
+                }
+            }
         }
 
         if (!groups.empty()) {
             int count = (int)groups.size();
             
-            auto drawIcon = [&](int idx, float y, float scale, float alpha) {
+            auto drawIcon = [&](int idx, float x, float y, float scale, float alpha) {
                 auto& gp = groups[idx];
                 C2D_Image img;
                 const Frame* frame = nullptr;
@@ -678,10 +758,9 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                     if (gp.iconLoaded && gp.modIcon.tex) {
                         img = gp.modIcon;
                     } else {
-                        return; // Not loaded
+                        return;
                     }
                 } else {
-                    // Find built-in icon frame matching the prefix
                     bool found = false;
                     for (const auto& f : iconFrames) {
                         if (f.name.find(gp.iconFrame) == 0) {
@@ -699,51 +778,137 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 C2D_AlphaImageTint(&tint, alpha);
                 
                 if (frame) {
-                    drawFrameCentered(*frame, 60.0f, y, 0.5f, &tint, scale, scale);
+                    drawFrameCentered(*frame, x, y, 0.5f, &tint, scale, scale);
                 } else {
                     float w = img.subtex->width;
                     float h = img.subtex->height;
-                    float drawX = 60.0f - (w * scale) / 2.0f;
-                    float drawY = y - (h * scale) / 2.0f;
+                    float drawX = x - (w * scale) * 0.5f;
+                    float drawY = y - (h * scale) * 0.5f;
                     C2D_DrawImageAt(img, drawX, drawY, 0.5f, &tint, scale, scale);
                 }
             };
 
+            auto getIconWidth = [&](int idx, float scale) -> float {
+                auto& gp = groups[idx];
+                if (gp.isMod) {
+                    if (gp.iconLoaded && gp.modIcon.tex && gp.modIcon.subtex) {
+                        return gp.modIcon.subtex->width * scale;
+                    }
+                } else {
+                    for (const auto& f : iconFrames) {
+                        if (f.name.find(gp.iconFrame) == 0) {
+                            return (float)f.uv.width * scale;
+                        }
+                    }
+                }
+                return 35.0f * scale;
+            };
+
             for (int i = 0; i < count; i++) {
                 float diff = (float)i - scrollPercent;
-                // Since it's vertical now, targetY wraps around the list selection
-                float targetY = 120.0f + diff * 75.0f;
-                
-                if (targetY < -50.0f || targetY > 290.0f) continue;
+                float targetY = 120.0f + diff * 70.0f;
+                if (targetY < -120.0f || targetY > 360.0f) continue;
 
-                bool isSelected = (i == curSelected);
-                float itemAlpha = isSelected ? 1.0f : 0.6f;
-                float scale = isSelected ? 0.75f : 0.60f;
+                float absDiff = std::abs(diff);
+                float t = std::max(0.0f, 1.0f - absDiff);
+                t = t * t * (3.0f - 2.0f * t);
 
-                drawIcon(i, targetY, scale, itemAlpha);
+                float itemAlpha = 0.5f + t * 0.5f;
+                float baseScale = 0.55f + t * 0.20f;
+                const float nameScale = 0.8625f;
+                float iconScale = baseScale * 0.80f;
 
-                float textHeight = 70.0f * 1.0f * (240.0f / 720.0f);
+                float textHeight = 70.0f * (240.0f / 720.0f);
                 CachedSpritesheet* alphabetSheet = SpritesheetCache::get().load("shared/images/Alphabet");
                 if (alphabetSheet) {
                     for (const auto& f : alphabetSheet->frames) {
                         if (f.name == "A0000") {
-                            textHeight = frameLogicalH(f) * 1.0f * (240.0f / 720.0f);
+                            textHeight = frameLogicalH(f) * (240.0f / 720.0f);
                             break;
                         }
                     }
                 }
-                float textY = targetY - textHeight / 2.0f;
                 u32 color = C2D_Color32(255, 255, 255, (u8)(itemAlpha * 255.0f));
-                
-                Alphabet::draw(groups[i].name, 110.0f, textY, 1.0f, itemAlpha, false, color);
+
+                float iconX = 340.0f;
+                const float curSelectIconScale = 0.60f;
+                float curSelectIconW = getIconWidth(i, curSelectIconScale);
+                float curSelectIconLeft = iconX - curSelectIconW * 0.5f;
+                float textRightX = curSelectIconLeft - 5.0f;
+                float maxTextWidth = std::max(50.0f, textRightX - 40.0f);
+
+                std::vector<std::string> lines = wrapAlphabetText(groups[i].name, nameScale, maxTextWidth);
+                float lineHeight = textHeight * nameScale * 0.90f;
+                float totalTextHeight = (float)lines.size() * lineHeight;
+                float startTextY = targetY - totalTextHeight * 0.5f;
+
+                for (size_t l = 0; l < lines.size(); l++) {
+                    float lineW = Alphabet::getTextWidth(lines[l], nameScale);
+                    float lineX = textRightX - lineW;
+                    float lineY = startTextY + (float)l * lineHeight;
+                    Alphabet::draw(lines[l], lineX, lineY, nameScale, itemAlpha, false, color);
+                }
+
+                drawIcon(i, iconX, targetY, iconScale, itemAlpha);
             }
         }
+        
+        // ── BOTTOM SCREEN ─────────────────────────────────────────────────────
+        C2D_SceneBegin(bottom);
+        C2D_TargetClear(bottom, bgColor);
+
+        // Infinite scrolling transparent black checkerboard grid
+        drawGrid(320.0f, 240.0f, textScrollTime, 0.05f);
+
+        if (bottomBGSheet && bottomBG.tex) {
+            C2D_ImageTint tint;
+            C2D_PlainImageTint(&tint, C2D_Color32(255, 255, 255, 255), 1.0f);
+            drawCenteredBG(bottomBG, 320.0f, 240.0f, 0.10f, &tint);
+        }
+
+        // 4 Infinite Scrolling Marquee Rows
+        auto drawMarqueeRow = [&](const std::string& label, float y, float scale, float speed, float dir, u32 color) {
+            std::string unitText = label + "   ";
+            C2D_Text gText;
+            C2D_TextFontParse(&gText, quanticoFont ? quanticoFont : vcrFont, quanticoFontBuf ? quanticoFontBuf : vcrFontBuf, unitText.c_str());
+            C2D_TextOptimize(&gText);
+            float tw = 0.0f, th = 0.0f;
+            C2D_TextGetDimensions(&gText, scale, scale, &tw, &th);
+            if (tw <= 0.0f) tw = 120.0f;
+
+            float rawOffset = fmodf(textScrollTime * speed * dir, tw);
+            if (rawOffset < 0.0f) rawOffset += tw;
+
+            float startX = -tw + rawOffset;
+            while (startX < 320.0f) {
+                DrawTextBorderFull(&gText, startX, y, 0.14f, scale, scale, 1.5f, CBlack);
+                C2D_DrawText(&gText, C2D_WithColor, startX, y, 0.15f, scale, scale, color);
+                startX += tw;
+            }
+        };
+
+        drawMarqueeRow("C++", 62.0f, 1.25f, 35.0f, 1.0f, CWhite);
+        drawMarqueeRow("DEVKITARM", 102.0f, 0.90f, 35.0f, -1.0f, CWhite);
+        drawMarqueeRow("LIBCTRU", 142.0f, 1.25f, 35.0f, 1.0f, CWhite);
+        drawMarqueeRow("CITRO2D", 182.0f, 0.90f, 35.0f, -1.0f, CWhite);
+
+        // Rotated black rectangle on left side of bottom screen
+        drawRotatedRect(10.0f, 120.0f, 110.0f, 450.0f, angleRad, C2D_Color32(0, 0, 0, 255), 0.25f);
+
+        // Header MADE WITH:
+        C2D_Text headerText;
+        C2D_TextFontParse(&headerText, quanticoFont ? quanticoFont : vcrFont, quanticoFontBuf ? quanticoFontBuf : vcrFontBuf, "MADE WITH:");
+        C2D_TextOptimize(&headerText);
+        DrawTextBorderFull(&headerText, 25.0f, 20.0f, 0.34f, 1.15f, 1.15f, 1.5f, CBlack);
+        C2D_DrawText(&headerText, C2D_WithColor, 25.0f, 20.0f, 0.35f, 1.15f, 1.15f, CWhite);
+
         ButtonPrompt::drawPrompt("b", "Back", 8.0f, 205.0f, 0.70f, 1.0f);
         C2D_Flush();
     }
     else if (subState == STATE_SCROLLING) {
         auto& gp = groups[curSelected];
 
+        // Top screen scrolling credits
         C2D_SceneBegin(top);
         C2D_TargetClear(top, CBlack);
         
@@ -752,37 +917,23 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             float entryHeight = getEntryHeight(entry);
             if (entry.isTitle) {
                 if (currentY > -entryHeight && currentY < 260.0f) {
-                    drawScrollText(entry.text1, 200.0f, currentY + entryHeight/2.0f, 0.65f, true, 0.0f, CYellow, 280.0f);
+                    drawScrollText(entry.text1, 200.0f, currentY + entryHeight * 0.5f, 0.75f, true, 0.0f, CYellow, 360.0f);
                 }
             } else {
                 if (currentY > -entryHeight && currentY < 260.0f) {
-                    int lines = 0;
-                    {
-                        std::stringstream ss(entry.text1);
-                        std::string para;
-                        while (std::getline(ss, para, '\n')) {
-                            lines += 1 + (int)(para.length() / 32);
-                        }
-                    }
-                    float t1Height = (float)lines * 14.0f;
+                    int lines1 = countParagraphLines(entry.text1, 26);
+                    float t1Height = (float)lines1 * 18.0f;
                     
                     if (entry.text2.empty()) {
-                        drawScrollText(entry.text1, 200.0f, currentY + entryHeight/2.0f, 0.5f, true, 0.0f, CWhite, 280.0f);
+                        drawScrollText(entry.text1, 200.0f, currentY + entryHeight * 0.5f, 0.60f, true, 0.0f, CWhite, 360.0f);
                     } else {
-                        float t1Center = currentY + 12.0f + t1Height/2.0f;
-                        drawScrollText(entry.text1, 200.0f, t1Center, 0.5f, true, 0.0f, CWhite, 280.0f);
+                        float t1Center = currentY + 12.0f + t1Height * 0.5f;
+                        drawScrollText(entry.text1, 200.0f, t1Center, 0.60f, true, 0.0f, CWhite, 360.0f);
                         
-                        int lines2 = 0;
-                        {
-                            std::stringstream ss(entry.text2);
-                            std::string para;
-                            while (std::getline(ss, para, '\n')) {
-                                lines2 += 1 + (int)(para.length() / 42);
-                            }
-                        }
-                        float t2Height = (float)lines2 * 11.0f;
-                        float t2Center = currentY + 12.0f + t1Height + 6.0f + t2Height/2.0f;
-                        drawScrollText(entry.text2, 200.0f, t2Center, 0.38f, true, 0.0f, CGray, 280.0f);
+                        int lines2 = countParagraphLines(entry.text2, 34);
+                        float t2Height = (float)lines2 * 14.0f;
+                        float t2Center = currentY + 12.0f + t1Height + 6.0f + t2Height * 0.5f;
+                        drawScrollText(entry.text2, 200.0f, t2Center, 0.48f, true, 0.0f, CGray, 360.0f);
                     }
                 }
             }
@@ -790,6 +941,7 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         }
         C2D_Flush();
 
+        // Bottom screen scrolling credits
         C2D_SceneBegin(bottom);
         C2D_TargetClear(bottom, CBlack);
 
@@ -798,37 +950,23 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             float entryHeight = getEntryHeight(entry);
             if (entry.isTitle) {
                 if (currentY > -entryHeight && currentY < 260.0f) {
-                    drawScrollText(entry.text1, 160.0f, currentY + entryHeight/2.0f, 0.65f, true, 0.0f, CYellow, 280.0f);
+                    drawScrollText(entry.text1, 160.0f, currentY + entryHeight * 0.5f, 0.75f, true, 0.0f, CYellow, 290.0f);
                 }
             } else {
                 if (currentY > -entryHeight && currentY < 260.0f) {
-                    int lines = 0;
-                    {
-                        std::stringstream ss(entry.text1);
-                        std::string para;
-                        while (std::getline(ss, para, '\n')) {
-                            lines += 1 + (int)(para.length() / 32);
-                        }
-                    }
-                    float t1Height = (float)lines * 14.0f;
+                    int lines1 = countParagraphLines(entry.text1, 26);
+                    float t1Height = (float)lines1 * 18.0f;
                     
                     if (entry.text2.empty()) {
-                        drawScrollText(entry.text1, 160.0f, currentY + entryHeight/2.0f, 0.5f, true, 0.0f, CWhite, 280.0f);
+                        drawScrollText(entry.text1, 160.0f, currentY + entryHeight * 0.5f, 0.60f, true, 0.0f, CWhite, 290.0f);
                     } else {
-                        float t1Center = currentY + 12.0f + t1Height/2.0f;
-                        drawScrollText(entry.text1, 160.0f, t1Center, 0.5f, true, 0.0f, CWhite, 280.0f);
+                        float t1Center = currentY + 12.0f + t1Height * 0.5f;
+                        drawScrollText(entry.text1, 160.0f, t1Center, 0.60f, true, 0.0f, CWhite, 290.0f);
                         
-                        int lines2 = 0;
-                        {
-                            std::stringstream ss(entry.text2);
-                            std::string para;
-                            while (std::getline(ss, para, '\n')) {
-                                lines2 += 1 + (int)(para.length() / 42);
-                            }
-                        }
-                        float t2Height = (float)lines2 * 11.0f;
-                        float t2Center = currentY + 12.0f + t1Height + 6.0f + t2Height/2.0f;
-                        drawScrollText(entry.text2, 160.0f, t2Center, 0.38f, true, 0.0f, CGray, 280.0f);
+                        int lines2 = countParagraphLines(entry.text2, 34);
+                        float t2Height = (float)lines2 * 14.0f;
+                        float t2Center = currentY + 12.0f + t1Height + 6.0f + t2Height * 0.5f;
+                        drawScrollText(entry.text2, 160.0f, t2Center, 0.48f, true, 0.0f, CGray, 290.0f);
                     }
                 }
             }
@@ -850,4 +988,8 @@ void CreditsState::exitState() {
     }
     
     C2D_TextBufDelete(vcrFontBuf);
+    if (quanticoFont) C2D_FontFree(quanticoFont);
+    if (quanticoFontBuf) C2D_TextBufDelete(quanticoFontBuf);
+    if (inconsolataFont) C2D_FontFree(inconsolataFont);
+    if (inconsolataFontBuf) C2D_TextBufDelete(inconsolataFontBuf);
 }

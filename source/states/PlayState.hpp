@@ -500,6 +500,7 @@ private:
     float currentLyricsSize;
     
     Stage* currentStage = nullptr;
+    bool isPixelStage = false;
     
     bool paused = false;
     class PauseSubState* pauseSubState = nullptr;

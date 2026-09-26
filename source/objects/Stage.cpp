@@ -1,19 +1,32 @@
 #include "Stage.hpp"
 #include "../states/PlayState.hpp"
 #include <jansson.h>
-#include <stdio.h>
+#include <cstdio>
+#include <cmath>
+
+static float getJsonFloat(json_t* obj, const char* key, float defaultValue) {
+    json_t* val = json_object_get(obj, key);
+    if (json_is_number(val)) return (float)json_number_value(val);
+    return defaultValue;
+}
+
+static bool getJsonBool(json_t* obj, const char* key, bool defaultValue) {
+    json_t* val = json_object_get(obj, key);
+    if (json_is_boolean(val)) return json_boolean_value(val);
+    return defaultValue;
+}
 
 Stage::Stage(const std::string& path) {
     loadFromJson(path);
 }
 
 Stage::~Stage() {
-    // Textures owned by SpritesheetCache — do NOT free them here.
+    // Textures are owned by SpritesheetCache — do NOT free them here.
     sprites.clear();
 }
 
 void Stage::loadFromJson(const std::string& path) {
-    json_t *root;
+    json_t* root = nullptr;
     json_error_t error;
 
     if (!Paths::fileExists(path)) {
@@ -22,20 +35,14 @@ void Stage::loadFromJson(const std::string& path) {
     }
 
     root = json_load_file(path.c_str(), 0, &error);
-    if (!root) {
-        return;
-    }
+    if (!root) return;
 
+    defaultZoom = getJsonFloat(root, "defaultZoom", defaultZoom);
+    cameraSpeed = getJsonFloat(root, "camera_speed", cameraSpeed);
 
-    json_t *jZoom = json_object_get(root, "defaultZoom");
-    if (json_is_number(jZoom)) defaultZoom = (float)json_number_value(jZoom);
-
-    json_t *jSpeed = json_object_get(root, "camera_speed");
-    if (json_is_number(jSpeed)) cameraSpeed = (float)json_number_value(jSpeed);
-
-    // Coord parsing macro
+    // Coord parsing helper
     auto parseCoords = [&](const char* key, float& rx, float& ry) -> bool {
-        json_t *arr = json_object_get(root, key);
+        json_t* arr = json_object_get(root, key);
         if (json_is_array(arr) && json_array_size(arr) >= 2) {
             rx = (float)json_number_value(json_array_get(arr, 0));
             ry = (float)json_number_value(json_array_get(arr, 1));
@@ -48,35 +55,41 @@ void Stage::loadFromJson(const std::string& path) {
     parseCoords("opponent", dadX, dadY);
     parseCoords("girlfriend", gfX, gfY);
 
-    if (!parseCoords("camera_boyfriend", bfCamX, bfCamY))  parseCoords("boyfriend_camera",  bfCamX, bfCamY);
-    if (!parseCoords("camera_opponent",  dadCamX, dadCamY)) parseCoords("opponent_camera",   dadCamX, dadCamY);
-    if (!parseCoords("camera_girlfriend",gfCamX, gfCamY))  parseCoords("girlfriend_camera", gfCamX, gfCamY);
+    if (!parseCoords("camera_boyfriend", bfCamX, bfCamY)) parseCoords("boyfriend_camera", bfCamX, bfCamY);
+    if (!parseCoords("camera_opponent", dadCamX, dadCamY)) parseCoords("opponent_camera", dadCamX, dadCamY);
+    if (!parseCoords("camera_girlfriend", gfCamX, gfCamY)) parseCoords("girlfriend_camera", gfCamX, gfCamY);
 
-    json_t *jHideGF = json_object_get(root, "hide_girlfriend");
-    if (json_is_boolean(jHideGF)) hideGirlfriend = json_boolean_value(jHideGF);
+    hideGirlfriend = getJsonBool(root, "hide_girlfriend", hideGirlfriend);
+    hideOpponent = getJsonBool(root, "hide_opponent", hideOpponent);
+    isPixelStage = getJsonBool(root, "isPixelStage", isPixelStage);
 
-    json_t *jHideOpp = json_object_get(root, "hide_opponent");
-    if (json_is_boolean(jHideOpp)) hideOpponent = json_boolean_value(jHideOpp);
-
-    json_t *jSprites = json_object_get(root, "sprites");
+    json_t* jSprites = json_object_get(root, "sprites");
     if (json_is_array(jSprites)) {
-        size_t index; json_t *val;
+        size_t index;
+        json_t* val;
         json_array_foreach(jSprites, index, val) {
             StageSprite s;
-            s.name = json_string_value(json_object_get(val, "image"));
-            s.x = json_is_number(json_object_get(val, "x")) ? (float)json_number_value(json_object_get(val, "x")) : 0.0f;
-            s.y = json_is_number(json_object_get(val, "y")) ? (float)json_number_value(json_object_get(val, "y")) : 0.0f;
-            s.scrollX = json_is_number(json_object_get(val, "scrollX")) ? (float)json_number_value(json_object_get(val, "scrollX")) : 1.0f;
-            s.scrollY = json_is_number(json_object_get(val, "scrollY")) ? (float)json_number_value(json_object_get(val, "scrollY")) : 1.0f;
-            s.scale = json_is_number(json_object_get(val, "scale")) ? (float)json_number_value(json_object_get(val, "scale")) : 1.0f;
-            s.scaleX = json_is_number(json_object_get(val, "scaleX")) ? (float)json_number_value(json_object_get(val, "scaleX")) : s.scale;
-            s.scaleY = json_is_number(json_object_get(val, "scaleY")) ? (float)json_number_value(json_object_get(val, "scaleY")) : s.scale;
-            
-            json_t *jFront = json_object_get(val, "front");
-            s.front = json_is_boolean(jFront) ? json_boolean_value(jFront) : false;
+            json_t* jImg = json_object_get(val, "image");
+            if (json_is_string(jImg)) {
+                s.name = json_string_value(jImg);
+            }
+            s.x = getJsonFloat(val, "x", 0.0f);
+            s.y = getJsonFloat(val, "y", 0.0f);
+            s.scrollX = getJsonFloat(val, "scrollX", 1.0f);
+            s.scrollY = getJsonFloat(val, "scrollY", 1.0f);
+            s.scale = getJsonFloat(val, "scale", 1.0f);
+            s.scaleX = getJsonFloat(val, "scaleX", s.scale);
+            s.scaleY = getJsonFloat(val, "scaleY", s.scale);
+            s.front = getJsonBool(val, "front", false);
 
-            json_t *jAlpha = json_object_get(val, "alpha");
-            s.alpha = json_is_boolean(jAlpha) ? json_boolean_value(jAlpha) : true;
+            json_t* jAlpha = json_object_get(val, "alpha");
+            if (json_is_number(jAlpha)) {
+                s.alpha = (float)json_number_value(jAlpha);
+            } else if (json_is_boolean(jAlpha)) {
+                s.alpha = json_boolean_value(jAlpha) ? 1.0f : 0.0f;
+            } else {
+                s.alpha = 1.0f;
+            }
 
             // Load texture using SpritesheetCache so identical images share one copy in RAM
             std::string imgPath = "stages/" + s.name;
@@ -96,7 +109,7 @@ void Stage::loadFromJson(const std::string& path) {
 }
 
 void Stage::draw(float camX, float camY, float camZoom, bool frontLayer, float shakeX, float shakeY) {
-    float screenScale = 240.0f / 720.0f;
+    constexpr float screenScale = 240.0f / 720.0f;
     float baseDepth = frontLayer ? 0.48f : 0.10f; 
 
     int renderedCount = 0;
@@ -107,8 +120,8 @@ void Stage::draw(float camX, float camY, float camZoom, bool frontLayer, float s
         // Parallax math relative to center
         float totalDepth3D = s.depth3D + (PlayState::instance ? PlayState::instance->camGame3DDepth : 0.0f);
         float offset3D = get3DOffset(totalDepth3D);
-        float drawX = ((s.x - (camX * s.scrollX)) * camZoom * screenScale) + (ScreenWidthTop / 2.0f) + shakeX + offset3D;
-        float drawY = ((s.y - (camY * s.scrollY)) * camZoom * screenScale) + (ScreenHeight / 2.0f) + shakeY;
+        float drawX = ((s.x - (camX * s.scrollX)) * camZoom * screenScale) + (ScreenWidthTop * 0.5f) + shakeX + offset3D;
+        float drawY = ((s.y - (camY * s.scrollY)) * camZoom * screenScale) + (ScreenHeight * 0.5f) + shakeY;
         
         float drawScaleX = s.scaleX * screenScale * camZoom;
         float drawScaleY = s.scaleY * screenScale * camZoom;
@@ -117,6 +130,7 @@ void Stage::draw(float camX, float camY, float camZoom, bool frontLayer, float s
         float frameH = 0.0f;
         C2D_Image img = s.img;
         bool frameRotated = false;
+
         if (s.animated && s.currentAnim && !s.currentAnim->indices.empty()) {
             int frameIdx = s.currentAnim->indices[(int)s.curFrame];
             const std::vector<Frame>& useFrames = s.isExternalAnim ? s.externalFrames : s.frames;
@@ -127,6 +141,7 @@ void Stage::draw(float camX, float camY, float camZoom, bool frontLayer, float s
                 frameRotated = curFrame.rotated;
                 frameW = curFrame.frameW;
                 frameH = curFrame.frameH;
+
                 // Apply offsets
                 drawX -= (curFrame.frameX + s.currentAnim->offsetX) * drawScaleX;
                 drawY -= (curFrame.frameY + s.currentAnim->offsetY) * drawScaleY;
@@ -138,10 +153,10 @@ void Stage::draw(float camX, float camY, float camZoom, bool frontLayer, float s
             }
         }
 
-        // Scales from the origin (center of the frame)
+        // Scales from origin (center of frame)
         if (!PlayState::instance || !PlayState::instance->legacyPositioning) {
-            float originX = frameW / 2.0f;
-            float originY = frameH / 2.0f;
+            float originX = frameW * 0.5f;
+            float originY = frameH * 0.5f;
             drawX += originX * (1.0f - s.scaleX) * screenScale * camZoom;
             drawY += originY * (1.0f - s.scaleY) * screenScale * camZoom;
         }
@@ -157,7 +172,7 @@ void Stage::draw(float camX, float camY, float camZoom, bool frontLayer, float s
             img.subtex = &defaultSubtex;
         }
 
-        float drawDepth = baseDepth + (renderedCount * 0.002f);
+        float drawDepth = baseDepth + ((float)renderedCount * 0.002f);
 
         C2D_ImageTint tint;
         C2D_ImageTint* tintPtr = nullptr;
@@ -168,9 +183,9 @@ void Stage::draw(float camX, float camY, float camZoom, bool frontLayer, float s
 
         if (frameRotated) {
             // Sprite stored 90° CW in atlas: compensate with -90° (CCW) rotation.
-            float angleRad = -(3.14159265f / 2.0f);
-            float cx = drawX + img.subtex->width  * drawScaleX / 2.0f;
-            float cy = drawY + img.subtex->height * drawScaleY / 2.0f;
+            constexpr float angleRad = -1.57079632679f;
+            float cx = drawX + img.subtex->width  * drawScaleX * 0.5f;
+            float cy = drawY + img.subtex->height * drawScaleY * 0.5f;
             C2D_DrawImageAtRotated(img, cx, cy, drawDepth, angleRad, tintPtr, drawScaleX, drawScaleY);
         } else {
             C2D_DrawImageAt(img, drawX, drawY, drawDepth, tintPtr, drawScaleX, drawScaleY);

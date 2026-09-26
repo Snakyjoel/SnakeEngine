@@ -722,7 +722,7 @@ void PlayState::init() {
                             }
 
                             if (isDigit) {
-                                if (!numSubtexs.count(digitId)) numSubtexs[digitId] = sub;
+                                if (numSubtexs.find(digitId) == numSubtexs.end()) numSubtexs[digitId] = sub;
                             } else {
                                 ratingSubtexs[id] = sub;
                             }
@@ -806,7 +806,7 @@ void PlayState::init() {
                         }
 
                         if (isDigit) {
-                            if (!numSubtexs.count(digitId)) numSubtexs[digitId] = sub;
+                            if (numSubtexs.find(digitId) == numSubtexs.end()) numSubtexs[digitId] = sub;
                         } else {
                             ratingSubtexs[id] = sub;
                         }
@@ -912,6 +912,9 @@ void PlayState::init() {
     AsyncAssetManager::get().cacheCharacter(dad->curCharacterName, dad);
 
     currentStage = new Stage(Paths::stageJson(SongParser::stage));
+    if (currentStage) {
+        isPixelStage = currentStage->isPixelStage;
+    }
 
     // Set initial character positions from stage data
     if (bf) { bf->x += currentStage->bfX; bf->y += currentStage->bfY; }
@@ -1235,18 +1238,26 @@ void PlayState::updateCamera(float dt) {
     gridOffset += dt * 64.0f;
 
     if (!songData.sections.empty()) {
-        for (int i = 0; i < (int)songData.sections.size(); i++) {
-            if (Conductor::songPosition >= songData.sections[i].startTime && Conductor::songPosition < songData.sections[i].endTime) {
-                if (curSection != i) {
-                    curSection = i;
-                    focusCamera(songData.sections[i].mustHitSection);
-                    std::string newFocus = songData.sections[i].mustHitSection ? "boyfriend" : "dad";
-                    if (newFocus != lastCameraFocus) {
-                        lastCameraFocus = newFocus;
-                        LuaManager::get().callFunction("onMoveCamera", {newFocus});
+        int numSections = (int)songData.sections.size();
+        if (curSection >= 0 && curSection < numSections &&
+            Conductor::songPosition >= songData.sections[curSection].startTime &&
+            Conductor::songPosition < songData.sections[curSection].endTime) {
+            // Fast-path: songPosition is still in curSection
+        } else {
+            int startSec = (curSection >= 0 && curSection < numSections) ? curSection : 0;
+            for (int i = startSec; i < numSections; i++) {
+                if (Conductor::songPosition >= songData.sections[i].startTime && Conductor::songPosition < songData.sections[i].endTime) {
+                    if (curSection != i) {
+                        curSection = i;
+                        focusCamera(songData.sections[i].mustHitSection);
+                        std::string newFocus = songData.sections[i].mustHitSection ? "boyfriend" : "dad";
+                        if (newFocus != lastCameraFocus) {
+                            lastCameraFocus = newFocus;
+                            LuaManager::get().callFunction("onMoveCamera", {newFocus});
+                        }
                     }
+                    break;
                 }
-                break;
             }
         }
     }
@@ -1660,7 +1671,7 @@ void PlayState::update(float dt) {
             Character* cachedChar = AsyncAssetManager::get().getCharacter(ev.value2);
             if (cachedChar) {
                 AsyncAssetManager::get().requestHealthIcon(cachedChar->healthIcon);
-                if (AsyncAssetManager::get().isHealthIconReady(cachedChar->healthIcon) && healthIconCache.count(cachedChar->healthIcon) == 0) {
+                if (AsyncAssetManager::get().isHealthIconReady(cachedChar->healthIcon) && healthIconCache.find(cachedChar->healthIcon) == healthIconCache.end()) {
                     HealthIconData dummyIcon;
                     loadHealthIcon(dummyIcon, cachedChar->healthIcon);
                 }
@@ -1945,7 +1956,7 @@ void PlayState::update(float dt) {
             else if (it->prop == "scale.y") s.scaleY = currentVal;
             else if (it->prop == "angle") s.angle = currentVal;
         }
-        else if (luaTextIndices.count(it->targetTag)) {
+        else if (luaTextIndices.find(it->targetTag) != luaTextIndices.end()) {
             auto& txt = luaTexts[luaTextIndices[it->targetTag]];
             if (it->prop == "x") txt.x = currentVal;
             else if (it->prop == "y") txt.y = currentVal;
@@ -2331,8 +2342,9 @@ void PlayState::handleInput(float dt) {
                     float baseY = 35.0f + ClientPrefs::comboNumOffsetY;
 
                     float digitW = 43.0f * 0.5f * numScale;
-                    if (numSubtexs.count("num0")) {
-                        digitW = numSubtexs.at("num0").width * 0.5f * numScale;
+                    auto itNum0 = numSubtexs.find("num0");
+                    if (itNum0 != numSubtexs.end()) {
+                        digitW = itNum0->second.width * 0.5f * numScale;
                     }
 
                     float startX = baseX - (digitW * numDigits) / 2.0f;
@@ -2601,8 +2613,10 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
     }
 
     // Draw Countdown
-    if (countdownVisible && countdownActive && countdownSheet && countdownSubtexs.count(currentCountdownFrame)) {
-        Tex3DS_SubTexture& sub = countdownSubtexs[currentCountdownFrame];
+    if (countdownVisible && countdownActive && countdownSheet) {
+        auto itCD = countdownSubtexs.find(currentCountdownFrame);
+        if (itCD != countdownSubtexs.end()) {
+            Tex3DS_SubTexture& sub = itCD->second;
         C2D_Image cBaseImage = C2D_SpriteSheetGetImage(countdownSheet, 0);
         C2D_Image img = { cBaseImage.tex, &sub };
 
@@ -2639,6 +2653,7 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
         float cx = drawX + sub.width * finalScaleX * 0.5f;
         float cy = drawY + sub.height * finalScaleY * 0.5f;
         C2D_DrawImageAtRotated(img, cx, cy, 0.95f, countdownAngle * DEG_TO_RAD, tintPtr, finalScaleX, finalScaleY);
+        }
     }
 }
 
@@ -3650,6 +3665,10 @@ static void DrawAlignedC2DTextWithBorder(C2D_Text* textObj, u32 flags, float x, 
 }
 
 void PlayState::drawLuaTextsForCamera(const std::string& camera, bool front, float shakeX, float shakeY) {
+    int camType = 2; // default camOther / static
+    if (camera == "camGame" || camera == "game") camType = 0;
+    else if (camera == "camHUD" || camera == "hud") camType = 1;
+
     for (auto& t : luaTexts) {
         if (!t.active || !t.visible || t.camera != camera || t.front != front) continue;
 
@@ -3661,7 +3680,7 @@ void PlayState::drawLuaTextsForCamera(const std::string& camera, bool front, flo
 
         // Scale by camera zoom if it's camGame
         float drawScale = t.size;
-        if (camera == "camGame") {
+        if (camType == 0) {
              // Treat t.x and t.y as 3DS-scaled world coords, but apply camera offset
              float screenScale = 240.0f / 720.0f;
              float centerXT = 400.0f / 2.0f;
@@ -3675,7 +3694,7 @@ void PlayState::drawLuaTextsForCamera(const std::string& camera, bool front, flo
              finalY = (t.y - (camY * scrollY * screenScale)) * camZoom + centerYT;
              drawScale *= camZoom;
              finalDepth = front ? 0.50f : 0.30f; // Game depth (BF is 0.45, Dad 0.4, GF 0.35)
-        } else if (camera == "camHUD" || camera == "hud") {
+        } else if (camType == 1) {
              float centerXT = ScreenWidthTop / 2.0f;
              float centerYT = ScreenHeight / 2.0f;
              float offset3D = get3DOffset(t.depth3D + camHUD3DDepth);
@@ -3781,9 +3800,10 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
 
             for (int i = 0; i < drawCount; i++) {
                 const RatingPopup& rp = ratingPopups[drawOrder[i]];
-                if (!ratingSubtexs.count(rp.key)) continue;
+                auto itRating = ratingSubtexs.find(rp.key);
+                if (itRating == ratingSubtexs.end()) continue;
 
-                Tex3DS_SubTexture& sub = ratingSubtexs[rp.key];
+                Tex3DS_SubTexture& sub = itRating->second;
                 C2D_Image img = { ratingBaseImage.tex, &sub };
 
                 C2D_ImageTint tint;
@@ -3821,9 +3841,10 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
 
             for (int i = 0; i < drawCount; i++) {
                 const ComboDigit& cd = comboDigits[drawOrder[i]];
-                if (!numSubtexs.count(cd.key)) continue;
+                auto itNum = numSubtexs.find(cd.key);
+                if (itNum == numSubtexs.end()) continue;
 
-                const Tex3DS_SubTexture& sub = numSubtexs.at(cd.key);
+                const Tex3DS_SubTexture& sub = itNum->second;
                 C2D_Image img = { ratingBaseImage.tex, const_cast<Tex3DS_SubTexture*>(&sub) };
 
                 C2D_ImageTint tint;
@@ -4239,7 +4260,15 @@ void PlayState::drawText(C2D_Text* textObj, float x, float y, float scale, bool 
 void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, float shakeX, float shakeY) {
     float screenScale = 240.0f / 720.0f;
 
-    // We expect camera parameter to be exactly "camGame", "camHUD" or "camOther"
+    int camType = 2; // default camOther / other
+    float camDepth3D = camOther3DDepth;
+    if (camera == "camGame" || camera == "game") {
+        camType = 0;
+        camDepth3D = camGame3DDepth;
+    } else if (camera == "camHUD" || camera == "hud") {
+        camType = 1;
+        camDepth3D = camHUD3DDepth;
+    }
 
     std::vector<StageSprite*> sortedSprites;
     for (auto& ls : luaSprites) {
@@ -4281,18 +4310,13 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
         float currentZoom = 1.0f;
         float finalX = 0, finalY = 0;
 
-        float camDepth3D = 0.0f;
-        if (camera == "camGame" || camera == "game") camDepth3D = camGame3DDepth;
-        else if (camera == "camHUD" || camera == "hud") camDepth3D = camHUD3DDepth;
-        else if (camera == "camOther" || camera == "other") camDepth3D = camOther3DDepth;
-
         float offset3D = get3DOffset(ls.depth3D + camDepth3D);
 
-        if (camera == "camGame" || camera == "game") {
+        if (camType == 0) {
             currentZoom = camZoom;
             finalX = (ls.x - (camX * ls.scrollX)) * currentZoom * screenScale + (ScreenWidthTop / 2.0f);
             finalY = (ls.y - (camY * ls.scrollY)) * currentZoom * screenScale + (ScreenHeight / 2.0f);
-        } else if (camera == "camHUD" || camera == "hud") {
+        } else if (camType == 1) {
             currentZoom = hudZoom;
             float centerXT = ScreenWidthTop / 2.0f;
             float centerYT = ScreenHeight / 2.0f;
@@ -4308,7 +4332,7 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
 
         float absScaleX = fabsf(ls.scaleX * currentZoom);
         float absScaleY = fabsf(ls.scaleY * currentZoom);
-        if (camera == "camGame" || camera == "game") {
+        if (camType == 0) {
             absScaleX *= screenScale;
             absScaleY *= screenScale;
         }
@@ -4318,16 +4342,15 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
         float depth = 0.11f; // Default back
         if (front) depth = 0.52f; // Default front
         if (ls.depth >= 0.0f) depth = ls.depth;
-        if (camera == "camHUD" || camera == "hud") {
+        if (camType == 1) {
             if (ls.depth < 0.0f) depth += 0.4f;
-        }
-        if (camera == "camOther" || camera == "other") {
+        } else if (camType == 2) {
             if (ls.depth < 0.0f) depth += 0.47f;
         }
 
         float finalAlpha = ls.alpha;
-        if (camera == "camGame" || camera == "game") finalAlpha *= camAlpha;
-        else if (camera == "camHUD" || camera == "hud") finalAlpha *= hudAlpha;
+        if (camType == 0) finalAlpha *= camAlpha;
+        else if (camType == 1) finalAlpha *= hudAlpha;
 
         if (ls.isGraphic) {
             float w = ls.graphicWidth * drawScaleX;
@@ -4746,8 +4769,9 @@ void PlayState::loadHealthIcon(HealthIconData& icon, const std::string& name) {
     }
 
     if (icon.loaded && icon.iconName == name) return;
-    if (healthIconCache.count(name) > 0 && healthIconCache[name].loaded) {
-        icon = healthIconCache[name];
+    auto itCache = healthIconCache.find(name);
+    if (itCache != healthIconCache.end() && itCache->second.loaded) {
+        icon = itCache->second;
         return;
     }
 

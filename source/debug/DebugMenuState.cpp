@@ -4,7 +4,6 @@
 #include "MusicPlayerState.hpp"
 #include "SnakyPlayerState.hpp"
 #include "ImageViewerState.hpp"
-#include "EggRoomState.hpp"
 #include "ResultState.hpp"
 #include "OutdatedState.hpp"
 #include "MainMenuState.hpp"
@@ -54,9 +53,6 @@ void DebugMenuState::init() {
     menuItems.push_back({"Music Player", "File Explorer & Music Player", 0});
     menuItems.push_back({"Snaky Player", "Test Snaky video playback", 2});
     menuItems.push_back({"Image Viewer", "View PNG and T3X images", 3});
-    if (!ClientPrefs::eggInteractionOccurred) {
-        menuItems.push_back({"Egg Room", "???", 4});
-    }
     menuItems.push_back({"Result: PERFECT", "Test Result: PERFECT rank", 5});
     menuItems.push_back({"Result: EXCELLENT", "Test Result: EXCELLENT rank", 6});
     menuItems.push_back({"Result: GOOD", "Test Result: GOOD rank", 7});
@@ -98,7 +94,6 @@ void DebugMenuState::update(float dt) {
             case 0: switchState(new MusicPlayerState("sdmc:/")); break;
             case 2: switchState(new SnakyPlayerState("")); break;
             case 3: switchState(new ImageViewerState("")); break;
-            case 4: switchState(new EggRoomState()); break;
             case 5: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 100, 100, 0, 0, 0, 0, 1000000)); break;
             case 6: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 80, 85, 10, 1, 0, 0, 900000)); break;
             case 7: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 50, 50, 15, 0, 1, 0, 700000)); break;

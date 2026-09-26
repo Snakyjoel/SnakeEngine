@@ -25,6 +25,8 @@ private:
     struct CachedSpritesheet* hifellaSheet;
     C2D_Text titleText;
     C2D_Text bodyText[12];
+    float titleWidth = 0.0f;
+    float bodyWidths[12] = {0.0f};
     std::vector<std::string> bodyLines;
     int bodyTextLines;
     float fadeAlpha;

@@ -18,22 +18,33 @@
 #define M_PI 3.14159265358979323846f
 #endif
 
+// Pre-calculated lookup table for progress ring rendering (40 segments)
 static void drawProgressRing(float cx, float cy, float r_in, float r_out, float progress, u32 color, float depth = 0.9f) {
     if (progress <= 0.0f) return;
     if (progress > 1.0f) progress = 1.0f;
 
     const int maxSegments = 40;
-    int segmentsToDraw = (int)(progress * maxSegments);
+    int segmentsToDraw = (int)(progress * (float)maxSegments);
     if (segmentsToDraw < 1) segmentsToDraw = 1;
 
-    for (int i = 0; i < segmentsToDraw; i++) {
-        float theta1 = -M_PI / 2.0f + ((float)i * 2.0f * M_PI / (float)maxSegments);
-        float theta2 = -M_PI / 2.0f + (((float)i + 1.0f) * 2.0f * M_PI / (float)maxSegments);
+    static bool tableInitialized = false;
+    static float cosTable[maxSegments + 1];
+    static float sinTable[maxSegments + 1];
 
-        float cos1 = cosf(theta1);
-        float sin1 = sinf(theta1);
-        float cos2 = cosf(theta2);
-        float sin2 = sinf(theta2);
+    if (!tableInitialized) {
+        for (int i = 0; i <= maxSegments; i++) {
+            float theta = -M_PI / 2.0f + ((float)i * 2.0f * M_PI / (float)maxSegments);
+            cosTable[i] = cosf(theta);
+            sinTable[i] = sinf(theta);
+        }
+        tableInitialized = true;
+    }
+
+    for (int i = 0; i < segmentsToDraw; i++) {
+        float cos1 = cosTable[i];
+        float sin1 = sinTable[i];
+        float cos2 = cosTable[i + 1];
+        float sin2 = sinTable[i + 1];
 
         float ix1 = cx + r_in * cos1;
         float iy1 = cy + r_in * sin1;
@@ -73,6 +84,7 @@ void TitleState::init() {
     exitProgress = 0.0f;
     ringAlpha = 0.0f;
 
+    // Load animated title sprites
     logo.loadSheet("preload/images/logoBumpin");
     logo.addAnim("bump", "default", 24.0f, true);
     logo.play("bump");
@@ -97,6 +109,7 @@ void TitleState::init() {
     titleEnter2.ignoreFrameOffsets = true;
     titleEnter2.antialiasing = ClientPrefs::globalAntialiasing;
 
+    // Load Girlfriend Title Dance
     gf.loadSheet("preload/images/gfDanceTitle");
     CachedSpritesheet* tempGf = SpritesheetCache::get().load("preload/images/gfDanceTitle");
     if (tempGf) {
@@ -106,6 +119,8 @@ void TitleState::init() {
         }
         int mid = matchedCount / 2;
         std::vector<int> leftIdx, rightIdx;
+        leftIdx.reserve(mid);
+        rightIdx.reserve(matchedCount - mid);
         for (int i = 0; i < matchedCount; i++) {
             if (i < mid) leftIdx.push_back(i);
             else rightIdx.push_back(i);
@@ -116,26 +131,28 @@ void TitleState::init() {
     gf.play("danceLeft");
     gf.antialiasing = ClientPrefs::globalAntialiasing;
 
+    // Pre-warm audio and fonts
     SpritesheetCache::get().load("shared/images/Alphabet");
     AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.0f);
     AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.0f);
     AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.0f);
 
-    // Start menu music
+    // Start menu music if not already playing
     if (!MusicPlayer::isPlaying()) {
         MusicPlayer::playMenuMusic();
     }
 
-    // Pick random wacky text
+    // Pick random wacky text from introText.txt
     static bool seedSet = false;
     if (!seedSet) {
-        srand(time(NULL));
+        srand((unsigned int)time(NULL));
         seedSet = true;
     }
 
     std::string line1 = "Snake Engine";
     std::string line2 = "by Snakyjoel";
     std::vector<std::pair<std::string, std::string>> loadedTexts;
+
     FILE* fIntro = fopen("romfs:/preload/data/introText.txt", "r");
     if (!fIntro) {
         fIntro = fopen("romfs:/preload/introText.txt", "r");
@@ -150,20 +167,18 @@ void TitleState::init() {
             if (lineStr.empty() || lineStr[0] == '#') continue;
             size_t splitPos = lineStr.find("--");
             if (splitPos != std::string::npos) {
-                std::string part1 = lineStr.substr(0, splitPos);
-                std::string part2 = lineStr.substr(splitPos + 2);
-                loadedTexts.push_back({part1, part2});
+                loadedTexts.push_back({lineStr.substr(0, splitPos), lineStr.substr(splitPos + 2)});
             }
         }
         fclose(fIntro);
     }
 
     if (!loadedTexts.empty()) {
-        int idx = rand() % loadedTexts.size();
+        int idx = rand() % (int)loadedTexts.size();
         line1 = loadedTexts[idx].first;
         line2 = loadedTexts[idx].second;
     } else {
-        int idx = rand() % defaultWackyTexts.size();
+        int idx = rand() % (int)defaultWackyTexts.size();
         line1 = defaultWackyTexts[idx].first;
         line2 = defaultWackyTexts[idx].second;
     }
@@ -180,15 +195,11 @@ void TitleState::init() {
 void TitleState::beatHit(int beat) {
     logoScale = 1.15f;
 
-    // GF dancing logic
+    // GF dancing alternation on each beat
     gfDanceLeftActive = !gfDanceLeftActive;
-    if (gfDanceLeftActive) {
-        gf.play("danceLeft", true);
-    } else {
-        gf.play("danceRight", true);
-    }
+    gf.play(gfDanceLeftActive ? "danceLeft" : "danceRight", true);
 
-    // Intro sequence
+    // Intro text sequence beats
     if (!skippedIntro) {
         switch (beat) {
             case 1: createCoolText({"THE", "FUNKIN CREW INC"}); break;
@@ -209,7 +220,6 @@ void TitleState::beatHit(int beat) {
 }
 
 void TitleState::update(float dt) {
-    // Update music stream
     MusicPlayer::update();
 
     if (MusicPlayer::isPlaying()) {
@@ -234,10 +244,10 @@ void TitleState::update(float dt) {
     titleEnter.update(dt);
     titleEnter2.update(dt);
 
-    // Logo scale zoom
-    logoScale = 1.0f + (logoScale - 1.0f) * std::exp(-12.0f * dt);
+    // Smooth logo beat zoom bounce (single precision float expf)
+    logoScale = 1.0f + (logoScale - 1.0f) * expf(-12.0f * dt);
 
-    // Switch state timer
+    // State transition logic
     if (transitioning) {
         switchTimer -= dt;
         if (switchTimer <= 0.0f) {
@@ -247,7 +257,7 @@ void TitleState::update(float dt) {
                 if (ClientPrefs::checkForUpdates && UpdateChecker::isChecking() && !UpdateChecker::isFinished()) {
                     updateWaitTimer += dt;
                     if (updateWaitTimer < 3.0f) {
-                        return; // Wait up to 3s for version check thread
+                        return; // Wait up to 3 seconds for update checker thread
                     }
                 }
                 if (ClientPrefs::checkForUpdates && UpdateChecker::isFinished() && !UpdateChecker::getOnlineVersion().empty()) {
@@ -264,11 +274,11 @@ void TitleState::update(float dt) {
         }
     }
 
-    // B hold to exit
+    // Hold B button to exit application
     bool isHoldingExit = false;
     if (skippedIntro && !transitioning) {
         u32 kHeld = hidKeysHeld();
-        isHoldingExit = (kHeld & KEY_B);
+        isHoldingExit = (kHeld & KEY_B) != 0;
     }
 
     if (isHoldingExit) {
@@ -288,12 +298,12 @@ void TitleState::update(float dt) {
         if (exitProgress < 0.0f) exitProgress = 0.0f;
     }
 
-    // Key presses
+    // Key input detection
     if (!transitioning) {
-        // Track Konami Code
+        // Konami code detection
         u32 keysJust = hidKeysDown();
         if (keysJust) {
-            u32 checkKeys[] = {KEY_DUP, KEY_DDOWN, KEY_DLEFT, KEY_DRIGHT, KEY_B, KEY_A};
+            static const u32 checkKeys[] = {KEY_DUP, KEY_DDOWN, KEY_DLEFT, KEY_DRIGHT, KEY_B, KEY_A};
             for (u32 k : checkKeys) {
                 if (keysJust & k) {
                     konamiInput.push_back(k);
@@ -317,6 +327,7 @@ void TitleState::update(float dt) {
         }
 
         if (transitioning && konamiInput == konamiTarget) {
+            // Pending Konami debug transition
         } else if (keyJustPressed(KEY_START | KEY_A | KEY_TOUCH)) {
             if (!skippedIntro) {
                 skipIntro();
@@ -334,7 +345,7 @@ void TitleState::update(float dt) {
         }
     }
 
-    // Random video
+    // Random promotional video countdown
     if (promoPending) {
         promoTimer -= dt;
 
@@ -363,7 +374,7 @@ void TitleState::update(float dt) {
         if (progress >= 1.0f) {
             promoFadingOut = false;
             MusicPlayer::stop();
-            MusicBeatState::skipTransition = true; // Skip normal curtain fade transition
+            MusicBeatState::skipTransition = true;
             switchState(new VideoState(promoChosenVideo, new TitleState()));
             return;
         }
@@ -375,7 +386,7 @@ void TitleState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
 
     if (!skippedIntro) {
         for (size_t i = 0; i < introLines.size(); i++) {
-            float lineY = 60.0f + i * 28.0f;
+            float lineY = 60.0f + (float)i * 28.0f;
             Alphabet::draw(introLines[i], 200.0f + get3DOffset(10.0f), lineY, 1.2f, 1.0f, true);
         }
     } else {
@@ -388,10 +399,11 @@ void TitleState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         drawFlash(topScreen);
     }
 
+    float promoProgress = promoFadingOut ? (promoFadeTime / 1.5f) : 0.0f;
+    if (promoProgress > 1.0f) promoProgress = 1.0f;
+
     if (promoFadingOut) {
-        float progress = promoFadeTime / 1.5f;
-        if (progress > 1.0f) progress = 1.0f;
-        u8 alpha = (u8)(progress * 255.0f);
+        u8 alpha = (u8)(promoProgress * 255.0f);
         C2D_DrawRectSolid(0, 0, 0.99f, 400.0f, 240.0f, C2D_Color32(0, 0, 0, alpha));
     }
 
@@ -426,9 +438,7 @@ void TitleState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     }
 
     if (promoFadingOut) {
-        float progress = promoFadeTime / 1.5f;
-        if (progress > 1.0f) progress = 1.0f;
-        u8 alpha = (u8)(progress * 255.0f);
+        u8 alpha = (u8)(promoProgress * 255.0f);
         C2D_DrawRectSolid(0, 0, 0.99f, 320.0f, 240.0f, C2D_Color32(0, 0, 0, alpha));
     }
 }

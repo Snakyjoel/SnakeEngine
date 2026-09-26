@@ -1,4 +1,5 @@
 #pragma once
+
 #include <3ds.h>
 #include <citro2d.h>
 #include <string>
@@ -7,7 +8,6 @@
 
 #include "SparrowParser.hpp"
 #include "CppAnimate.hpp"
-
 
 struct CharCacheHeader {
     char magic[4];
@@ -118,7 +118,7 @@ public:
     void playAnimFES(const std::string& path, const std::string& animName, int fps, bool loop, float x, float y);
     void dance(bool forced = false);
     void update(float dt);
-    void draw(float stageX, float stageY, float depth, float zoom, float camX, float camY, float shakeX = 0, float shakeY = 0);
+    void draw(float stageX, float stageY, float depth, float zoom, float camX, float camY, float shakeX = 0.0f, float shakeY = 0.0f);
 
     bool hasAnimation(const std::string& animName);
     void setAntialiasing(bool antialiased);
@@ -145,7 +145,7 @@ public:
     float depth3D = 0.0f;
 
     float holdTimer = 0.0f;
-    float singDuration = 4.0f; // Steps en conductor
+    float singDuration = 4.0f; // Steps in conductor
     int danceEveryNumBeats = 2;
     bool skipIdle = false;
 
@@ -157,10 +157,11 @@ public:
     bool specialAnim = false;
     std::string curCharacterName = "";
     std::string charTexturePath = "";
-    C2D_SpriteSheet sheet; 
+    C2D_SpriteSheet sheet = nullptr; 
     bool isSpritemap = false;
     CppAnimate spritemapAnim;
     bool isHighlighted = false;
+
     friend class CharacterEditorState;
 
     std::map<std::string, Animation> animations;
@@ -173,7 +174,7 @@ private:
     std::vector<Frame> frames;
     
     int curFrame = 0;
-    float frameTimer = 0;
+    float frameTimer = 0.0f;
     Animation* currentAnimData = nullptr;
 
     // External Anim Support
@@ -181,3 +182,4 @@ private:
     std::vector<Frame> externalFrames;
     Animation externalAnimData;
 };
+

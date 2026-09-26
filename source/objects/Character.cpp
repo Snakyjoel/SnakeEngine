@@ -9,6 +9,8 @@
 #include <sstream>
 #include <iostream>
 #include <cmath>
+#include <sys/stat.h>
+#include <string.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -21,6 +23,21 @@ struct CachedCharacterTexture {
 };
 static std::map<std::string, CachedCharacterTexture> charTextureCache;
 
+// --- Helper JSON Functions ---
+static inline float getJsonFloat(json_t* parent, const char* key, float defaultVal) {
+    json_t* item = json_object_get(parent, key);
+    return json_is_number(item) ? (float)json_number_value(item) : defaultVal;
+}
+
+static inline bool getJsonBool(json_t* parent, const char* key, bool defaultVal) {
+    json_t* item = json_object_get(parent, key);
+    return json_is_boolean(item) ? json_boolean_value(item) : defaultVal;
+}
+
+static inline std::string getJsonString(json_t* parent, const char* key, const std::string& defaultVal) {
+    json_t* item = json_object_get(parent, key);
+    return json_is_string(item) ? json_string_value(item) : defaultVal;
+}
 
 Character::Character() {
     animations.clear();
@@ -34,26 +51,32 @@ Character::Character() {
     fileBuffer = nullptr;
     charTexturePath = "";
     curFrame = 0;
-    frameTimer = 0;
+    frameTimer = 0.0f;
     animFinished = false;
     visible = true;
     isSpritemap = false;
 }
 
 Character::~Character() {
-    if (sheet) C2D_SpriteSheetFree(sheet);
+    if (sheet) {
+        C2D_SpriteSheetFree(sheet);
+        sheet = nullptr;
+    }
     
-    if (!charTexturePath.empty() && charTextureCache.count(charTexturePath)) {
-        charTextureCache[charTexturePath].refCount--;
-        if (charTextureCache[charTexturePath].refCount <= 0) {
-            C3D_Tex* t = charTextureCache[charTexturePath].tex;
-            Tex3DS_SubTexture* s = charTextureCache[charTexturePath].subtex;
-            if (t) {
-                C3D_TexDelete(t);
-                delete t;
+    if (!charTexturePath.empty()) {
+        auto it = charTextureCache.find(charTexturePath);
+        if (it != charTextureCache.end()) {
+            it->second.refCount--;
+            if (it->second.refCount <= 0) {
+                C3D_Tex* t = it->second.tex;
+                Tex3DS_SubTexture* s = it->second.subtex;
+                if (t) {
+                    C3D_TexDelete(t);
+                    delete t;
+                }
+                if (s) delete s;
+                charTextureCache.erase(it);
             }
-            if (s) delete s;
-            charTextureCache.erase(charTexturePath);
         }
     } else {
         if (rawTex) {
@@ -68,9 +91,6 @@ Character::~Character() {
 void Character::loadSparrowXml(const std::string& xmlPath) {
     SparrowParser::parseXml(xmlPath, frames);
 }
-
-#include <sys/stat.h>
-#include <string.h>
 
 static void ensureDirExists(const std::string& path) {
     size_t pos = 0;
@@ -373,17 +393,10 @@ CharacterData* Character::parseDataAsync(const std::string& charName) {
         return nullptr;
     }
 
-    json_t *jsonScale = json_object_get(root, "scale");
-    if (json_is_number(jsonScale)) data->charScale = (float)json_number_value(jsonScale);
-
-    json_t *jsonFlip = json_object_get(root, "flip_x");
-    if (json_is_boolean(jsonFlip)) data->flipX = json_boolean_value(jsonFlip);
-
-    json_t *jsonNoAA = json_object_get(root, "no_antialiasing");
-    if (json_is_boolean(jsonNoAA)) data->noAntialiasing = json_boolean_value(jsonNoAA);
-
-    json_t *jsonIcon = json_object_get(root, "healthicon");
-    if (json_is_string(jsonIcon)) data->healthIcon = json_string_value(jsonIcon);
+    data->charScale = getJsonFloat(root, "scale", data->charScale);
+    data->flipX = getJsonBool(root, "flip_x", data->flipX);
+    data->noAntialiasing = getJsonBool(root, "no_antialiasing", data->noAntialiasing);
+    data->healthIcon = getJsonString(root, "healthicon", data->healthIcon);
 
     json_t *jsonHBC = json_object_get(root, "healthbar_colors");
     if (json_is_array(jsonHBC) && json_array_size(jsonHBC) >= 3) {
@@ -420,93 +433,93 @@ CharacterData* Character::parseDataAsync(const std::string& charName) {
             
             std::string t3xPath = Paths::image(fullPath);
             std::string rawPath = ModHandler::get().getModPath("images/" + fullPath + ".rawtex");
-        if (rawPath.empty() && Paths::fileExists("romfs:/preload/images/" + fullPath + ".rawtex")) {
-            rawPath = "romfs:/preload/images/" + fullPath + ".rawtex";
-        }
-        if (rawPath.empty() && Paths::fileExists("romfs:/shared/images/" + fullPath + ".rawtex")) {
-            rawPath = "romfs:/shared/images/" + fullPath + ".rawtex";
-        }
-
-        if (Paths::fileExists(rawPath)) {
-            FILE* f = fopen(rawPath.c_str(), "rb");
-            if (f) {
-                struct RawTexHeader { char magic[4]; uint16_t w; uint16_t h; uint16_t ow; uint16_t oh; } header;
-                if (fread(&header, sizeof(RawTexHeader), 1, f) == 1 && strncmp(header.magic, "RWTX", 4) == 0) {
-                    data->rawWidth = header.w;
-                    data->rawHeight = header.h;
-                    data->rawOrigW = header.ow;
-                    data->rawOrigH = header.oh;
-                    data->fileSize = (size_t)header.w * header.h * 4;
-                    data->fileBuffer = linearAlloc(data->fileSize);
-                    if (data->fileBuffer) {
-                        readChunked(f, data->fileBuffer, data->fileSize);
-                        data->rawTex = new C3D_Tex();
-                        memset(data->rawTex, 0, sizeof(C3D_Tex));
-                        if (C3D_TexInit(data->rawTex, header.w, header.h, GPU_RGBA8)) {
-                            if (data->rawTex->data) linearFree(data->rawTex->data);
-                            data->rawTex->data = data->fileBuffer;
-                            GSPGPU_FlushDataCache(data->rawTex->data, data->fileSize);
-                            data->fileBuffer = nullptr;
-                            
-                            data->rawSub = new Tex3DS_SubTexture();
-                            data->rawSub->width = header.ow;
-                            data->rawSub->height = header.oh;
-                            data->rawSub->left = 0.0f;
-                            data->rawSub->top = 1.0f;
-                            data->rawSub->right = (float)header.ow / header.w;
-                            data->rawSub->bottom = 1.0f - ((float)header.oh / header.h);
-                            data->isRawTex = false;
-                        } else {
-                            delete data->rawTex;
-                            data->rawTex = nullptr;
-                            linearFree(data->fileBuffer);
-                            data->fileBuffer = nullptr;
-                        }
-                    }
-                }
-                fclose(f);
+            if (rawPath.empty() && Paths::fileExists("romfs:/preload/images/" + fullPath + ".rawtex")) {
+                rawPath = "romfs:/preload/images/" + fullPath + ".rawtex";
             }
-        } else if (Paths::fileExists(t3xPath)) {
-            FILE* f = fopen(t3xPath.c_str(), "rb");
-            if (f) {
-                fseek(f, 0, SEEK_END);
-                data->fileSize = ftell(f);
-                fseek(f, 0, SEEK_SET);
-                void* tempBuf = linearAlloc(data->fileSize);
-                if (tempBuf) {
-                    readChunked(f, tempBuf, data->fileSize);
-                    data->isRawTex = false;
-                    data->fileBuffer = tempBuf;
-                    
-                    if (data->fileBuffer && data->fileSize > 0) {
-                        data->rawTex = new C3D_Tex();
-                        memset(data->rawTex, 0, sizeof(C3D_Tex));
-                        Tex3DS_Texture t3x = Tex3DS_TextureImport(data->fileBuffer, data->fileSize, data->rawTex, nullptr, false);
-                        if (t3x) {
-                            const Tex3DS_SubTexture* sub = Tex3DS_GetSubTexture(t3x, 0);
-                            data->rawSub = new Tex3DS_SubTexture();
-                            if (sub) {
-                                *data->rawSub = *sub;
-                            } else {
-                                data->rawSub->width = data->rawTex->width;
-                                data->rawSub->height = data->rawTex->height;
+            if (rawPath.empty() && Paths::fileExists("romfs:/shared/images/" + fullPath + ".rawtex")) {
+                rawPath = "romfs:/shared/images/" + fullPath + ".rawtex";
+            }
+
+            if (Paths::fileExists(rawPath)) {
+                FILE* f = fopen(rawPath.c_str(), "rb");
+                if (f) {
+                    struct RawTexHeader { char magic[4]; uint16_t w; uint16_t h; uint16_t ow; uint16_t oh; } header;
+                    if (fread(&header, sizeof(RawTexHeader), 1, f) == 1 && strncmp(header.magic, "RWTX", 4) == 0) {
+                        data->rawWidth = header.w;
+                        data->rawHeight = header.h;
+                        data->rawOrigW = header.ow;
+                        data->rawOrigH = header.oh;
+                        data->fileSize = (size_t)header.w * header.h * 4;
+                        data->fileBuffer = linearAlloc(data->fileSize);
+                        if (data->fileBuffer) {
+                            readChunked(f, data->fileBuffer, data->fileSize);
+                            data->rawTex = new C3D_Tex();
+                            memset(data->rawTex, 0, sizeof(C3D_Tex));
+                            if (C3D_TexInit(data->rawTex, header.w, header.h, GPU_RGBA8)) {
+                                if (data->rawTex->data) linearFree(data->rawTex->data);
+                                data->rawTex->data = data->fileBuffer;
+                                GSPGPU_FlushDataCache(data->rawTex->data, data->fileSize);
+                                data->fileBuffer = nullptr;
+                                
+                                data->rawSub = new Tex3DS_SubTexture();
+                                data->rawSub->width = header.ow;
+                                data->rawSub->height = header.oh;
                                 data->rawSub->left = 0.0f;
                                 data->rawSub->top = 1.0f;
-                                data->rawSub->right = 1.0f;
-                                data->rawSub->bottom = 0.0f;
+                                data->rawSub->right = (float)header.ow / header.w;
+                                data->rawSub->bottom = 1.0f - ((float)header.oh / header.h);
+                                data->isRawTex = false;
+                            } else {
+                                delete data->rawTex;
+                                data->rawTex = nullptr;
+                                linearFree(data->fileBuffer);
+                                data->fileBuffer = nullptr;
                             }
-                            Tex3DS_TextureFree(t3x);
-                        } else {
-                            delete data->rawTex;
-                            data->rawTex = nullptr;
                         }
-                        linearFree(data->fileBuffer);
-                        data->fileBuffer = nullptr;
-                        data->fileSize = 0;
                     }
+                    fclose(f);
                 }
-                fclose(f);
-            }
+            } else if (Paths::fileExists(t3xPath)) {
+                FILE* f = fopen(t3xPath.c_str(), "rb");
+                if (f) {
+                    fseek(f, 0, SEEK_END);
+                    data->fileSize = ftell(f);
+                    fseek(f, 0, SEEK_SET);
+                    void* tempBuf = linearAlloc(data->fileSize);
+                    if (tempBuf) {
+                        readChunked(f, tempBuf, data->fileSize);
+                        data->isRawTex = false;
+                        data->fileBuffer = tempBuf;
+                        
+                        if (data->fileBuffer && data->fileSize > 0) {
+                            data->rawTex = new C3D_Tex();
+                            memset(data->rawTex, 0, sizeof(C3D_Tex));
+                            Tex3DS_Texture t3x = Tex3DS_TextureImport(data->fileBuffer, data->fileSize, data->rawTex, nullptr, false);
+                            if (t3x) {
+                                const Tex3DS_SubTexture* sub = Tex3DS_GetSubTexture(t3x, 0);
+                                data->rawSub = new Tex3DS_SubTexture();
+                                if (sub) {
+                                    *data->rawSub = *sub;
+                                } else {
+                                    data->rawSub->width = data->rawTex->width;
+                                    data->rawSub->height = data->rawTex->height;
+                                    data->rawSub->left = 0.0f;
+                                    data->rawSub->top = 1.0f;
+                                    data->rawSub->right = 1.0f;
+                                    data->rawSub->bottom = 0.0f;
+                                }
+                                Tex3DS_TextureFree(t3x);
+                            } else {
+                                delete data->rawTex;
+                                data->rawTex = nullptr;
+                            }
+                            linearFree(data->fileBuffer);
+                            data->fileBuffer = nullptr;
+                            data->fileSize = 0;
+                        }
+                    }
+                    fclose(f);
+                }
             }
         }
     }
@@ -516,15 +529,17 @@ CharacterData* Character::parseDataAsync(const std::string& charName) {
         size_t index; json_t *value;
         json_array_foreach(anims, index, value) {
             Animation anim;
-            anim.name = json_string_value(json_object_get(value, "anim"));
-            anim.prefix = json_string_value(json_object_get(value, "name"));
-            anim.fps = (int)json_integer_value(json_object_get(value, "fps"));
-            anim.loop = json_boolean_value(json_object_get(value, "loop"));
+            anim.name = getJsonString(value, "anim", "");
+            anim.prefix = getJsonString(value, "name", "");
+            anim.fps = (int)getJsonFloat(value, "fps", 24.0f);
+            anim.loop = getJsonBool(value, "loop", false);
             json_t *offsets = json_object_get(value, "offsets");
             if (json_is_array(offsets) && json_array_size(offsets) >= 2) {
                 anim.offsetX = (float)json_number_value(json_array_get(offsets, 0));
                 anim.offsetY = (float)json_number_value(json_array_get(offsets, 1));
-            } else { anim.offsetX = 0; anim.offsetY = 0; }
+            } else {
+                anim.offsetX = 0.0f; anim.offsetY = 0.0f;
+            }
 
             if (data->isSpritemap) {
                 data->animations[anim.name] = anim;
@@ -565,11 +580,12 @@ CharacterData* Character::parseDataAsync(const std::string& charName) {
         }
     }
 
-    json_t *jsonSingDur = json_object_get(root, "sing_duration");
-    if (json_is_number(jsonSingDur)) data->singDuration = (float)json_number_value(jsonSingDur);
+    data->singDuration = getJsonFloat(root, "sing_duration", data->singDuration);
 
-    if (data->animations.count("danceLeft") && data->animations.count("danceRight") && 
-        (data->isSpritemap || (!data->animations["danceLeft"].indices.empty() && !data->animations["danceRight"].indices.empty()))) {
+    auto itLeft = data->animations.find("danceLeft");
+    auto itRight = data->animations.find("danceRight");
+    if (itLeft != data->animations.end() && itRight != data->animations.end() && 
+        (data->isSpritemap || (!itLeft->second.indices.empty() && !itRight->second.indices.empty()))) {
         data->danceEveryNumBeats = 1;
     } else {
         data->danceEveryNumBeats = 2;
@@ -626,42 +642,42 @@ void Character::instantiateFromData(CharacterData* data) {
         }
     } else {
         if (data->isRawTex && data->fileBuffer && data->fileSize > 0) {
-        rawTex = new C3D_Tex();
-        memset(rawTex, 0, sizeof(C3D_Tex));
-        if (!C3D_TexInit(rawTex, data->rawWidth, data->rawHeight, GPU_RGBA8)) {
-            delete rawTex;
-            rawTex = nullptr;
-            printf("\x1b[16;1HERROR: RAM Full for Async Char Load\x1b[K\n");
-        } else {
-            if (rawTex->data) linearFree(rawTex->data);
-            rawTex->data = data->fileBuffer;
-            data->fileBuffer = nullptr;
-            
-            rawSub = new Tex3DS_SubTexture();
-            rawSub->width = data->rawOrigW;
-            rawSub->height = data->rawOrigH;
-            rawSub->left = 0.0f;
-            rawSub->top = 1.0f;
-            rawSub->right = (float)data->rawOrigW / data->rawWidth;
-            rawSub->bottom = 1.0f - ((float)data->rawOrigH / data->rawHeight);
+            rawTex = new C3D_Tex();
+            memset(rawTex, 0, sizeof(C3D_Tex));
+            if (!C3D_TexInit(rawTex, data->rawWidth, data->rawHeight, GPU_RGBA8)) {
+                delete rawTex;
+                rawTex = nullptr;
+                printf("\x1b[16;1HERROR: RAM Full for Async Char Load\x1b[K\n");
+            } else {
+                if (rawTex->data) linearFree(rawTex->data);
+                rawTex->data = data->fileBuffer;
+                data->fileBuffer = nullptr;
+                
+                rawSub = new Tex3DS_SubTexture();
+                rawSub->width = data->rawOrigW;
+                rawSub->height = data->rawOrigH;
+                rawSub->left = 0.0f;
+                rawSub->top = 1.0f;
+                rawSub->right = (float)data->rawOrigW / data->rawWidth;
+                rawSub->bottom = 1.0f - ((float)data->rawOrigH / data->rawHeight);
+                
+                mainImage.tex = rawTex;
+                mainImage.subtex = rawSub;
+            }
+        } else if (data->sheet) {
+            sheet = data->sheet;
+            mainImage = C2D_SpriteSheetGetImage(sheet, 0);
+            data->sheet = nullptr;
+        } else if (!data->isRawTex && data->rawTex) {
+            rawTex = data->rawTex;
+            rawSub = data->rawSub;
             
             mainImage.tex = rawTex;
             mainImage.subtex = rawSub;
+            
+            data->rawTex = nullptr;
+            data->rawSub = nullptr;
         }
-    } else if (data->sheet) {
-        sheet = data->sheet;
-        mainImage = C2D_SpriteSheetGetImage(sheet, 0);
-        data->sheet = nullptr;
-    } else if (!data->isRawTex && data->rawTex) {
-        rawTex = data->rawTex;
-        rawSub = data->rawSub;
-        
-        mainImage.tex = rawTex;
-        mainImage.subtex = rawSub;
-        
-        data->rawTex = nullptr;
-        data->rawSub = nullptr;
-    }
     }
     
     if (mainImage.tex) {
@@ -707,22 +723,21 @@ void Character::loadFromPsychJson(const std::string& jsonPath) {
         return;
     }
 
-
-    json_t *jsonScale = json_object_get(root, "scale");
-    if (json_is_number(jsonScale)) charScale = (float)json_number_value(jsonScale);
-    else charScale = 6.0f;
+    charScale = getJsonFloat(root, "scale", 6.0f);
     charScaleX = charScale;
     charScaleY = charScale;
 
-    json_t *jsonFlip = json_object_get(root, "flip_x");
-    if (json_is_boolean(jsonFlip)) flipX = json_boolean_value(jsonFlip);
+    flipX = getJsonBool(root, "flip_x", false);
 
-    json_t *jsonNoAA = json_object_get(root, "no_antialiasing");
-    if (json_is_boolean(jsonNoAA)) noAntialiasing = json_boolean_value(jsonNoAA);
+    json_t *jsonEdPlayer = json_object_get(root, "_editor_isPlayer");
+    if (json_is_boolean(jsonEdPlayer)) {
+        isPlayer = json_boolean_value(jsonEdPlayer);
+    } else {
+        isPlayer = getJsonBool(root, "isPlayer", false);
+    }
 
-    json_t *jsonIcon = json_object_get(root, "healthicon");
-    if (json_is_string(jsonIcon)) healthIcon = json_string_value(jsonIcon);
-    else healthIcon = "face";
+    noAntialiasing = getJsonBool(root, "no_antialiasing", false);
+    healthIcon = getJsonString(root, "healthicon", "face");
 
     json_t *jsonHBC = json_object_get(root, "healthbar_colors");
     if (json_is_array(jsonHBC) && json_array_size(jsonHBC) >= 3) {
@@ -770,7 +785,6 @@ void Character::loadFromPsychJson(const std::string& jsonPath) {
         }
     }
 
-
     json_t *anims = json_object_get(root, "animations");
     if (!json_is_array(anims)) { json_decref(root); return; }
 
@@ -778,16 +792,16 @@ void Character::loadFromPsychJson(const std::string& jsonPath) {
     json_t *value;
     json_array_foreach(anims, index, value) {
         Animation anim;
-        anim.name = json_string_value(json_object_get(value, "anim"));
-        anim.prefix = json_string_value(json_object_get(value, "name"));
-        anim.fps = (int)json_integer_value(json_object_get(value, "fps"));
-        anim.loop = json_boolean_value(json_object_get(value, "loop"));
+        anim.name = getJsonString(value, "anim", "");
+        anim.prefix = getJsonString(value, "name", "");
+        anim.fps = (int)getJsonFloat(value, "fps", 24.0f);
+        anim.loop = getJsonBool(value, "loop", false);
         json_t *offsets = json_object_get(value, "offsets");
         if (json_is_array(offsets) && json_array_size(offsets) >= 2) {
             anim.offsetX = (float)json_number_value(json_array_get(offsets, 0));
             anim.offsetY = (float)json_number_value(json_array_get(offsets, 1));
         } else {
-            anim.offsetX = 0; anim.offsetY = 0;
+            anim.offsetX = 0.0f; anim.offsetY = 0.0f;
         }
 
         if (isSpritemap) {
@@ -796,7 +810,7 @@ void Character::loadFromPsychJson(const std::string& jsonPath) {
                 size_t iIdx;
                 json_t *iVal;
                 json_array_foreach(indices, iIdx, iVal) {
-                    anim.indices.push_back(json_integer_value(iVal));
+                    anim.indices.push_back((int)json_integer_value(iVal));
                 }
             }
             animations[anim.name] = anim;
@@ -844,19 +858,19 @@ void Character::loadFromPsychJson(const std::string& jsonPath) {
         }
     }
 
-    json_t *jsonSingDur = json_object_get(root, "sing_duration");
-    if (json_is_number(jsonSingDur)) singDuration = (float)json_number_value(jsonSingDur);
-    else singDuration = 4.0f;
+    singDuration = getJsonFloat(root, "sing_duration", 4.0f);
 
+    auto itLeft = animations.find("danceLeft");
+    auto itRight = animations.find("danceRight");
     if (isSpritemap) {
-        if (animations.count("danceLeft") && animations.count("danceRight")) {
+        if (itLeft != animations.end() && itRight != animations.end()) {
             danceEveryNumBeats = 1;
         } else {
             danceEveryNumBeats = 2;
         }
     } else {
-        if (animations.count("danceLeft") && animations.count("danceRight") && 
-            !animations["danceLeft"].indices.empty() && !animations["danceRight"].indices.empty()) {
+        if (itLeft != animations.end() && itRight != animations.end() && 
+            !itLeft->second.indices.empty() && !itRight->second.indices.empty()) {
             danceEveryNumBeats = 1;
         } else {
             danceEveryNumBeats = 2;
@@ -902,6 +916,7 @@ void Character::saveToPsychJson(const std::string& path) {
     
     json_object_set_new(root, "healthicon", json_string(healthIcon.c_str()));
     json_object_set_new(root, "flip_x", flipX ? json_true() : json_false());
+    json_object_set_new(root, "_editor_isPlayer", isPlayer ? json_true() : json_false());
     json_object_set_new(root, "no_antialiasing", noAntialiasing ? json_true() : json_false());
     json_object_set_new(root, "scale", json_real(charScale));
     json_object_set_new(root, "sing_duration", json_real(singDuration));
@@ -917,9 +932,9 @@ void Character::saveToPsychJson(const std::string& path) {
     json_object_set_new(root, "camera_position", cam);
     
     json_t* hb = json_array();
-    json_array_append_new(hb, json_integer((int)(healthbarR * 255)));
-    json_array_append_new(hb, json_integer((int)(healthbarG * 255)));
-    json_array_append_new(hb, json_integer((int)(healthbarB * 255)));
+    json_array_append_new(hb, json_integer((int)(healthbarR * 255.0f)));
+    json_array_append_new(hb, json_integer((int)(healthbarG * 255.0f)));
+    json_array_append_new(hb, json_integer((int)(healthbarB * 255.0f)));
     json_object_set_new(root, "healthbar_colors", hb);
     
     json_dump_file(root, path.c_str(), JSON_INDENT(4));
@@ -930,28 +945,34 @@ void Character::dance(bool forced) {
     if (!forced && specialAnim) return;
     if (!forced && isExternalAnim && !animFinished) return;
 
+    bool isSinging = (curAnim.find("sing") != std::string::npos);
+    bool isMissing = (curAnim.find("miss") != std::string::npos);
     float singThreshold = (Conductor::stepCrochet * 0.0011f) * singDuration;
-    if (!forced && (curAnim.find("sing") != std::string::npos && curAnim.find("miss") == std::string::npos) && holdTimer < singThreshold) return;
+    
+    if (!forced && (isSinging && !isMissing) && holdTimer < singThreshold) return;
+
+    auto itLeft = animations.find("danceLeft");
+    auto itRight = animations.find("danceRight");
+    auto itIdle = animations.find("idle");
+    auto itDance = animations.find("dance");
 
     if (isSpritemap) {
-        if (animations.count("danceLeft") && animations.count("danceRight")) {
+        if (itLeft != animations.end() && itRight != animations.end()) {
             danced = !danced;
-            if (danced) playAnim("danceRight", forced);
-            else playAnim("danceLeft", forced);
-        } else if (animations.count("idle")) {
+            playAnim(danced ? "danceRight" : "danceLeft", forced);
+        } else if (itIdle != animations.end()) {
             playAnim("idle", forced);
-        } else if (animations.count("dance")) {
+        } else if (itDance != animations.end()) {
             playAnim("dance", forced);
         }
     } else {
-        if (animations.count("danceLeft") && animations.count("danceRight") && 
-            !animations["danceLeft"].indices.empty() && !animations["danceRight"].indices.empty()) {
+        if (itLeft != animations.end() && itRight != animations.end() && 
+            !itLeft->second.indices.empty() && !itRight->second.indices.empty()) {
             danced = !danced;
-            if (danced) playAnim("danceRight", forced);
-            else playAnim("danceLeft", forced);
-        } else if (animations.count("idle") && !animations["idle"].indices.empty()) {
+            playAnim(danced ? "danceRight" : "danceLeft", forced);
+        } else if (itIdle != animations.end() && !itIdle->second.indices.empty()) {
             playAnim("idle", forced);
-        } else if (animations.count("dance") && !animations["dance"].indices.empty()) {
+        } else if (itDance != animations.end() && !itDance->second.indices.empty()) {
             playAnim("dance", forced);
         }
     }
@@ -964,26 +985,28 @@ struct RawTexHeader {
     uint16_t origW;
     uint16_t origH;
 };
-static inline bool addrIsVRAM(const void* addr) {
-    u32 v = (u32)addr;
-    return v >= 0x1F000000 && v < 0x1F600000;
-}
 
 void Character::addSpriteSheet(const std::string& t3xPath) {
     printf("CharSheet: %s\n", t3xPath.c_str());
-    if (sheet) { C2D_SpriteSheetFree(sheet); sheet = nullptr; }
+    if (sheet) {
+        C2D_SpriteSheetFree(sheet);
+        sheet = nullptr;
+    }
     
-    if (!charTexturePath.empty() && charTextureCache.count(charTexturePath)) {
-        charTextureCache[charTexturePath].refCount--;
-        if (charTextureCache[charTexturePath].refCount <= 0) {
-            C3D_Tex* t = charTextureCache[charTexturePath].tex;
-            Tex3DS_SubTexture* s = charTextureCache[charTexturePath].subtex;
-            if (t) {
-                C3D_TexDelete(t);
-                delete t;
+    if (!charTexturePath.empty()) {
+        auto it = charTextureCache.find(charTexturePath);
+        if (it != charTextureCache.end()) {
+            it->second.refCount--;
+            if (it->second.refCount <= 0) {
+                C3D_Tex* t = it->second.tex;
+                Tex3DS_SubTexture* s = it->second.subtex;
+                if (t) {
+                    C3D_TexDelete(t);
+                    delete t;
+                }
+                if (s) delete s;
+                charTextureCache.erase(it);
             }
-            if (s) delete s;
-            charTextureCache.erase(charTexturePath);
         }
     } else {
         if (rawTex) { C3D_TexDelete(rawTex); delete rawTex; }
@@ -1002,10 +1025,11 @@ void Character::addSpriteSheet(const std::string& t3xPath) {
     sheet = nullptr;
     
     bool loadedFromCache = false;
-    if (charTextureCache.count(t3xPath)) {
-        charTextureCache[t3xPath].refCount++;
-        rawTex = charTextureCache[t3xPath].tex;
-        rawSub = charTextureCache[t3xPath].subtex;
+    auto cacheIt = charTextureCache.find(t3xPath);
+    if (cacheIt != charTextureCache.end()) {
+        cacheIt->second.refCount++;
+        rawTex = cacheIt->second.tex;
+        rawSub = cacheIt->second.subtex;
         mainImage.tex = rawTex;
         mainImage.subtex = rawSub;
         charTexturePath = t3xPath;
@@ -1142,32 +1166,29 @@ void Character::playAnim(const std::string& animName, bool forced) {
             animFinished = spritemapAnim.animFinished;
 
             if (curCharacterName.rfind("gf-", 0) == 0 || curCharacterName == "gf") {
-                if (animName == "singLEFT")
-                    danced = true;
-                else if (animName == "singRIGHT")
-                    danced = false;
-                else if (animName == "singUP" || animName == "singDOWN")
-                    danced = !danced;
+                if (animName == "singLEFT") danced = true;
+                else if (animName == "singRIGHT") danced = false;
+                else if (animName == "singUP" || animName == "singDOWN") danced = !danced;
             }
         }
         return;
     }
 
     if (!forced && curAnim == animName && !animFinished) return;
-    if (animations.count(animName)) {
+    auto it = animations.find(animName);
+    if (it != animations.end()) {
         specialAnim = false;
         isExternalAnim = false;
         curAnim = animName;
-        currentAnimData = &animations[animName];
-        curFrame = 0; frameTimer = 0; animFinished = false;
+        currentAnimData = &it->second;
+        curFrame = 0;
+        frameTimer = 0.0f;
+        animFinished = false;
 
         if (curCharacterName.rfind("gf-", 0) == 0 || curCharacterName == "gf") {
-            if (animName == "singLEFT")
-                danced = true;
-            else if (animName == "singRIGHT")
-                danced = false;
-            else if (animName == "singUP" || animName == "singDOWN")
-                danced = !danced;
+            if (animName == "singLEFT") danced = true;
+            else if (animName == "singRIGHT") danced = false;
+            else if (animName == "singUP" || animName == "singDOWN") danced = !danced;
         }
     }
 }
@@ -1184,14 +1205,16 @@ void Character::playAnimFES(const std::string& path, const std::string& animName
     externalAnimData.fps = fps;
     externalAnimData.loop = loop;
     
-    float baseOX = 0;
-    float baseOY = 0;
-    if (animations.count("idle")) {
-        baseOX = animations["idle"].offsetX;
-        baseOY = animations["idle"].offsetY;
-    } else if (animations.count("danceLeft")) {
-        baseOX = animations["danceLeft"].offsetX;
-        baseOY = animations["danceLeft"].offsetY;
+    float baseOX = 0.0f;
+    float baseOY = 0.0f;
+    auto itIdle = animations.find("idle");
+    auto itLeft = animations.find("danceLeft");
+    if (itIdle != animations.end()) {
+        baseOX = itIdle->second.offsetX;
+        baseOY = itIdle->second.offsetY;
+    } else if (itLeft != animations.end()) {
+        baseOX = itLeft->second.offsetX;
+        baseOY = itLeft->second.offsetY;
     }
 
     externalAnimData.offsetX = baseOX + x;
@@ -1209,31 +1232,34 @@ void Character::playAnimFES(const std::string& path, const std::string& animName
     } else {
         curAnim = externalAnimData.name;
         currentAnimData = &externalAnimData;
-        curFrame = 0; frameTimer = 0; animFinished = false;
+        curFrame = 0;
+        frameTimer = 0.0f;
+        animFinished = false;
     }
 }
 
 void Character::update(float dt) {
+    if (curAnim.empty()) return;
+
+    bool isSinging = (curAnim.find("sing") != std::string::npos);
+    bool isMissing = (curAnim.find("miss") != std::string::npos);
+
     if (isSpritemap) {
-        if (curAnim.empty()) return;
-        
-        if (curAnim.find("sing") != std::string::npos) {
+        if (isSinging) {
             holdTimer += dt;
         } else {
-            holdTimer = 0;
+            holdTimer = 0.0f;
         }
 
-        if (!isPlayer) {
-            if (curAnim.find("sing") != std::string::npos && curAnim.find("miss") == std::string::npos) {
-                float singThreshold = (Conductor::stepCrochet * 0.0011f) * singDuration;
-                if (holdTimer >= singThreshold) {
-                    dance();
-                    holdTimer = 0;
-                }
+        if (!isPlayer && isSinging && !isMissing) {
+            float singThreshold = (Conductor::stepCrochet * 0.0011f) * singDuration;
+            if (holdTimer >= singThreshold) {
+                dance();
+                holdTimer = 0.0f;
             }
         }
 
-        if (curAnim.find("miss") != std::string::npos && animFinished) {
+        if (isMissing && animFinished) {
             dance(true);
         }
 
@@ -1253,23 +1279,21 @@ void Character::update(float dt) {
 
     if (!currentAnimData || currentAnimData->indices.empty()) return;
     
-    if (curAnim.find("sing") != std::string::npos) {
+    if (isSinging) {
         holdTimer += dt;
     } else {
-        holdTimer = 0;
+        holdTimer = 0.0f;
     }
 
-    if (!isPlayer) {
-        if (curAnim.find("sing") != std::string::npos && curAnim.find("miss") == std::string::npos) {
-            float singThreshold = (Conductor::stepCrochet * 0.0011f) * singDuration;
-            if (holdTimer >= singThreshold) {
-                dance();
-                holdTimer = 0;
-            }
+    if (!isPlayer && isSinging && !isMissing) {
+        float singThreshold = (Conductor::stepCrochet * 0.0011f) * singDuration;
+        if (holdTimer >= singThreshold) {
+            dance();
+            holdTimer = 0.0f;
         }
     }
 
-    if (curAnim.find("miss") != std::string::npos && animFinished) {
+    if (isMissing && animFinished) {
         dance(true);
     }
 
@@ -1307,7 +1331,7 @@ void Character::update(float dt) {
 }
 
 bool Character::hasAnimation(const std::string& animName) {
-    return animations.count(animName) > 0;
+    return animations.find(animName) != animations.end();
 }
 
 void Character::draw(float stageX, float stageY, float depth, float zoom, float camX, float camY, float shakeX, float shakeY) {
@@ -1328,9 +1352,10 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
 
         float offX = 0.0f;
         float offY = 0.0f;
-        if (animations.count(curAnim)) {
-            offX = animations[curAnim].offsetX;
-            offY = animations[curAnim].offsetY;
+        auto itAnim = animations.find(curAnim);
+        if (itAnim != animations.end()) {
+            offX = itAnim->second.offsetX;
+            offY = itAnim->second.offsetY;
         }
 
         bool shouldFlip = (isPlayer != flipX);
@@ -1410,7 +1435,8 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
                  }
                  C2D_DrawImageAtRotated(img, centerX, centerY, depth, angleRad, tintPtr, scaleX, scaleY);
              }
-        } return;
+        }
+        return;
     }
     
     int frameIdx = currentAnimData->indices[curFrame];
@@ -1420,7 +1446,7 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
     const Frame& f = useFrames[frameIdx];
     C2D_Image img = { f.tex, &f.uv };
 
-    // [FIX-1] Rotated frames: swap scale axes so charScaleX always controls horizontal
+    // Rotated frames: swap scale axes so charScaleX always controls horizontal
     float drawCharScaleX = charScaleX;
     float drawCharScaleY = charScaleY;
     if (f.rotated) {
@@ -1440,8 +1466,6 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
     float drawX = (baseX * screenScale * zoom) + (ScreenWidthTop / 2.0f) + shakeX + offset3D;
     float drawY = (baseY * screenScale * zoom) + (ScreenHeight / 2.0f) + shakeY;
 
-    // HaxeFlixel scales from the origin (center of the frame).
-    // Always use frameW/frameH — rotation is compensated by the -90° turn elsewhere.
     if (!PlayState::instance || !PlayState::instance->legacyPositioning) {
         float originX = f.frameW / 2.0f;
         float originY = f.frameH / 2.0f;
@@ -1449,9 +1473,6 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
         drawY += originY * (1.0f - charScaleY) * screenScale * zoom;
     }
 
-    // [FIX-3] Separate frameX (scales with sprite) from offsetX (screen pixels, no scale)
-    // frameX/frameY: trimmed frame offset within the texture — scales with the sprite.
-    // offsetX/offsetY: animation offset in screen pixels — does NOT scale with charScale.
     if (shouldFlip) {
         drawX += (f.frameW + f.frameX) * finalScaleX;
     } else {
@@ -1481,8 +1502,6 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
 
     float totalAngle = angle;
 
-    // For rotated frames we must always go through the rotated draw path so we can
-    // add the compensating -90° turn (the sprite was stored CW in the atlas).
     float angleRad = totalAngle * (3.14159265f / 180.0f);
     if (f.rotated) angleRad -= (3.14159265f / 2.0f);
 
@@ -1503,7 +1522,6 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
     } else {
         C2D_DrawImageAt(img, drawX, drawY, depth, tintPtr, (shouldFlip ? -finalScaleX : finalScaleX), finalScaleY);
     }
-
 }
 
 void Character::setAntialiasing(bool antialiased) {
@@ -1524,8 +1542,9 @@ void Character::setAntialiasing(bool antialiased) {
 }
 
 void Character::setAnimLoop(const std::string& animName, bool loop) {
-    if (animations.count(animName)) {
-        animations[animName].loop = loop;
+    auto it = animations.find(animName);
+    if (it != animations.end()) {
+        it->second.loop = loop;
     }
     if (isSpritemap) {
         spritemapAnim.setLoop(animName, loop);
