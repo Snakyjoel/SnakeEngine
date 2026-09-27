@@ -1533,11 +1533,31 @@ void Character::setAntialiasing(bool antialiased) {
     if (rawTex) {
         C3D_TexSetFilter(rawTex, filter, filter);
     }
+    if (sheet) {
+        size_t count = C2D_SpriteSheetCount(sheet);
+        for (size_t i = 0; i < count; i++) {
+            C2D_Image img = C2D_SpriteSheetGetImage(sheet, i);
+            if (img.tex) C3D_TexSetFilter(img.tex, filter, filter);
+        }
+    }
     for (auto& f : frames) {
         if (f.tex) C3D_TexSetFilter(f.tex, filter, filter);
     }
     for (auto& f : externalFrames) {
         if (f.tex) C3D_TexSetFilter(f.tex, filter, filter);
+    }
+    if (isSpritemap) {
+        spritemapAnim.antialiasing = antialiased;
+        if (spritemapAnim.smTex) {
+            C3D_TexSetFilter(spritemapAnim.smTex, filter, filter);
+        }
+        if (spritemapAnim.smSheet) {
+            size_t count = C2D_SpriteSheetCount(spritemapAnim.smSheet);
+            for (size_t i = 0; i < count; i++) {
+                C2D_Image img = C2D_SpriteSheetGetImage(spritemapAnim.smSheet, i);
+                if (img.tex) C3D_TexSetFilter(img.tex, filter, filter);
+            }
+        }
     }
 }
 

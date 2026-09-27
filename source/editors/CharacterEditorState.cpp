@@ -533,7 +533,7 @@ void CharacterEditorState::update(float dt) {
         if (currentTab == 2) maxOpts = 8;
         else if (currentTab == 3) maxOpts = 5;
         else if (currentTab == 4) maxOpts = 2;
-        else if (currentTab == 5) maxOpts = 7;
+        else if (currentTab == 5) maxOpts = 6;
     } else {
         maxOpts = visibleOptionIds.size();
     }
@@ -571,7 +571,7 @@ void CharacterEditorState::update(float dt) {
                 pressRight = true;
             } else if (currentTab == 4 && curSelected == 0) {
                 pressRight = true;
-            } else if (currentTab == 5 && (curSelected == 1 || curSelected == 2)) {
+            } else if (currentTab == 5 && (curSelected == 0 || curSelected == 1 || curSelected == 2)) {
                 pressRight = true;
             }
         } else if (!visibleOptionIds.empty()) {
@@ -971,6 +971,8 @@ void CharacterEditorState::update(float dt) {
         touchStartPx = touch.px;
         touchStartPy = touch.py;
         touchMoved = false;
+        lastTouchX = touch.px;
+        lastTouchY = touch.py;
     }
 
     if (touchHeld) {
@@ -1254,7 +1256,6 @@ void CharacterEditorState::update(float dt) {
             float boxY = 28.0f;
             float boxW = 300.0f;
             float boxH = 82.0f;
-            float itemH = 16.0f;
 
             if (touchDown) {
                 // 1. Tab Headers (Normal Mode Only)
@@ -1312,7 +1313,7 @@ void CharacterEditorState::update(float dt) {
                 float sliderX = 15.0f;
                 float sliderW = 290.0f;
                 float sliderY = 166.0f;
-                if (touch.py >= sliderY - 10.0f && touch.py <= sliderY + 24.0f) {
+                if (touch.py >= sliderY - 10.0f && touch.py <= sliderY + 12.0f) {
                     curSelected = 3;
                     float pct = (touch.px - sliderX) / sliderW;
                     if (pct < 0.0f) pct = 0.0f;
@@ -1325,6 +1326,8 @@ void CharacterEditorState::update(float dt) {
             if (isDraggingCharList) {
                 float dy = touch.py - dragStartY;
                 charScrollY = dragStartScroll - dy;
+                float itemH = 18.0f;
+                float boxH = 82.0f;
                 float maxScroll = (characterList.size() * itemH) - boxH;
                 if (maxScroll < 0.0f) maxScroll = 0.0f;
                 if (charScrollY < 0.0f) charScrollY = 0.0f;
@@ -1333,6 +1336,8 @@ void CharacterEditorState::update(float dt) {
             else if (isDraggingAnimList) {
                 float dy = touch.py - dragStartY;
                 animScrollY = dragStartScroll - dy;
+                float itemH = 18.0f;
+                float boxH = 70.0f;
                 float maxScroll = (animList.size() * itemH) - boxH;
                 if (maxScroll < 0.0f) maxScroll = 0.0f;
                 if (animScrollY < 0.0f) animScrollY = 0.0f;
@@ -1341,7 +1346,9 @@ void CharacterEditorState::update(float dt) {
             else if (isDraggingRefCharList) {
                 float dy = touch.py - dragStartY;
                 refCharScrollY = dragStartScroll - dy;
-                float maxScroll = (characterList.size() * itemH) - 48.0f;
+                float itemH = 18.0f;
+                float boxH = 48.0f;
+                float maxScroll = (characterList.size() * itemH) - boxH;
                 if (maxScroll < 0.0f) maxScroll = 0.0f;
                 if (refCharScrollY < 0.0f) refCharScrollY = 0.0f;
                 if (refCharScrollY > maxScroll) refCharScrollY = maxScroll;
@@ -1349,7 +1356,9 @@ void CharacterEditorState::update(float dt) {
             else if (isDraggingRefAnimList) {
                 float dy = touch.py - dragStartY;
                 refAnimScrollY = dragStartScroll - dy;
-                float maxScroll = (refAnimList.size() * itemH) - 48.0f;
+                float itemH = 18.0f;
+                float boxH = 48.0f;
+                float maxScroll = (refAnimList.size() * itemH) - boxH;
                 if (maxScroll < 0.0f) maxScroll = 0.0f;
                 if (refAnimScrollY < 0.0f) refAnimScrollY = 0.0f;
                 if (refAnimScrollY > maxScroll) refAnimScrollY = maxScroll;
@@ -1435,8 +1444,11 @@ void CharacterEditorState::update(float dt) {
         isDraggingRefCharList = false;
         isDraggingRefAnimList = false;
 
+        float touchDistSq = (touchStartPx - lastTouchX) * (touchStartPx - lastTouchX) + (touchStartPy - lastTouchY) * (touchStartPy - lastTouchY);
+        bool wasTap = (!touchMoved || touchDistSq < 225.0f);
+
         // Execute tap action if touch didn't drag significantly
-        if (!touchMoved && touchStartPy >= 0.0f && touchStartPy < 240.0f && (!pcMode || uiExpanded)) {
+        if (wasTap && touchStartPy >= 0.0f && touchStartPy < 240.0f && (!pcMode || uiExpanded)) {
             if (pcMode) {
                 auto layout = getPCLayout(windows, pcUiScale);
                 for (const auto& elem : layout) {
@@ -1631,9 +1643,12 @@ void CharacterEditorState::update(float dt) {
                 }
             } else {
                 // Original 3DS Tab tap detection logic (Normal Mode) - Improved for touch sensitivity
+                float minusX = 235.0f;
+                float plusX = 288.0f;
+
                 if (currentTab == 0) { // Settings
                     // Tapped Character List Box
-                    float boxX = 10.0f, boxY = 25.0f, boxW = 300.0f, boxH = 88.0f, itemH = 16.0f;
+                    float boxX = 10.0f, boxY = 28.0f, boxW = 300.0f, boxH = 82.0f, itemH = 18.0f;
                     if (touchStartPx >= boxX && touchStartPx <= boxX + boxW && touchStartPy >= boxY && touchStartPy <= boxY + boxH) {
                         int tapped = (int)((touchStartPy - boxY + charScrollY) / itemH);
                         if (tapped >= 0 && tapped < (int)characterList.size()) {
@@ -1727,9 +1742,7 @@ void CharacterEditorState::update(float dt) {
                                 ghostObj->setAntialiasing(!ghostObj->noAntialiasing);
                                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                             } else {
-                                float arrowL = 200.0f;
-                                float arrowR = 280.0f;
-                                if (touchStartPx >= arrowL - 10.0f && touchStartPx <= arrowL + 25.0f) { // Left arrow
+                                if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) { // [-] button
                                     if (i == 0) {
                                         charObj->singDuration -= 0.5f;
                                         if (charObj->singDuration < 0.1f) charObj->singDuration = 0.1f;
@@ -1769,7 +1782,7 @@ void CharacterEditorState::update(float dt) {
                                         ghostObj->camOffsetY = charObj->camOffsetY;
                                     }
                                     AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
-                                } else if (touchStartPx >= arrowR - 10.0f && touchStartPx <= arrowR + 25.0f) { // Right arrow
+                                } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) { // [+] button
                                     if (i == 0) {
                                         charObj->singDuration += 0.5f;
                                         ghostObj->singDuration = charObj->singDuration;
@@ -1815,7 +1828,7 @@ void CharacterEditorState::update(float dt) {
                 }
                 else if (currentTab == 3) { // Animations
                     // Tapped Animations List Box
-                    float boxX = 10.0f, boxY = 25.0f, boxW = 300.0f, boxH = 88.0f, itemH = 16.0f;
+                    float boxX = 10.0f, boxY = 28.0f, boxW = 300.0f, boxH = 70.0f, itemH = 18.0f;
                     if (touchStartPx >= boxX && touchStartPx <= boxX + boxW && touchStartPy >= boxY && touchStartPy <= boxY + boxH) {
                         int tapped = (int)((touchStartPy - boxY + animScrollY) / itemH);
                         if (tapped >= 0 && tapped < (int)animList.size()) {
@@ -1828,20 +1841,18 @@ void CharacterEditorState::update(float dt) {
                     
                     if (!animList.empty()) {
                         std::string curAnimName = animList[animSliderIndex];
-                        float arrowL = 200.0f;
-                        float arrowR = 280.0f;
 
                         // FPS
                         float fpsY = 122.0f;
                         if (touchStartPy >= fpsY - 4.0f && touchStartPy <= fpsY + 18.0f) {
                             curSelected = 1;
-                            if (touchStartPx >= arrowL - 10.0f && touchStartPx <= arrowL + 25.0f) {
+                            if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) {
                                 charObj->animations[curAnimName].fps--;
                                 if (charObj->animations[curAnimName].fps < 1) charObj->animations[curAnimName].fps = 1;
                                 ghostObj->animations[curAnimName].fps = charObj->animations[curAnimName].fps;
                                 playCurAnim();
                                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
-                            } else if (touchStartPx >= arrowR - 10.0f && touchStartPx <= arrowR + 25.0f) {
+                            } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) {
                                 charObj->animations[curAnimName].fps++;
                                 ghostObj->animations[curAnimName].fps = charObj->animations[curAnimName].fps;
                                 playCurAnim();
@@ -1860,12 +1871,12 @@ void CharacterEditorState::update(float dt) {
                         float offXY = 166.0f;
                         if (touchStartPy >= offXY - 4.0f && touchStartPy <= offXY + 18.0f) {
                             curSelected = 3;
-                            if (touchStartPx >= arrowL - 10.0f && touchStartPx <= arrowL + 25.0f) {
+                            if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) {
                                 charObj->animations[curAnimName].offsetX -= change;
                                 ghostObj->animations[curAnimName].offsetX = charObj->animations[curAnimName].offsetX;
                                 playCurAnim();
                                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
-                            } else if (touchStartPx >= arrowR - 10.0f && touchStartPx <= arrowR + 25.0f) {
+                            } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) {
                                 charObj->animations[curAnimName].offsetX += change;
                                 ghostObj->animations[curAnimName].offsetX = charObj->animations[curAnimName].offsetX;
                                 playCurAnim();
@@ -1876,18 +1887,19 @@ void CharacterEditorState::update(float dt) {
                         float offYY = 188.0f;
                         if (touchStartPy >= offYY - 4.0f && touchStartPy <= offYY + 18.0f) {
                             curSelected = 4;
-                            if (touchStartPx >= arrowL - 10.0f && touchStartPx <= arrowL + 25.0f) {
+                            if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) {
                                 charObj->animations[curAnimName].offsetY -= change;
                                 ghostObj->animations[curAnimName].offsetY = charObj->animations[curAnimName].offsetY;
                                 playCurAnim();
                                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
-                            } else if (touchStartPx >= arrowR - 10.0f && touchStartPx <= arrowR + 25.0f) {
+                            } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) {
                                 charObj->animations[curAnimName].offsetY += change;
                                 ghostObj->animations[curAnimName].offsetY = charObj->animations[curAnimName].offsetY;
                                 playCurAnim();
                                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                             }
                         }
+                    }
                 }
                 else if (currentTab == 4) { // Camera
                     float checkY = 40.0f;
@@ -1899,13 +1911,11 @@ void CharacterEditorState::update(float dt) {
                     float zoomY = 80.0f;
                     if (touchStartPy >= zoomY - 5.0f && touchStartPy <= zoomY + 24.0f) {
                         curSelected = 1;
-                        float arrowL = 200.0f;
-                        float arrowR = 280.0f;
-                        if (touchStartPx >= arrowL - 10.0f && touchStartPx <= arrowL + 25.0f) {
+                        if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) {
                             simCamZoom -= 0.05f;
                             if (simCamZoom < 0.1f) simCamZoom = 0.1f;
                             AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
-                        } else if (touchStartPx >= arrowR - 10.0f && touchStartPx <= arrowR + 25.0f) {
+                        } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) {
                             simCamZoom += 0.05f;
                             if (simCamZoom > 3.0f) simCamZoom = 3.0f;
                             AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
@@ -1915,16 +1925,14 @@ void CharacterEditorState::update(float dt) {
                 else if (currentTab == 5) { // Reference
                     float box1X = 10.0f, box1Y = 27.0f, box1W = 300.0f, box1H = 48.0f;
                     float box2X = 10.0f, box2Y = 78.0f, box2W = 300.0f, box2H = 48.0f;
-                    float checkShowY = 130.0f;
-                    float alphaY = 155.0f;
-                    float posX_Y = 180.0f;
-                    float posY_Y = 205.0f;
-                    float arrowL = 200.0f;
-                    float arrowR = 280.0f;
+                    float checkShowY = 126.0f;
+                    float alphaY = 148.0f;
+                    float posX_Y = 184.0f;
+                    float posY_Y = 206.0f;
 
                     if (touchStartPx >= box1X && touchStartPx <= box1X + box1W && touchStartPy >= box1Y && touchStartPy <= box1Y + box1H) {
                         curSelected = 0;
-                        int tapped = (int)((touchStartPy - box1Y + refCharScrollY) / 16.0f);
+                        int tapped = (int)((touchStartPy - box1Y + refCharScrollY) / 18.0f);
                         if (tapped >= 0 && tapped < (int)characterList.size()) {
                             curRefCharIndex = tapped;
                             loadRefCharacter(characterList[curRefCharIndex]);
@@ -1934,7 +1942,7 @@ void CharacterEditorState::update(float dt) {
                     else if (touchStartPx >= box2X && touchStartPx <= box2X + box2W && touchStartPy >= box2Y && touchStartPy <= box2Y + box2H) {
                         curSelected = 1;
                         if (!refAnimList.empty()) {
-                            int tapped = (int)((touchStartPy - box2Y + refAnimScrollY) / 16.0f);
+                            int tapped = (int)((touchStartPy - box2Y + refAnimScrollY) / 18.0f);
                             if (tapped >= 0 && tapped < (int)refAnimList.size()) {
                                 refAnimSliderIndex = tapped;
                                 curRefAnimIndex = refAnimSliderIndex;
@@ -1964,8 +1972,8 @@ void CharacterEditorState::update(float dt) {
                     else if (touchStartPy >= posX_Y - 4.0f && touchStartPy <= posX_Y + 18.0f) {
                         curSelected = 4;
                         if (refObj) {
-                            if (touchStartPx >= arrowL - 10.0f && touchStartPx <= arrowL + 25.0f) refObj->x -= change;
-                            else if (touchStartPx >= arrowR - 10.0f && touchStartPx <= arrowR + 25.0f) refObj->x += change;
+                            if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) refObj->x -= change;
+                            else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) refObj->x += change;
                             refObj->baseX = refObj->x;
                             AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                         }
@@ -1973,8 +1981,8 @@ void CharacterEditorState::update(float dt) {
                     else if (touchStartPy >= posY_Y - 4.0f && touchStartPy <= posY_Y + 18.0f) {
                         curSelected = 5;
                         if (refObj) {
-                            if (touchStartPx >= arrowL - 10.0f && touchStartPx <= arrowL + 25.0f) refObj->y -= change;
-                            else if (touchStartPx >= arrowR - 10.0f && touchStartPx <= arrowR + 25.0f) refObj->y += change;
+                            if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) refObj->y -= change;
+                            else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) refObj->y += change;
                             refObj->baseY = refObj->y;
                             AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                         }
@@ -1982,7 +1990,6 @@ void CharacterEditorState::update(float dt) {
                 }
             }
         }
-    }
     }
 
     touchHeldLastFrame = touchHeld;
@@ -2176,9 +2183,9 @@ void CharacterEditorState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom)
         if (dotRadScreen < 1.0f) dotRadScreen = 1.0f;
         if (armLenScreen < 2.0f) armLenScreen = 2.0f;
 
-        C2D_DrawCircleSolid(screenFollowX, screenFollowY, 0.35f, dotRadScreen, C2D_Color32(0, 255, 0, 255));
-        C2D_DrawLine(screenFollowX - armLenScreen, screenFollowY, C2D_Color32(0, 255, 0, 200), screenFollowX + armLenScreen, screenFollowY, C2D_Color32(0, 255, 0, 200), 1.0f, 0.35f);
-        C2D_DrawLine(screenFollowX, screenFollowY - armLenScreen, C2D_Color32(0, 255, 0, 200), screenFollowX, screenFollowY + armLenScreen, C2D_Color32(0, 255, 0, 200), 1.0f, 0.35f);
+        C2D_DrawCircleSolid(screenFollowX, screenFollowY, 0.70f, dotRadScreen, C2D_Color32(0, 255, 0, 255));
+        C2D_DrawLine(screenFollowX - armLenScreen, screenFollowY, C2D_Color32(0, 255, 0, 200), screenFollowX + armLenScreen, screenFollowY, C2D_Color32(0, 255, 0, 200), 1.0f, 0.70f);
+        C2D_DrawLine(screenFollowX, screenFollowY - armLenScreen, C2D_Color32(0, 255, 0, 200), screenFollowX, screenFollowY + armLenScreen, C2D_Color32(0, 255, 0, 200), 1.0f, 0.70f);
 
         // Simulated Camera Viewport Box (Golden Yellow)
         if (showCamBounds) {
@@ -2188,14 +2195,14 @@ void CharacterEditorState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom)
             float rectY = screenFollowY - rectH * 0.5f;
             u32 camBoxCol = C2D_Color32(255, 215, 0, 220);
 
-            C2D_DrawLine(rectX, rectY, camBoxCol, rectX + rectW, rectY, camBoxCol, 1.0f, 0.36f);
-            C2D_DrawLine(rectX, rectY, camBoxCol, rectX, rectY + rectH, camBoxCol, 1.0f, 0.36f);
-            C2D_DrawLine(rectX + rectW, rectY, camBoxCol, rectX + rectW, rectY + rectH, camBoxCol, 1.0f, 0.36f);
-            C2D_DrawLine(rectX, rectY + rectH, camBoxCol, rectX + rectW, rectY + rectH, camBoxCol, 1.0f, 0.36f);
+            C2D_DrawLine(rectX, rectY, camBoxCol, rectX + rectW, rectY, camBoxCol, 1.0f, 0.71f);
+            C2D_DrawLine(rectX, rectY, camBoxCol, rectX, rectY + rectH, camBoxCol, 1.0f, 0.71f);
+            C2D_DrawLine(rectX + rectW, rectY, camBoxCol, rectX + rectW, rectY + rectH, camBoxCol, 1.0f, 0.71f);
+            C2D_DrawLine(rectX, rectY + rectH, camBoxCol, rectX + rectW, rectY + rectH, camBoxCol, 1.0f, 0.71f);
 
             char camZoomStr[32];
             snprintf(camZoomStr, sizeof(camZoomStr), "CAM FRAME (%.2fx)", simCamZoom);
-            drawText(camZoomStr, rectX + 4.0f, rectY + 2.0f, 0.26f, false, camBoxCol, 0.37f);
+            drawText(camZoomStr, rectX + 4.0f, rectY + 2.0f, 0.26f, false, camBoxCol, 0.72f);
         }
     }
 
@@ -2286,9 +2293,9 @@ void CharacterEditorState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom)
             if (dotRadScreen < 1.0f) dotRadScreen = 1.0f;
             if (armLenScreen < 2.0f) armLenScreen = 2.0f;
 
-            C2D_DrawCircleSolid(pcFollowX, pcFollowY, 0.35f, dotRadScreen, C2D_Color32(0, 255, 0, 255));
-            C2D_DrawLine(pcFollowX - armLenScreen, pcFollowY, C2D_Color32(0, 255, 0, 200), pcFollowX + armLenScreen, pcFollowY, C2D_Color32(0, 255, 0, 200), 1.0f, 0.35f);
-            C2D_DrawLine(pcFollowX, pcFollowY - armLenScreen, C2D_Color32(0, 255, 0, 200), pcFollowX, pcFollowY + armLenScreen, C2D_Color32(0, 255, 0, 200), 1.0f, 0.35f);
+            C2D_DrawCircleSolid(pcFollowX, pcFollowY, 0.50f, dotRadScreen, C2D_Color32(0, 255, 0, 255));
+            C2D_DrawLine(pcFollowX - armLenScreen, pcFollowY, C2D_Color32(0, 255, 0, 200), pcFollowX + armLenScreen, pcFollowY, C2D_Color32(0, 255, 0, 200), 1.0f, 0.50f);
+            C2D_DrawLine(pcFollowX, pcFollowY - armLenScreen, C2D_Color32(0, 255, 0, 200), pcFollowX, pcFollowY + armLenScreen, C2D_Color32(0, 255, 0, 200), 1.0f, 0.50f);
 
             if (showCamBounds) {
                 float rectW = (1280.0f / simCamZoom) * screenScale * camZoom;
@@ -2297,10 +2304,10 @@ void CharacterEditorState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom)
                 float rectY = pcFollowY - rectH * 0.5f;
                 u32 camBoxCol = C2D_Color32(255, 215, 0, 220);
 
-                C2D_DrawLine(rectX, rectY, camBoxCol, rectX + rectW, rectY, camBoxCol, 1.0f, 0.36f);
-                C2D_DrawLine(rectX, rectY, camBoxCol, rectX, rectY + rectH, camBoxCol, 1.0f, 0.36f);
-                C2D_DrawLine(rectX + rectW, rectY, camBoxCol, rectX + rectW, rectY + rectH, camBoxCol, 1.0f, 0.36f);
-                C2D_DrawLine(rectX, rectY + rectH, camBoxCol, rectX + rectW, rectY + rectH, camBoxCol, 1.0f, 0.36f);
+                C2D_DrawLine(rectX, rectY, camBoxCol, rectX + rectW, rectY, camBoxCol, 1.0f, 0.51f);
+                C2D_DrawLine(rectX, rectY, camBoxCol, rectX, rectY + rectH, camBoxCol, 1.0f, 0.51f);
+                C2D_DrawLine(rectX + rectW, rectY, camBoxCol, rectX + rectW, rectY + rectH, camBoxCol, 1.0f, 0.51f);
+                C2D_DrawLine(rectX, rectY + rectH, camBoxCol, rectX + rectW, rectY + rectH, camBoxCol, 1.0f, 0.51f);
             }
         }
 
