@@ -55,6 +55,10 @@ WeekData WeekParser::loadJson(const std::string& path) {
                 if (sIntro && json_is_string(sIntro)) song.introVideo = json_string_value(sIntro);
                 if (sOutro && json_is_string(sOutro)) song.outroVideo = json_string_value(sOutro);
                 
+                json_t* sChar = json_array_get(val, 5);
+                if (sChar && json_is_string(sChar)) song.freeplayCharacter = json_string_value(sChar);
+                else song.freeplayCharacter = "bf";
+                
                 week.songs.push_back(song);
             }
         }

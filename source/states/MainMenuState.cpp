@@ -11,6 +11,7 @@
 #include "../backend/ModHandler.hpp"
 #include "WeekParser.hpp"
 #include "../backend/AudioEngine.hpp"
+#include "../backend/SpritesheetCache.hpp"
 #include <cmath>
 
 bool MainMenuState::comingFromFreeplay = false;
@@ -403,4 +404,5 @@ void MainMenuState::exitState() {
     if (bgSheet) C2D_SpriteSheetFree(bgSheet);
     if (bottomBGSheet) C2D_SpriteSheetFree(bottomBGSheet);
     C2D_TextBufDelete(vcrFontBuf);
+    SpritesheetCache::get().clear();
 }

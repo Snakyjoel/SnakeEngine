@@ -5,6 +5,7 @@
 #include "../backend/AudioEngine.hpp"
 #include "../backend/SpritesheetCache.hpp"
 #include "../objects/ButtonPrompt.hpp"
+#include "../backend/WeekData.hpp"
 #include <tremor/ivorbisfile.h>
 #include <dirent.h>
 #include <stdio.h>
@@ -467,6 +468,8 @@ void ModsMenuState::update(float dt) {
     if (keyJustPressed(KEY_B)) {
         AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
         ModHandler::get().saveConfig();
+        WeekData::weeksLoaded.clear();
+        WeekData::weeksList.clear();
         switchState(new MainMenuState());
     }
 

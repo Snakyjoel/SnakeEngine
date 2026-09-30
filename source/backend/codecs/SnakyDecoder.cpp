@@ -58,6 +58,7 @@ bool SnakyDecoder::open(const std::string& videoPath, bool includeAudio) {
 
     // Initialize NDSP audio buffer if present & requested
     if (hasAudio && includeAudioTrack) {
+        ndspChnSetPaused(5, true);
         ndspChnReset(5);
         ndspChnSetInterp(5, NDSP_INTERP_LINEAR);
         ndspChnSetRate(5, audioRate);

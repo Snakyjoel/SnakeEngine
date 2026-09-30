@@ -13,6 +13,7 @@
 #include "OutdatedState.hpp"
 #include "../backend/UpdateChecker.hpp"
 #include "../objects/ButtonPrompt.hpp"
+#include "../backend/SpritesheetCache.hpp"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f
@@ -288,7 +289,7 @@ void TitleState::update(float dt) {
         exitProgress += dt / 3.0f;
         if (exitProgress >= 1.0f) {
             exitProgress = 1.0f;
-            exit(0);
+            MusicBeatState::requestExit = true;
         }
     } else {
         ringAlpha -= dt * 4.0f;
@@ -472,6 +473,7 @@ void TitleState::skipIntro() {
 }
 
 void TitleState::exitState() {
+    SpritesheetCache::get().clear();
 }
 
 

@@ -40,7 +40,9 @@ void StoryMenuState::init() {
     VCRFontFix();
 
     curSelected = 0;
-    WeekData::reloadWeekFiles();
+    if (WeekData::weeksLoaded.empty()) {
+        WeekData::reloadWeekFiles();
+    }
     
     selectableWeeks.clear();
     for (const auto& weekName : WeekData::weeksList) {

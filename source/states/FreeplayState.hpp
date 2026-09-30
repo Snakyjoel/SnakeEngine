@@ -27,6 +27,8 @@ public:
     void update(float dt) override;
     void draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) override;
     void exitState() override;
+    
+    static std::string currentChar;
 
 private:
     int curSelected = 0;

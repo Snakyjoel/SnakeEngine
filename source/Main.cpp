@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
 
     u64 lastTime = osGetTime();
 
-    while (aptMainLoop()) {
+    while (aptMainLoop() && !MusicBeatState::requestExit) {
         u64 frameStart = osGetTime();
         g_inTransition = (MusicBeatState::transPhase != TransitionPhase::NONE);
         hidScanInput();
@@ -341,6 +341,7 @@ int main(int argc, char* argv[]) {
 
     AsyncAssetManager::get().shutdown();
 
+    AudioEngine::stopAudioThread();
     AudioEngine::exit();
     MusicPlayer::stop();
 
@@ -356,7 +357,6 @@ int main(int argc, char* argv[]) {
 
     C2D_Fini();
     C3D_Fini();
-    AudioEngine::stopAudioThread();
     ndspExit();
     gfxExit();
     romfsExit();

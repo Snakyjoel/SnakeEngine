@@ -450,6 +450,7 @@ void PauseSubState::initNesAudio() {
 }
 
 void PauseSubState::freeNesAudio() {
+    ndspChnSetPaused(5, true);
     ndspChnReset(5);
     for (int i = 0; i < NES_SFX_COUNT; i++) {
         if (nesSfxBuffers[i]) {
@@ -465,6 +466,7 @@ void PauseSubState::playNesSound(NesSfx sound) {
     if (sound < 0 || sound >= NES_SFX_COUNT) return;
     if (!nesSfxBuffers[sound] || nesSfxSampleCounts[sound] == 0) return;
 
+    ndspChnSetPaused(5, true);
     ndspChnReset(5);
     ndspChnSetInterp(5, NDSP_INTERP_NONE);
     ndspChnSetRate(5, 44100);

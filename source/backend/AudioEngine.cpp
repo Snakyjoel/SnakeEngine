@@ -596,6 +596,9 @@ void AudioEngine::exit() {
 }
 
 void AudioEngine::clearSoundCache() {
+    ndspChnSetPaused(2, true);
+    ndspChnSetPaused(3, true);
+    ndspChnSetPaused(4, true);
     ndspChnReset(2);
     ndspChnReset(3);
     ndspChnReset(4);
@@ -661,6 +664,7 @@ void AudioEngine::playSound(const std::string& path, float vol) {
     sndChannelIdx++;
     if (sndChannelIdx > 4) sndChannelIdx = 2;
     
+    ndspChnSetPaused(ch, true);
     ndspChnReset(ch);
     ndspChnSetInterp(ch, NDSP_INTERP_LINEAR);
     ndspChnSetRate(ch, sound.rate);
@@ -718,6 +722,7 @@ void AudioEngine::playMissSound() {
     int ch = sndChannelIdx;
     sndChannelIdx++;
     if (sndChannelIdx > 4) sndChannelIdx = 2;
+    ndspChnSetPaused(ch, true);
     ndspChnReset(ch);
     ndspChnSetInterp(ch, NDSP_INTERP_LINEAR);
     ndspChnSetRate(ch, missSfx[idx].rate);
@@ -768,6 +773,7 @@ void AudioEngine::playCountdownSound(int tick) {
     int ch = sndChannelIdx;
     sndChannelIdx++;
     if (sndChannelIdx > 4) sndChannelIdx = 2;
+    ndspChnSetPaused(ch, true);
     ndspChnReset(ch);
     ndspChnSetInterp(ch, NDSP_INTERP_LINEAR);
     ndspChnSetRate(ch, countdownSfx[tick].rate);
@@ -784,6 +790,9 @@ void AudioEngine::playCountdownSound(int tick) {
 }
 
 void AudioEngine::freeCountdownSounds() {
+    ndspChnSetPaused(2, true);
+    ndspChnSetPaused(3, true);
+    ndspChnSetPaused(4, true);
     ndspChnReset(2);
     ndspChnReset(3);
     ndspChnReset(4);
@@ -1033,8 +1042,8 @@ bool MusicPlayer::play(const char* path, float volume) {
     for (int i = 0; i < BUF_COUNT; i++)
         waveBuf[i].data_vaddr = audioData + i * BUF_SMPLS * mChannels;
 
-    ndspChnReset(CHANNEL);
     ndspChnSetPaused(CHANNEL, true); // Pause initially to avoid stuttering
+    ndspChnReset(CHANNEL);
     ndspChnSetInterp(CHANNEL, NDSP_INTERP_LINEAR);
     ndspChnSetRate(CHANNEL, (float)mSampleRate);
     ndspChnSetFormat(CHANNEL, mChannels == 2 ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16);
@@ -1079,6 +1088,7 @@ void MusicPlayer::stop() {
         LightLock_Unlock(&s_musicLock);
         return;
     }
+    ndspChnSetPaused(CHANNEL, true);
     ndspChnReset(CHANNEL);
     svcSleepThread(16000000LL);
     if (isAdpMode) {

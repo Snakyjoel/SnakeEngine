@@ -8,7 +8,9 @@
 				113,
 				253
 			],
-			"darnellCutscene.snaky"
+			"darnellCutscene.snaky",
+			"",
+			"pico"
 		],
 		[
 			"lit up",
@@ -17,7 +19,10 @@
 				146,
 				113,
 				253
-			]
+			],
+			"",
+			"",
+			"pico"
 		],
 		[
 			"2hot",
@@ -26,7 +31,10 @@
 				146,
 				113,
 				253
-			]
+			],
+			"",
+			"",
+			"pico"
 		],
 		[
 			"blazin",
@@ -37,7 +45,8 @@
 				253
 			],
 			"2hotCutscene.snaky",
-			"blazinCutscene.snaky"
+			"blazinCutscene.snaky",
+			"pico"
 		]
 	],
 	"hiddenUntilUnlocked": false,

@@ -54,6 +54,8 @@ v3.7.8
 - The audio converter now its faster
 - A lot of optimization was done
 - He is gone, for now
+- Titlestate now releases its sprites from L-RAM upon exiting
+- Character Select was added
 
 v2.5.7
 - Fixed a crash with change character, but not tested

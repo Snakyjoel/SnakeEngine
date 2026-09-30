@@ -7,6 +7,7 @@
 #include "Highscores.hpp"
 #include "../objects/Alphabet.hpp"
 #include "../objects/ButtonPrompt.hpp"
+#include "CharacterSelectState.hpp"
 #include <cmath>
 #include <algorithm>
 #include <sstream>
@@ -48,6 +49,7 @@ int FreeplayState::iconEggBest = 0;
 int FreeplayState::savedDifficulty = 1;
 std::string FreeplayState::savedSongName = "";
 std::string FreeplayState::savedCategory = "all";
+std::string FreeplayState::currentChar = "bf";
 
 static void drawRotatedRect(float cx, float cy, float w, float h, float angleRad, u32 color, float depth) {
     float c = cosf(angleRad), s = sinf(angleRad);
@@ -97,7 +99,9 @@ void FreeplayState::init() {
 
     VCRFontFix();
 
-    WeekData::reloadWeekFiles(true);
+    if (WeekData::weeksLoaded.empty()) {
+        WeekData::reloadWeekFiles(true);
+    }
 
     allSongs.clear();
     for (const auto& weekName : WeekData::weeksList) {
@@ -105,7 +109,9 @@ void FreeplayState::init() {
             WeekData& data = WeekData::weeksLoaded[weekName];
             if (!data.hideFreeplay) {
                 for (const auto& song : data.songs) {
-                    allSongs.push_back({song.name, weekName, song});
+                    if (song.freeplayCharacter == FreeplayState::currentChar) {
+                        allSongs.push_back({song.name, weekName, song});
+                    }
                 }
             }
         }
@@ -603,6 +609,13 @@ void FreeplayState::update(float dt) {
             applyCategoryFilter(true);
         }
 
+        if (keyJustPressed(KEY_X)) {
+            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+            MusicPlayer::stop();
+            switchState(new CharacterSelectState());
+            return;
+        }
+
         if (keyJustPressed(KEY_A | KEY_START)) {
             AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
             FreeplaySong& fs = songs[curSelected];
@@ -658,7 +671,7 @@ void FreeplayState::update(float dt) {
                         float iconW = icon.subtex->width * iconScale;
                         float iconH = icon.subtex->height * iconScale;
                         float defaultX = 320.0f - iconW - 15.0f;
-                        float defaultY = 240.0f - iconH - 15.0f;
+                        float defaultY = 240.0f - iconH - 28.0f;
                         
                         // Actual position of the icon in the air
                         float iconX = defaultX + iconEggXOffset;
@@ -1450,21 +1463,21 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
 
         // Draw highscore & digital numbers UI
         if (highscoreSheet) {
-            float scale = 0.7f;
-            float padding = 5.0f;
+            float scale = 0.65f;
+            float padding = 2.0f;
             
             if (!highscoreFrames.empty()) {
                 // Highscore animation at 12 fps
                 int hsFrameIdx = (int)(highscoreAnimTime * 12.0f) % highscoreFrames.size();
                 const Frame& hsFrame = highscoreFrames[hsFrameIdx];
                 
-                // Position highscore sprite centered vertically at Y = 20
+                // Position highscore sprite on the left side
                 float hsW = frameLogicalW(hsFrame) * scale;
                 float hsH = frameLogicalH(hsFrame) * scale;
-                float hsX = 10.0f;
-                float hsY = 20.0f - hsH / 2.0f + topIntroY;
+                float hsX = 10.0f + botIntroLeftX;
+                float hsY = 10.0f + topIntroY;
                 
-                drawFrameAt(hsFrame, hsX, hsY, 0.7f, &uiTint, scale, scale);
+                drawFrameAt(hsFrame, hsX, hsY, 0.71f, &uiTint, scale, scale);
                 
                 // Format score to 7 digits, padding with leading zeroes
                 int scoreVal = (int)std::round(lerpScore);
@@ -1474,7 +1487,9 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                     scoreStr = std::string(7 - scoreStr.length(), '0') + scoreStr;
                 }
                 
-                float numStartX = hsX + hsW + padding;
+                // Position digital numbers score counter below highscore sprite on the left side
+                float numStartX = 25.0f + botIntroLeftX;
+                float numY = hsY + hsH + padding;
                 float maxDigitW = 37.0f;
                 float digitCellW = maxDigitW * scale;
                 float digitSpacing = -3.0f; // -3 pixel distance between numbers
@@ -1495,13 +1510,11 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                         const Frame& numFrame = numberFrames[digit][numFrameIdx];
                         
                         float numW = frameLogicalW(numFrame) * scale;
-                        float numH = frameLogicalH(numFrame) * scale;
                         
-                        // Fixed column position + -2px spacing
+                        // Fixed column position
                         float cellX = numStartX + (float)i * (digitCellW + digitSpacing);
                         // Center digit inside its fixed width cell so '1' looks natural and aligned
                         float numX = cellX + (digitCellW - numW) * 0.5f;
-                        float numY = 20.0f - numH * 0.5f + topIntroY;
                         
                         drawFrameAt(numFrame, numX, numY, 0.7f, &uiTint, scale, scale);
                     }
@@ -1581,7 +1594,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 float iconW = icon.subtex->width * iconScale;
                 float iconH = icon.subtex->height * iconScale;
                 float defaultX = 320.0f - iconW - 15.0f;
-                float defaultY = 240.0f - iconH - 15.0f;
+                float defaultY = 240.0f - iconH - 28.0f;
                 
                 float iconX = defaultX + iconEggXOffset;
                 float iconY = defaultY + iconBounceY + botIntroBottomY + iconEggYOffset;
@@ -1598,7 +1611,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 }
             } else {
                 float defaultX = 320.0f - 75.0f - 15.0f;
-                float defaultY = 240.0f - 75.0f - 15.0f;
+                float defaultY = 240.0f - 75.0f - 28.0f;
                 float iconCenterX = defaultX + 75.0f / 2.0f;
                 float iconCenterY = defaultY + 75.0f / 2.0f + botIntroBottomY;
                 
@@ -1707,7 +1720,9 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             }
         }
     }
+    float favWidth = ButtonPrompt::getPromptWidth("y", "Favorite", 0.60f);
     ButtonPrompt::drawPrompt("y", "Favorite", 8.0f, 210.0f, 0.60f, 1.0f);
+    ButtonPrompt::drawPrompt("x", "Change Character", 8.0f + favWidth + 12.0f, 210.0f, 0.60f, 1.0f);
 }
 
 void FreeplayState::exitState() {
