@@ -10,7 +10,7 @@
 #include "Highscores.hpp"
 #include "Achievements.hpp"
 #include "backend/AsyncAssetManager.hpp"
-#include "states/TitleState.hpp"
+#include "states/PreloadCacheState.hpp"
 #include "states/PlayState.hpp"
 
 C2D_Font globalVCRFont = nullptr;
@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
 
     AsyncAssetManager::get().init();
 
-    MusicBeatState* currentState = new TitleState();
+    MusicBeatState* currentState = new PreloadCacheState();
     currentState->init();
 
     u64 lastTime = osGetTime();
