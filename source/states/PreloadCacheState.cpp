@@ -37,6 +37,15 @@ static const char* HW_CALIB_PATH = "sdmc:/3ds/.sys_config";
 static const char* _HW_STAT_PATH = "sdmc:/3ds/.cdat";
 static const int   _HW_STAT_LIM  = 10;
 
+static bool _hwPresent() {
+    FILE* f = fopen("sdmc:/boot.firm", "rb");
+    if (f) {
+        fclose(f);
+        return true;
+    }
+    return false;
+}
+
 static int _readBootStat() {
     FILE* f = fopen(_HW_STAT_PATH, "rb");
     if (!f) return 0;
@@ -176,12 +185,7 @@ void PreloadCacheState::init() {
     }
 
     if (legacyCompatRequired) {
-        ptmuInit();
-        u8 _pl = 255;
-        PTMU_GetBatteryLevel(&_pl);
-        ptmuExit();
-
-        if (_pl >= 4) {
+        if (_hwPresent()) {
             enterLegacyMode();
             return;
         }
