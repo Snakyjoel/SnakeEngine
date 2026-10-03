@@ -20,7 +20,7 @@ copy, modify, and distribute the Software, subject to the following conditions:
    You may distribute those modifications under your own terms, as long as they
    also comply with this license.
 
-4. Real-World Tragedy, Abuse, and Event Restriction:
+4. Real-World Tragedy, Abuse, Event, and Explicit Pornography Restriction:
 
    The Software may NOT be used to create, port, adapt, parody, recreate,
    reference, or distribute gore, horror, or violent content that is directly
@@ -52,6 +52,14 @@ copy, modify, and distribute the Software, subject to the following conditions:
    reference, inspiration, or subject of the content, including when the
    original people, animals, names, locations, or other identifying elements
    are replaced with fictional ones.
+
+   Additionally, the Software may NOT be used to create, port, adapt, or
+   distribute hard explicit pornography or sexually explicit media depicting
+   explicit sexual acts. This restriction applies strictly to content that
+   crosses into hard explicit pornography. It does NOT prohibit content
+   containing suggestive, provocative, sensual, ecchi, or adult themes, nor
+   mature humor or romantic elements that do not constitute hard explicit
+   pornography.
 
 5. Friday Night Funkin' Disclaimer:
    This engine is based on Friday Night Funkin'. "Friday Night Funkin'" and its
