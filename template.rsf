@@ -23,6 +23,7 @@ AccessControlInfo:
   MemoryType                    : Application
   HandleTableSize               : 0x200
   SystemMode                    : 80MB
+  SystemModeExt                 : 124MB
   DisableDebug                  : true
   EnableForceDebug              : false
   CanWriteSharedPage            : true
@@ -41,6 +42,9 @@ AccessControlInfo:
     - fs:USER
     - gsp::Gpu
     - gsp::Lcd
+    - hid:USER
+    - mvd:7
+    - mvd:std
   SystemCallAccess:
     ArbitrateAddress: 34
     ControlMemory: 1

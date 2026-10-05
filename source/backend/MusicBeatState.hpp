@@ -22,6 +22,7 @@ public:
     static MusicBeatState* nextState;
 
     static bool skipTransition;
+    static bool requestExit;
     static TransitionPhase transPhase;
     static float transProgress;
     static float transTimer;

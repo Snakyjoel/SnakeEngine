@@ -18,6 +18,7 @@ public:
     static bool showRatings;
     static bool fastNotes;
     static bool globalAntialiasing;
+    static bool enable3DEffect;
     
     static bool flashing;
     static bool disableReset;
@@ -31,8 +32,14 @@ public:
     static bool drawGrid;
     static float comboOffsetX;
     static float comboOffsetY;
+    static bool showComboNum;
+    static float comboNumOffsetX;
+    static float comboNumOffsetY;
+    static float comboNumScale;
+    static float comboNumAlpha;
     static float comboScale;
     static float comboAlpha;
+    static bool comboStacking;
     
     static bool alphabetPause;
     static bool checkForUpdates;

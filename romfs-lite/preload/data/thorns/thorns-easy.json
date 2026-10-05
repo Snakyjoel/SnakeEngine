@@ -8,6 +8,7 @@
         "gfVersion": "gf-pixel",
         "arrowSkin": "NOTE_assets-pixel",
         "ratingSkin": "rating-pixel",
+        "stage": "schoolEvil",
         "speed": 1.1,
         "notes": [
             {

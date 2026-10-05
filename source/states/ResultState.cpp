@@ -881,7 +881,8 @@ void ResultState::update(float dt) {
         if (finalRating == "G" && gfOutPlaying) {
             gfOutTimer += dt;
             float t = std::min(gfOutTimer / gfOutDuration, 1.0f);
-            float ease = 1.0f - std::pow(1.0f - t, 3.0f);
+            float invT = 1.0f - t;
+            float ease = 1.0f - invT * invT * invT;
             gfOutX = -200.0f + (gfOutTargetX - (-200.0f)) * ease;
             gfOutFrameTimer += dt;
             while (gfOutFrameTimer >= 1.0f / gfFps) {
@@ -1191,7 +1192,8 @@ void ResultState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     }
 
     if (achEnterTimer > 0.0f && !Achievements::sessionUnlocks.empty()) {
-        float easeProgress = 1.0f - std::pow(1.0f - achEnterTimer, 3.0f);
+        float invAch = 1.0f - achEnterTimer;
+        float easeProgress = 1.0f - invAch * invAch * invAch;
         float yPosText = 300.0f + (185.0f - 255.0f) * easeProgress;
 
         // Blinking title
@@ -1282,7 +1284,8 @@ void ResultState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         float ssScale = 0.675f;
 
         float animProgress = std::min(timer / 0.5f, 1.0f);
-        float easeProgress = 1.0f - std::pow(1.0f - animProgress, 3.0f); // Ease Out Cubic
+        float invAnim = 1.0f - animProgress;
+        float easeProgress = 1.0f - invAnim * invAnim * invAnim; // Ease Out Cubic
 
         float startX = -250.0f;
         float targetX = 0.0f;

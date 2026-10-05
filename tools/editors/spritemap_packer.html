@@ -331,6 +331,7 @@
                 <button onclick="changeZoom(-0.1)" style="padding:4px 8px; font-size:11px; background:#333; color:#fff;">Zoom -</button>
                 <button onclick="changeZoom(0.1)" style="padding:4px 8px; font-size:11px; background:#333; color:#fff;">Zoom +</button>
                 <button onclick="resetZoom()" style="padding:4px 8px; font-size:11px; background:#333; color:#fff;">100%</button>
+                <button onclick="exportActiveSelection()" style="padding:4px 8px; font-size:11px; background:#2e7d32; color:#fff;" title="Exportar pieza o frame seleccionado como PNG">💾 Exportar Pieza</button>
             </div>
         </div>
         
@@ -826,7 +827,14 @@
             document.getElementById('outlines-label').style.display = (mode === 'atlas') ? 'block' : 'none';
             
             if (mode === 'anim') {
+                viewport.style.overflow = 'hidden';
+                viewport.style.padding = '0';
+                canvas.style.margin = '0';
                 resetZoom();
+            } else {
+                viewport.style.overflow = 'auto';
+                viewport.style.padding = '30px';
+                canvas.style.margin = 'auto';
             }
             
             populateSidebar();
@@ -903,7 +911,7 @@
             
             const scale = 48.0 / Math.max(canvasW, canvasH);
             const identity = { 
-                a: scale * finalScaleFactor, b: 0, c: 0, d: scale * finalScaleFactor, 
+                a: scale, b: 0, c: 0, d: scale, 
                 tx: 24, ty: 36
             };
             
@@ -915,6 +923,99 @@
             ctx = origCtx;
             
             return cropCanvas.toDataURL();
+        }
+
+        // Export individual piece function
+        function exportPiece(pieceName) {
+            const frame = sourceFrames.find(f => f.name === pieceName);
+            if (!frame || !imgSource) return;
+
+            const cropCanvas = document.createElement('canvas');
+            const cropCtx = cropCanvas.getContext('2d');
+            let w = frame.w;
+            let h = frame.h;
+
+            if (frame.rotated) {
+                cropCanvas.width = h;
+                cropCanvas.height = w;
+                cropCtx.translate(0, w);
+                cropCtx.rotate(-Math.PI / 2);
+                cropCtx.drawImage(imgSource, frame.x, frame.y, w, h, 0, 0, w, h);
+            } else {
+                cropCanvas.width = w;
+                cropCanvas.height = h;
+                cropCtx.drawImage(imgSource, frame.x, frame.y, w, h, 0, 0, w, h);
+            }
+
+            cropCanvas.toBlob((blob) => {
+                if (!blob) return;
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                let safeName = pieceName.replace(/[\/\\?%*:|"<>]/g, '_');
+                if (!safeName.toLowerCase().endsWith('.png')) {
+                    safeName += '.png';
+                }
+                a.download = safeName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        }
+
+        // Export animation frame as PNG
+        function exportAnimFrame(frameIndex) {
+            if (!rootSymbolName || !animSource) return;
+            const exportCanvas = document.createElement('canvas');
+            const exportCtx = exportCanvas.getContext('2d');
+            
+            const w = canvasW * finalScaleFactor;
+            const h = canvasH * finalScaleFactor;
+            exportCanvas.width = w;
+            exportCanvas.height = h;
+            
+            const origCtx = ctx;
+            ctx = exportCtx;
+            
+            const drawBaseX = w * 0.5;
+            const drawBaseY = h * 0.75;
+            const identity = { a: finalScaleFactor, b: 0, c: 0, d: finalScaleFactor, tx: drawBaseX, ty: drawBaseY };
+            
+            try {
+                drawPreviewSymbol(rootSymbolName, frameIndex, identity);
+            } catch(e) {}
+            ctx = origCtx;
+            
+            exportCanvas.toBlob((blob) => {
+                if (!blob) return;
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${parsedBasename}_frame_${frameIndex}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        }
+
+        function exportActiveSelection() {
+            if (currentMode === 'atlas') {
+                if (activePiece) {
+                    exportPiece(activePiece);
+                } else if (sourceFrames.length > 0) {
+                    exportPiece(sourceFrames[0].name);
+                } else {
+                    alert("Carga un atlas y selecciona una pieza para exportar.");
+                }
+            } else {
+                if (activeAnim !== null) {
+                    exportAnimFrame(animFrameIndex);
+                } else {
+                    alert("No hay ningún frame de animación disponible.");
+                }
+            }
         }
 
         function populateSidebar() {
@@ -957,16 +1058,30 @@
                 li.appendChild(thumbDiv);
                 li.appendChild(infoDiv);
 
-                // Trash icon to delete piece from atlas
+                const btnGroup = document.createElement('div');
+                btnGroup.style = "display:flex; gap:2px; margin-left:auto; align-items:center;";
+
+                const dlBtn = document.createElement('button');
+                dlBtn.innerHTML = "💾";
+                dlBtn.style = "background:transparent; color:#4a6fa5; border:none; padding:4px 4px; cursor:pointer; font-size:14px;";
+                dlBtn.title = "Exportar esta pieza como PNG individual";
+                dlBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    exportPiece(f.name);
+                };
+                btnGroup.appendChild(dlBtn);
+
                 const delBtn = document.createElement('button');
                 delBtn.innerHTML = "🗑️";
-                delBtn.style = "background:transparent; color:#ff5252; border:none; padding:4px 8px; cursor:pointer; font-size:14px; margin-left:auto;";
+                delBtn.style = "background:transparent; color:#ff5252; border:none; padding:4px 4px; cursor:pointer; font-size:14px;";
                 delBtn.title = "Borrar pieza del atlas";
                 delBtn.onclick = (e) => {
                     e.stopPropagation();
                     deletePiece(f.name);
                 };
-                li.appendChild(delBtn);
+                btnGroup.appendChild(delBtn);
+
+                li.appendChild(btnGroup);
                 
                 li.onclick = () => {
                     document.querySelectorAll('.piece-item').forEach(el => el.classList.remove('active'));
@@ -1022,6 +1137,16 @@
                 
                 li.appendChild(thumbDiv);
                 li.appendChild(infoDiv);
+
+                const dlBtn = document.createElement('button');
+                dlBtn.innerHTML = "💾";
+                dlBtn.style = "background:transparent; color:#4a6fa5; border:none; padding:4px 4px; cursor:pointer; font-size:14px; margin-left:auto;";
+                dlBtn.title = "Exportar este frame de animación como PNG";
+                dlBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    exportAnimFrame(idx);
+                };
+                li.appendChild(dlBtn);
                 
                 li.onclick = () => {
                     isPlaying = false;
@@ -1064,14 +1189,46 @@
             renderPreview();
         }
 
-        // Register wheel event properly to prevent default page zoom behavior
+        // Register wheel event properly for focal zoom
         viewport.addEventListener('wheel', (e) => {
             e.preventDefault();
-            const factor = 1.1;
+            const factor = 1.15;
+            const oldZoom = viewZoom;
+            let newZoom;
             if (e.deltaY < 0) {
-                viewZoom = Math.min(6.0, viewZoom * factor);
+                newZoom = Math.min(10.0, oldZoom * factor);
             } else {
-                viewZoom = Math.max(0.1, viewZoom / factor);
+                newZoom = Math.max(0.05, oldZoom / factor);
+            }
+
+            if (currentMode === 'anim') {
+                const rect = viewport.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                const oldDrawBaseX = canvas.width * 0.5 + animOffsetX * oldZoom;
+                const oldDrawBaseY = canvas.height * 0.75 + animOffsetY * oldZoom;
+
+                const worldX = (mouseX - oldDrawBaseX) / oldZoom;
+                const worldY = (mouseY - oldDrawBaseY) / oldZoom;
+
+                viewZoom = newZoom;
+
+                animOffsetX = (mouseX - canvas.width * 0.5) / newZoom - worldX;
+                animOffsetY = (mouseY - canvas.height * 0.75) / newZoom - worldY;
+            } else {
+                const rect = viewport.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left + viewport.scrollLeft;
+                const mouseY = e.clientY - rect.top + viewport.scrollTop;
+
+                viewZoom = newZoom;
+
+                canvas.style.width = (packedWidth * viewZoom) + "px";
+                canvas.style.height = (packedHeight * viewZoom) + "px";
+
+                const ratio = newZoom / oldZoom;
+                viewport.scrollLeft = mouseX * ratio - (e.clientX - rect.left);
+                viewport.scrollTop = mouseY * ratio - (e.clientY - rect.top);
             }
             renderPreview();
         }, { passive: false });
@@ -1700,9 +1857,10 @@
         }
 
         function renderPreview() {
-            if (packedFrames.length === 0) return;
+            if (packedFrames.length === 0 && currentMode === 'atlas') return;
             
             if (currentMode === 'atlas') {
+                canvas.style.margin = 'auto';
                 canvas.width = packedWidth;
                 canvas.height = packedHeight;
                 canvas.style.width = (packedWidth * viewZoom) + "px";
@@ -1728,41 +1886,66 @@
                     }
                 }
             } else {
-                // Animation Player View
-                canvas.width = canvasW * finalScaleFactor;
-                canvas.height = canvasH * finalScaleFactor;
-                canvas.style.width = (canvas.width * viewZoom) + "px";
-                canvas.style.height = (canvas.height * viewZoom) + "px";
+                // Animation Player View (World Camera Zoom)
+                const rect = viewport.getBoundingClientRect();
+                const targetW = Math.max(100, Math.floor(rect.width));
+                const targetH = Math.max(100, Math.floor(rect.height));
+
+                if (canvas.width !== targetW || canvas.height !== targetH) {
+                    canvas.width = targetW;
+                    canvas.height = targetH;
+                }
+
+                canvas.style.width = '100%';
+                canvas.style.height = '100%';
+                canvas.style.margin = '0';
                 zoomValDisplay.textContent = Math.round(viewZoom * 100) + "%";
                 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
                 if (activeAnim) {
-                    // CENTER CORRECTION: Draw centered on the animation preview screen,
-                    // offset by the custom drag panning values.
-                    const drawBaseX = canvas.width * 0.5 + animOffsetX * finalScaleFactor;
-                    const drawBaseY = canvas.height * 0.75 + animOffsetY * finalScaleFactor;
+                    const cameraScale = viewZoom;
+                    const drawBaseX = canvas.width * 0.5 + animOffsetX * viewZoom;
+                    const drawBaseY = canvas.height * 0.75 + animOffsetY * viewZoom;
                     
-                    // Draw a subtle crosshair at the world origin so user knows where (0,0) is
+                    // Subtle crosshair at world origin (0,0)
                     ctx.save();
-                    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
                     ctx.lineWidth = 1;
                     ctx.setLineDash([4, 4]);
                     ctx.beginPath();
-                    ctx.moveTo(drawBaseX - 20, drawBaseY);
-                    ctx.lineTo(drawBaseX + 20, drawBaseY);
-                    ctx.moveTo(drawBaseX, drawBaseY - 20);
-                    ctx.lineTo(drawBaseX, drawBaseY + 20);
+                    ctx.moveTo(drawBaseX - 30, drawBaseY);
+                    ctx.lineTo(drawBaseX + 30, drawBaseY);
+                    ctx.moveTo(drawBaseX, drawBaseY - 30);
+                    ctx.lineTo(drawBaseX, drawBaseY + 30);
                     ctx.stroke();
                     ctx.setLineDash([]);
                     ctx.restore();
 
-                    const identity = { a: 1, b: 0, c: 0, d: 1, tx: drawBaseX, ty: drawBaseY };
-                    drawPreviewSymbol(rootSymbolName, animFrameIndex, identity);
+                    // Stage boundary frame box in world space
+                    const stageW = canvasW * finalScaleFactor * viewZoom;
+                    const stageH = canvasH * finalScaleFactor * viewZoom;
+                    const stageX = drawBaseX - stageW * 0.5;
+                    const stageY = drawBaseY - stageH * 0.75;
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(74, 111, 165, 0.4)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([6, 6]);
+                    ctx.strokeRect(stageX, stageY, stageW, stageH);
+                    ctx.restore();
+
+                    const cameraMatrix = { a: cameraScale, b: 0, c: 0, d: cameraScale, tx: drawBaseX, ty: drawBaseY };
+                    drawPreviewSymbol(rootSymbolName, animFrameIndex, cameraMatrix);
                     updateSidebarFrameHighlight();
                 }
             }
         }
+
+        window.addEventListener('resize', () => {
+            if (currentMode === 'anim') {
+                renderPreview();
+            }
+        });
 
         // Animation updates tick loop
         function tick(timestamp) {
@@ -1824,10 +2007,14 @@
             // Restore preview and canvas sizing
             renderPreview();
             
-            // 2. Generate Spritemap JSON
-            const spritemapOutput = {
-                ATLAS: {
-                    SPRITES: packedFrames.map(f => ({
+            // 2. Generate Spritemap JSON (preserva el orden original de sourceFrames)
+            const packedMap = new Map(packedFrames.map(f => [f.name, f]));
+            const orderedSprites = [];
+            
+            for (let sf of sourceFrames) {
+                const f = packedMap.get(sf.name);
+                if (f) {
+                    orderedSprites.push({
                         SPRITE: {
                             name: f.name,
                             x: f.x,
@@ -1836,7 +2023,30 @@
                             h: f.h,
                             rotated: f.rotated
                         }
-                    }))
+                    });
+                }
+            }
+            
+            // Añadir cualquier pieza adicional si no estaba en sourceFrames por alguna razón
+            for (let f of packedFrames) {
+                if (!packedMap.has(f.name)) continue;
+                if (!sourceFrames.some(sf => sf.name === f.name)) {
+                    orderedSprites.push({
+                        SPRITE: {
+                            name: f.name,
+                            x: f.x,
+                            y: f.y,
+                            w: f.w,
+                            h: f.h,
+                            rotated: f.rotated
+                        }
+                    });
+                }
+            }
+
+            const spritemapOutput = {
+                ATLAS: {
+                    SPRITES: orderedSprites
                 }
             };
             zip.file(originalMapName, JSON.stringify(spritemapOutput, null, 4), zipOptions);

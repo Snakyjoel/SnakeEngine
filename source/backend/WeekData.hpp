@@ -9,6 +9,7 @@ struct SongInfo {
     int color[3];
     std::string introVideo;
     std::string outroVideo;
+    std::string freeplayCharacter;
 };
 
 class WeekData {

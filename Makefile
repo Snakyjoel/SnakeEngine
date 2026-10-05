@@ -139,6 +139,7 @@ JSON_FILES := $(filter %.json, $(ALL_ASSETS))
 OGG_FILES  := $(filter %.ogg, $(ALL_ASSETS))
 ADP_FILES  := $(filter %.adp, $(ALL_ASSETS))
 TTF_FILES  := $(filter %.ttf, $(ALL_ASSETS))
+OTF_FILES  := $(filter %.otf, $(ALL_ASSETS))
 PNG_FILES  := $(filter %.png, $(ALL_ASSETS))
 LUA_FILES  := $(filter %.lua, $(ALL_ASSETS))
 TXT_FILES  := $(filter %.txt, $(ALL_ASSETS))
@@ -152,6 +153,7 @@ ROMFS_JSONFILES := $(patsubst $(ROMFS_SOURCE)/%, $(ROMFS_TARGET)/%, $(JSON_FILES
 ROMFS_OGGFILES  := $(patsubst $(ROMFS_SOURCE)/%, $(ROMFS_TARGET)/%, $(OGG_FILES))
 ROMFS_ADPFILES  := $(patsubst $(ROMFS_SOURCE)/%, $(ROMFS_TARGET)/%, $(ADP_FILES))
 ROMFS_TTFFILES  := $(patsubst $(ROMFS_SOURCE)/%.ttf, $(ROMFS_TARGET)/%.bcfnt, $(TTF_FILES))
+ROMFS_OTFFILES  := $(patsubst $(ROMFS_SOURCE)/%.otf, $(ROMFS_TARGET)/%.bcfnt, $(OTF_FILES))
 ROMFS_LUAFILES  := $(patsubst $(ROMFS_SOURCE)/%, $(ROMFS_TARGET)/%, $(LUA_FILES))
 ROMFS_TXTFILES  := $(patsubst $(ROMFS_SOURCE)/%, $(ROMFS_TARGET)/%, $(TXT_FILES))
 ROMFS_SNAKYFILES:= $(patsubst $(ROMFS_SOURCE)/%, $(ROMFS_TARGET)/%, $(SNAKY_FILES))
@@ -213,7 +215,7 @@ endif
 
 #---------------------------------------------------------------------------------
 # Export RomFS files to ensure they can be used as dependencies in the recursive make
-export ALL_ROMFS_OUT := $(ROMFS_T3XFILES) $(ROMFS_XMLFILES) $(ROMFS_JSONFILES) $(ROMFS_OGGFILES) $(ROMFS_ADPFILES) $(ROMFS_TTFFILES) $(ROMFS_LUAFILES) $(ROMFS_TXTFILES) $(ROMFS_SNAKYFILES) $(ROMFS_RAWTEXFILES)
+export ALL_ROMFS_OUT := $(ROMFS_T3XFILES) $(ROMFS_XMLFILES) $(ROMFS_JSONFILES) $(ROMFS_OGGFILES) $(ROMFS_ADPFILES) $(ROMFS_TTFFILES) $(ROMFS_OTFFILES) $(ROMFS_LUAFILES) $(ROMFS_TXTFILES) $(ROMFS_SNAKYFILES) $(ROMFS_RAWTEXFILES)
 
 all: $(BUILD) $(ROMFS_TARGET) $(ALL_ROMFS_OUT)
 	@mkdir -p $(CURDIR)/export
@@ -231,7 +233,7 @@ cia: all
 	@echo "Construyendo archivo .cia con RomFS (Estructura Psych)..."
 	@echo $(BANNER_MSG)
 	@$(BANNER_CMD)
-	@makerom -f cia -o "$(CURDIR)/export/$(TARGET).cia" -elf "$(CURDIR)/export/$(TARGET).elf" -rsf "$(CURDIR)/$(RSF)" -icon "$(CURDIR)/export/$(TARGET).smdh" -banner "$(CURDIR)/build/banner.bin" -exefslogo -target t -ver 1 -major 1 -minor 0 -micro 0 -desc app:7
+	@makerom -f cia -o "$(CURDIR)/export/$(TARGET).cia" -elf "$(CURDIR)/export/$(TARGET).elf" -rsf "$(CURDIR)/$(RSF)" -icon "$(CURDIR)/export/$(TARGET).smdh" -banner "$(CURDIR)/build/banner.bin" -exefslogo -target t -desc app:7 -ver 1 -major 1 -minor 0 -micro 0
 
 cia-lite:
 	@$(MAKE) cia LITE=1
@@ -245,6 +247,11 @@ $(ROMFS_TARGET):
 # --- RULES ---
 
 $(ROMFS_TARGET)/%.bcfnt: $(ROMFS_SOURCE)/%.ttf
+	@echo "Converting Font $< -> $@"
+	@mkdir -p $(dir $@)
+	@mkbcfnt -s 24 $< -o $@
+
+$(ROMFS_TARGET)/%.bcfnt: $(ROMFS_SOURCE)/%.otf
 	@echo "Converting Font $< -> $@"
 	@mkdir -p $(dir $@)
 	@mkbcfnt -s 24 $< -o $@

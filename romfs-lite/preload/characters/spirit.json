@@ -2,8 +2,8 @@
 	"animations": [
 		{
 			"offsets": [
-				-218,
-				-280
+				0,
+				0
 			],
 			"loop": false,
 			"anim": "idle",
@@ -13,8 +13,8 @@
 		},
 		{
 			"offsets": [
-				-200,
-				-280
+				0,
+				0
 			],
 			"loop": false,
 			"anim": "singLEFT",
@@ -24,8 +24,8 @@
 		},
 		{
 			"offsets": [
-				170,
-				110
+				12,
+				18
 			],
 			"loop": false,
 			"anim": "singDOWN",
@@ -35,8 +35,8 @@
 		},
 		{
 			"offsets": [
-				-220,
-				-280
+				0,
+				0
 			],
 			"loop": false,
 			"anim": "singRIGHT",
@@ -46,8 +46,8 @@
 		},
 		{
 			"offsets": [
-				-220,
-				-240
+				0,
+				0
 			],
 			"loop": false,
 			"anim": "singUP",
@@ -59,8 +59,8 @@
 	"no_antialiasing": true,
 	"image": "characters/spirit",
 	"position": [
-		-150,
-		100
+		120,
+		400
 	],
 	"healthicon": "spirit-pixel",
 	"flip_x": false,
@@ -70,8 +70,8 @@
 		110
 	],
 	"camera_position": [
-		0,
-		0
+		-240,
+		-330
 	],
 	"sing_duration": 4,
 	"scale": 6

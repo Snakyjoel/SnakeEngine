@@ -5,6 +5,7 @@
         "needsVoices": true,
         "player1": "bf-car",
         "player2": "mom",
+        "gfVersion": "gf-car",
         "stage": "limo",
         "speed": 2,
         "notes": [

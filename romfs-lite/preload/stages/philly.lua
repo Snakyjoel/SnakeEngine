@@ -23,6 +23,8 @@ function onCreate()
 	setScrollFactor('window', cityScrollFactor[1], cityScrollFactor[2])
 	setProperty('window.alpha', 0)
 
+	setProperty('dad.scaleX', 4)
+
 
 	addLuaSprite('sky', false)
 	addLuaSprite('city', false)

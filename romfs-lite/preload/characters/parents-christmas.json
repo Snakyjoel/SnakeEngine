@@ -245,7 +245,7 @@
 		}
 	],
 	"no_antialiasing": false,
-	"image": "characters/mom_dad_christmas_assets",
+	"image": "characters/parents-christmas",
 	"position": [
 		-500,
 		0
@@ -258,8 +258,8 @@
 		174
 	],
 	"camera_position": [
-		0,
-		0
+		-400,
+		-400
 	],
 	"sing_duration": 4,
 	"scale": 2

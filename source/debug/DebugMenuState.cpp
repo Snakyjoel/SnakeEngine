@@ -1,10 +1,12 @@
 #include "../debug/DebugMenuState.hpp"
+#include "RamTestState.hpp"
 #include "TitleState.hpp"
 #include "MusicPlayerState.hpp"
 #include "SnakyPlayerState.hpp"
 #include "ImageViewerState.hpp"
-#include "EggRoomState.hpp"
 #include "ResultState.hpp"
+#include "OutdatedState.hpp"
+#include "MainMenuState.hpp"
 #include "../editors/CharacterEditorState.hpp"
 
 #include "../backend/AudioEngine.hpp"
@@ -51,16 +53,16 @@ void DebugMenuState::init() {
     menuItems.push_back({"Music Player", "File Explorer & Music Player", 0});
     menuItems.push_back({"Snaky Player", "Test Snaky video playback", 2});
     menuItems.push_back({"Image Viewer", "View PNG and T3X images", 3});
-    if (!ClientPrefs::eggInteractionOccurred) {
-        menuItems.push_back({"Egg Room", "???", 4});
-    }
     menuItems.push_back({"Result: PERFECT", "Test Result: PERFECT rank", 5});
     menuItems.push_back({"Result: EXCELLENT", "Test Result: EXCELLENT rank", 6});
     menuItems.push_back({"Result: GOOD", "Test Result: GOOD rank", 7});
     menuItems.push_back({"Result: GREAT", "Test Result: GREAT rank", 8});
     menuItems.push_back({"Result: LOSS", "Test Result: LOSS rank", 9});
     menuItems.push_back({"Character Editor", "Edit and test character offsets", 10});
-
+    menuItems.push_back({"Outdated: GameBanana", "Test OutdatedState (GameBanana)", 11});
+    menuItems.push_back({"Outdated: GameJolt", "Test OutdatedState (GameJolt)", 12});
+    menuItems.push_back({"Outdated: Tester", "Test OutdatedState (Tester version)", 13});
+    menuItems.push_back({"RAM Test", "Verify available RAM", 14});
 }
 
 void DebugMenuState::update(float dt) {
@@ -92,13 +94,16 @@ void DebugMenuState::update(float dt) {
             case 0: switchState(new MusicPlayerState("sdmc:/")); break;
             case 2: switchState(new SnakyPlayerState("")); break;
             case 3: switchState(new ImageViewerState("")); break;
-            case 4: switchState(new EggRoomState()); break;
             case 5: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 100, 100, 0, 0, 0, 0, 1000000)); break;
             case 6: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 80, 85, 10, 1, 0, 0, 900000)); break;
             case 7: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 50, 50, 15, 0, 1, 0, 700000)); break;
             case 8: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 80, 75, 10, 1, 0, 0, 850000)); break;
             case 9: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 10, 10, 10, 5, 5, 20, 200000)); break;
             case 10: switchState(new CharacterEditorState()); break;
+            case 11: switchState(new OutdatedState(-1, "9.9.9", "gamebanana")); break;
+            case 12: switchState(new OutdatedState(-1, "9.9.9", "gamejolt")); break;
+            case 13: switchState(new OutdatedState(1, MainMenuState::version)); break;
+            case 14: switchState(new RamTestState()); break;
         }
     }
 }

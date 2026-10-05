@@ -10,10 +10,11 @@
 #include "Highscores.hpp"
 #include "Achievements.hpp"
 #include "backend/AsyncAssetManager.hpp"
-#include "states/TitleState.hpp"
+#include "states/PreloadCacheState.hpp"
 #include "states/PlayState.hpp"
 
 C2D_Font globalVCRFont = nullptr;
+C2D_Font globalPixelFont = nullptr;
 
 // Force nearest-neighbor filtering on all glyph sheets so the font looks pixel-perfect
 void makeFontPixelPerfect(C2D_Font font) {
@@ -39,8 +40,8 @@ static C2D_TextBuf menuDebugBuf = nullptr;
 bool g_inTransition = false;
 
 extern "C" {
-    u32 __ctru_heap_size = 12 * 1024 * 1024;        // 12MB heap
-    u32 __ctru_linear_heap_size = 48 * 1024 * 1024; // 48MB linear (textures/audio)
+    u32 __ctru_heap_size = 12 * 1024 * 1024;        // 12MB heap for game logic + Lua
+    u32 __ctru_linear_heap_size = 0;                // 0 = Autodetect remaining RAM for linear heap (textures/audio)
 }
 
 
@@ -70,19 +71,27 @@ static void aptHookFunc(APT_HookType hook, void* param) {
 int main(int argc, char* argv[]) {
     osSetSpeedupEnable(true); // N3DS 804MHz
     
+    Result ndspRes = ndspInit();
+    if (R_SUCCEEDED(ndspRes)) {
+        ndspSetOutputMode(NDSP_OUTPUT_STEREO);
+        ndspSetMasterVol(1.0f);
+    }
+
     if (R_FAILED(romfsInit())) {
         gfxInitDefault();
         consoleInit(GFX_BOTTOM, NULL);
         printf("\x1b[10;10HERROR: RomFS not mounted!\x1b[0K");
         while (aptMainLoop()) { gspWaitForVBlank(); hidScanInput(); if (hidKeysDown() & KEY_START) break; }
+        if (R_SUCCEEDED(ndspRes)) ndspExit();
         gfxExit();
         return 0;
     }
+
     gfxInitDefault();
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
     C2D_Prepare();
-    Result ndspRes = ndspInit();
+
     if (R_FAILED(ndspRes)) {
         C2D_Fini();
         C3D_Fini();
@@ -103,11 +112,17 @@ int main(int argc, char* argv[]) {
     }
 
     aptHook(&s_aptHookCookie, aptHookFunc, nullptr);
+    AudioEngine::startAudioThread();
 
     globalVCRFont = C2D_FontLoad("romfs:/fonts/vcr.bcfnt");
     makeFontPixelPerfect(globalVCRFont);
-    C3D_RenderTarget* top    = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
-    C3D_RenderTarget* bottom = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
+
+    globalPixelFont = C2D_FontLoad("romfs:/fonts/pixel.bcfnt");
+    makeFontPixelPerfect(globalPixelFont);
+    gfxSet3D(true);
+    C3D_RenderTarget* top      = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
+    C3D_RenderTarget* topRight = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
+    C3D_RenderTarget* bottom   = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 
     C3D_AlphaTest(true, GPU_GREATER, 0x00);
     C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA); //Fucking Long Line
@@ -118,12 +133,12 @@ int main(int argc, char* argv[]) {
 
     AsyncAssetManager::get().init();
 
-    MusicBeatState* currentState = new TitleState();
+    MusicBeatState* currentState = new PreloadCacheState();
     currentState->init();
 
     u64 lastTime = osGetTime();
 
-    while (aptMainLoop()) {
+    while (aptMainLoop() && !MusicBeatState::requestExit) {
         u64 frameStart = osGetTime();
         g_inTransition = (MusicBeatState::transPhase != TransitionPhase::NONE);
         hidScanInput();
@@ -146,6 +161,33 @@ int main(int argc, char* argv[]) {
 
             if (MusicBeatState::transProgress >= 1.0f) {
                 MusicBeatState::transProgress = 1.0f;
+
+                // Pre-fill audio buffers to prevent stutter during initial state load
+                MusicPlayer::update();
+
+                // Render and present 100% closed transition frame BEFORE blocking in init()
+                C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+                g_isRightEye = false;
+                if (currentState) currentState->draw(top, bottom);
+                if (g_current3DSlider > 0.001f) {
+                    g_isRightEye = true;
+                    if (currentState) currentState->draw(topRight, bottom);
+                }
+                g_isRightEye = false;
+
+                if (MusicBeatState::useStickerTransition) {
+                    MusicBeatState::drawStickerTransition(top, bottom);
+                    if (g_current3DSlider > 0.001f) {
+                        MusicBeatState::drawStickerTransition(topRight, nullptr);
+                    }
+                } else {
+                    drawWipeOverlay(top, 400.0f, 240.0f);
+                    if (g_current3DSlider > 0.001f) {
+                        drawWipeOverlay(topRight, 400.0f, 240.0f);
+                    }
+                    drawWipeOverlay(bottom, 320.0f, 240.0f);
+                }
+                C3D_FrameEnd(0);
 
                 if (currentState) {
                     currentState->exitState();
@@ -207,8 +249,20 @@ int main(int argc, char* argv[]) {
             }
             MusicPlayer::update();
 
+            bool want3D = ClientPrefs::enable3DEffect && (osGet3DSliderState() > 0.001f);
+            gfxSet3D(want3D);
+            g_current3DSlider = want3D ? osGet3DSliderState() : 0.0f;
+            
             C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+
+            g_isRightEye = false;
             currentState->draw(top, bottom);
+
+            if (g_current3DSlider > 0.001f) {
+                g_isRightEye = true;
+                currentState->draw(topRight, bottom);
+            }
+            g_isRightEye = false;
 
             // Global debug overlay (L+R+SELECT outside of PlayState)
             u32 keys_held = hidKeysHeld();
@@ -250,8 +304,14 @@ int main(int argc, char* argv[]) {
             if (MusicBeatState::transPhase != TransitionPhase::NONE && !MusicBeatState::skipTransition) {
                 if (MusicBeatState::useStickerTransition) {
                     MusicBeatState::drawStickerTransition(top, bottom);
+                    if (g_current3DSlider > 0.001f) {
+                        MusicBeatState::drawStickerTransition(topRight, nullptr);
+                    }
                 } else {
                     drawWipeOverlay(top,    400.0f, 240.0f);
+                    if (g_current3DSlider > 0.001f) {
+                        drawWipeOverlay(topRight, 400.0f, 240.0f);
+                    }
                     drawWipeOverlay(bottom, 320.0f, 240.0f);
                 }
             }
@@ -281,6 +341,7 @@ int main(int argc, char* argv[]) {
 
     AsyncAssetManager::get().shutdown();
 
+    AudioEngine::stopAudioThread();
     AudioEngine::exit();
     MusicPlayer::stop();
 

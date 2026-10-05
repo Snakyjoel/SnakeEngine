@@ -1,5 +1,8 @@
 #include <3ds.h>
 
+bool g_isRightEye = false;
+float g_current3DSlider = 0.0f;
+
 // FLASH
 static float _timer[2] = {0};
 static float _duration[2] = {1};

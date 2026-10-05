@@ -11,14 +11,17 @@
 #include "../backend/ModHandler.hpp"
 #include "WeekParser.hpp"
 #include "../backend/AudioEngine.hpp"
+#include "../backend/SpritesheetCache.hpp"
 #include <cmath>
 
 bool MainMenuState::comingFromFreeplay = false;
+std::string MainMenuState::version = "3.7.8";
 
 void MainMenuState::init() {
     // Reset isolation
     ModHandler::get().currentModFolder = "";
 
+    versionDisplayStr = "v" + version;
     MusicPlayer::playMenuMusic();
 
     VCRFontFix();
@@ -41,6 +44,9 @@ void MainMenuState::init() {
             if (bottomBG.tex) C3D_TexSetFilter(bottomBG.tex, GPU_LINEAR, GPU_LINEAR);
         }
     }
+
+    menuItems.clear();
+    menuItems.reserve(6);
 
     auto setupItem = [&](const std::string& name, const std::string& prefix, float x, float y, bool isLoop, bool darkened = false) {
         MenuItem item;
@@ -285,7 +291,7 @@ void MainMenuState::update(float dt) {
 
 void MainMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     C2D_SetTintMode(C2D_TintMult);
-    float alpha = isTransitioningToFreeplay ? std::max(0.0f, 1.0f - (transitionTimer / 0.35f)) : 1.0f;
+    float alpha = isTransitioningToFreeplay ? fmaxf(0.0f, 1.0f - (transitionTimer / 0.35f)) : 1.0f;
     float drawAlpha = introTimer * alpha;
 
     bool magentaActive = selectedSomething &&
@@ -305,10 +311,10 @@ void MainMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         // Calculate minimum scale to cover the 400x240 screen
         float minScaleX = 400.0f / topBG.subtex->width;
         float minScaleY = 240.0f / topBG.subtex->height;
-        float minScale = std::max(minScaleX, minScaleY);
+        float minScale = fmaxf(minScaleX, minScaleY);
         
         // We use 0.95f as default or the minScale if it requires more
-        float parallaxScale = std::max(0.95f, minScale);
+        float parallaxScale = fmaxf(0.95f, minScale);
         
         float bgW = topBG.subtex->width * parallaxScale;
         float bgH = topBG.subtex->height * parallaxScale;
@@ -329,7 +335,7 @@ void MainMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         if (drawY > maxY) drawY = maxY;
         C2D_ImageTint tint;
         C2D_PlainImageTint(&tint, C2D_Color32(bgTintR, bgTintG, bgTintB, (u8)(drawAlpha * 255.0f)), 1.0f);
-        C2D_DrawImageAt(topBG, drawX, drawY, 0.1f, &tint, parallaxScale, parallaxScale);
+        C2D_DrawImageAt(topBG, drawX  + get3DOffset(-10.0f), drawY, 0.1f, &tint, parallaxScale, parallaxScale);
     }
 
     for (int i = 0; i < 4; i++) {
@@ -345,11 +351,11 @@ void MainMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             C2D_AlphaImageTint(&tint, itemAlpha);
             tintPtr = &tint;
         }
-        item.animate.drawCentered(item.x, item.y, 0.5f, 1.0f, 1.0f, tintPtr);
+        item.animate.drawCentered(item.x + get3DOffset(10.0f), item.y, 0.5f, 1.0f, 1.0f, tintPtr);
     }
 
     u32 textCol = C2D_Color32(255, 255, 255, (u8)(drawAlpha * 255.0f));
-    AddText("v2.6.7", 8, 225, 0.38f, false, 1.5f, textCol, 0.0f);
+    AddText(versionDisplayStr, 8 + get3DOffset(10.0f), 225, 0.38f, false, 1.5f, textCol, 0.0f);
 
     C2D_SceneBegin(bottom);
     C2D_TargetClear(bottom, bgClearCol);
@@ -398,4 +404,5 @@ void MainMenuState::exitState() {
     if (bgSheet) C2D_SpriteSheetFree(bgSheet);
     if (bottomBGSheet) C2D_SpriteSheetFree(bottomBGSheet);
     C2D_TextBufDelete(vcrFontBuf);
+    SpritesheetCache::get().clear();
 }

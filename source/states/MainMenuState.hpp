@@ -14,6 +14,8 @@ struct MenuItem {
 
 class MainMenuState : public MusicBeatState {
 public:
+    static std::string version;
+
     void init() override;
     void update(float dt) override;
     void draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) override;
@@ -40,6 +42,7 @@ private:
     
     C2D_Font vcrFont = nullptr;
     C2D_TextBuf vcrFontBuf = nullptr;
+    std::string versionDisplayStr;
 
     bool isTransitioningToFreeplay = false;
     float transitionTimer = 0.0f;

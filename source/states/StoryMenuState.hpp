@@ -19,9 +19,10 @@ public:
 
     struct LoadedResult {
         AsyncLoadRequest::Type type;
-        int    weekIndex = -1;
-        void*  buffer    = nullptr;
-        size_t size      = 0;
+        int         weekIndex = -1;
+        std::string resolvedPath;
+        void*       buffer    = nullptr;
+        size_t      size      = 0;
     };
 
     void init() override;
@@ -65,6 +66,9 @@ private:
     std::string     activeBgName;
     C2D_SpriteSheet activeDiffSheet = nullptr;
     std::string     activeDiffName;
+    bool            activeDiffPathExists = false;
+
+    bool weekBannerFileExists(const std::string& weekName);
 
     float loadingAngle      = 0.0f;
     int   lastSelectedCheck = -1;

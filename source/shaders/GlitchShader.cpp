@@ -12,11 +12,13 @@ void ShaderManager::drawGlitchSkew(const RT& rt, C3D_RenderTarget* dest, float s
     float origBottom = rt.img.subtex->bottom;
     float uvH = (origBottom - origTop) / numStrips;
     
+    float sinSpeed = sinf(time * speed) * strength;
+    
     for (int i = 0; i < numStrips; i++) {
         float offsetY = i * stripH;
         // Pseudo-random glitch offset
-        float randomVal = fmod(sinf(time * 12.3f + i * 8.4f) * 43758.5453f, 1.0f);
-        float waveOffset = (randomVal > 0.95f) ? (sinf(time * speed) * strength * randomVal) : 0.0f;
+        float randomVal = fmodf(sinf(time * 12.3f + i * 8.4f) * 43758.5453f, 1.0f);
+        float waveOffset = (randomVal > 0.95f) ? (sinSpeed * randomVal) : 0.0f;
         
         Tex3DS_SubTexture& tempSubtex = tempSubtexs[i % 512];
         tempSubtex = *rt.img.subtex;

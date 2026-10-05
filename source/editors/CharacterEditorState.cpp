@@ -1,21 +1,24 @@
 #include "CharacterEditorState.hpp"
 #include "../backend/Paths.hpp"
 #include "../backend/AudioEngine.hpp"
+#include "../backend/ModHandler.hpp"
 #include "../shaders/ShaderManager.hpp"
 #include "../backend/savedata/ClientPrefs.hpp"
 #include "../debug/DebugMenuState.hpp"
 #include <citro2d.h>
 #include <dirent.h>
 #include <algorithm>
+#include <cstdio>
 
 static std::string getIndicesString(const std::vector<int>& indices, bool pcMode) {
     if (indices.empty()) return "NONE";
     std::string s = "[";
+    const size_t maxLen = pcMode ? 10 : 26;
     for (size_t i = 0; i < indices.size(); i++) {
         s += std::to_string(indices[i]);
         if (i < indices.size() - 1) {
             s += ",";
-            if (s.length() > (pcMode ? 10 : 26)) {
+            if (s.length() > maxLen) {
                 s += "...";
                 break;
             }
@@ -25,17 +28,63 @@ static std::string getIndicesString(const std::vector<int>& indices, bool pcMode
     return s;
 }
 
+static std::string fmtFloat(float val, int decimals = 2) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.*f", decimals, val);
+    return buf;
+}
+
+static std::string resolveModFolderForCharacter(const std::string& name) {
+    std::string customPath = "sdmc:/SnakeEngine/characters/" + name + ".json";
+    if (Paths::fileExists(customPath)) return "";
+
+    for (const auto& mod : ModHandler::get().getMods()) {
+        if (!mod.active) continue;
+        std::string path = ModHandler::getWorkingBase() + mod.folder + "/characters/" + name + ".json";
+        if (Paths::fileExists(path)) return mod.folder;
+    }
+    return "";
+}
+
+static inline void setScissorBox(float x, float y, float w, float h, float screenW = 320.0f) {
+    C2D_Flush();
+    float sLeft = y;
+    float sRight = y + h;
+    float sTop = x;
+    float sBottom = x + w;
+
+    if (sLeft < 0.0f) sLeft = 0.0f;
+    if (sRight > 240.0f) sRight = 240.0f;
+    if (sTop < 0.0f) sTop = 0.0f;
+    if (sBottom > screenW) sBottom = screenW;
+
+    u32 phys_left = (u32)(240.0f - std::min(240.0f, std::max(0.0f, sRight)));
+    u32 phys_right = (u32)(240.0f - std::min(240.0f, std::max(0.0f, sLeft)));
+    u32 phys_top = (u32)(screenW - std::min(screenW, std::max(0.0f, sBottom)));
+    u32 phys_bottom = (u32)(screenW - std::min(screenW, std::max(0.0f, sTop)));
+
+    if (phys_left < phys_right && phys_top < phys_bottom) {
+        C3D_SetScissor(GPU_SCISSOR_NORMAL, phys_left, phys_top, phys_right, phys_bottom);
+    }
+}
+
+static inline void disableScissor() {
+    C2D_Flush();
+    C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
+}
+
+
 struct UIElement {
-    int id;              // -1 for accordion headers, 0..20 for option controls
-    int headerIndex;     // 0..3 if it is a header
+    int id;              // -1 for accordion headers, 0..29 for controls
+    int headerIndex;
     float x, y, w, h;
     std::string label;
 };
 
-static std::vector<UIElement> getPCLayout(const std::vector<CharacterEditorState::UIWindow>& windows) {
+static std::vector<UIElement> getPCLayout(const std::vector<CharacterEditorState::UIWindow>& windows, float scale = 1.0f) {
     std::vector<UIElement> elements;
     
-    for (int winIdx = 0; winIdx < 4; winIdx++) {
+    for (int winIdx = 0; winIdx < 6; winIdx++) {
         const CharacterEditorState::UIWindow* winPtr = nullptr;
         for (const auto& w : windows) {
             if (w.id == winIdx) {
@@ -45,55 +94,70 @@ static std::vector<UIElement> getPCLayout(const std::vector<CharacterEditorState
         }
         if (!winPtr) continue;
         const auto& win = *winPtr;
+        if (!win.expanded) continue;
 
-        // Title bar (elem.id == -1, elem.headerIndex == win.id)
-        elements.push_back({ -1, win.id, win.x, win.y, win.w, 12.0f, win.title });
+        float titleH = 12.0f * scale;
+        elements.push_back({ -1, win.id, win.x, win.y, win.w, titleH, win.title });
         
-        if (win.expanded) {
-            float contentY = win.y + 12.0f;
-            if (win.id == 0) { // Settings
-                // Character Listbox (id = 0)
-                elements.push_back({ 0, -1, win.x + 4.0f, contentY + 4.0f, win.w - 8.0f, 54.0f, "CharList" });
-                // Playable Checkbox (id = 1)
-                elements.push_back({ 1, -1, win.x + 4.0f, contentY + 62.0f, win.w - 8.0f, 10.0f, "Playable" });
-                // Reload Button (id = 2)
-                elements.push_back({ 2, -1, win.x + 4.0f, contentY + 75.0f, (win.w - 10.0f) * 0.5f, 12.0f, "Reload" });
-                // Save Button (id = 3)
-                elements.push_back({ 3, -1, win.x + win.w * 0.5f + 1.0f, contentY + 75.0f, (win.w - 10.0f) * 0.5f, 12.0f, "Save" });
+        float contentY = win.y + titleH;
+        float contentH = win.h - titleH;
+        float pad = 4.0f * scale;
+        float itemH = 10.0f * scale;
+
+        if (win.id == 0) { // Settings (Char list)
+            float listH = std::max(20.0f * scale, contentH - 46.0f * scale);
+            listH = std::max(20.0f * scale, std::floor(listH / itemH) * itemH);
+            
+            // Character Listbox (id = 0)
+            elements.push_back({ 0, -1, win.x + pad, contentY + pad, win.w - pad * 2, listH, "CharList" });
+            // Playable Checkbox (id = 1)
+            elements.push_back({ 1, -1, win.x + pad, contentY + pad * 2 + listH, win.w - pad * 2, itemH, "Playable" });
+            // Reload Button (id = 2)
+            elements.push_back({ 2, -1, win.x + pad, contentY + pad * 2 + listH + itemH + 2.0f * scale, (win.w - pad * 3) * 0.5f, 14.0f * scale, "Reload" });
+            // Save Button (id = 3)
+            elements.push_back({ 3, -1, win.x + win.w * 0.5f + pad * 0.5f, contentY + pad * 2 + listH + itemH + 2.0f * scale, (win.w - pad * 3) * 0.5f, 14.0f * scale, "Save" });
+        }
+        else if (win.id == 1) { // Ghost
+            elements.push_back({ 4, -1, win.x + pad, contentY + pad, win.w - pad * 2, 14.0f * scale, "Make Ghost" });
+            elements.push_back({ 5, -1, win.x + pad, contentY + pad * 2 + 14.0f * scale, win.w - pad * 2, itemH, "Show Ghost" });
+            elements.push_back({ 6, -1, win.x + pad, contentY + pad * 2 + 14.0f * scale + itemH + 3.0f * scale, win.w - pad * 2, itemH, "Highlight" });
+            elements.push_back({ 7, -1, win.x + pad, contentY + pad * 2 + 14.0f * scale + (itemH + 3.0f * scale) * 2, win.w - pad * 2, 16.0f * scale, "Alpha" });
+        }
+        else if (win.id == 2) { // Character Settings
+            std::string charLabels[] = {
+                "Sing Length", "Scale", "Flip X", "Antialiasing",
+                "Pos X", "Pos Y", "Cam Off X", "Cam Off Y"
+            };
+            float step = (contentH - pad * 2) / 8.0f;
+            if (step < itemH) step = itemH;
+            for (int i = 0; i < 8; i++) {
+                elements.push_back({ 8 + i, -1, win.x + pad, contentY + pad + i * step, win.w - pad * 2, itemH, charLabels[i] });
             }
-            else if (win.id == 1) { // Ghost
-                // Make Ghost Button (id = 4)
-                elements.push_back({ 4, -1, win.x + 4.0f, contentY + 4.0f, win.w - 8.0f, 12.0f, "Make Ghost" });
-                // Show Ghost Checkbox (id = 5)
-                elements.push_back({ 5, -1, win.x + 4.0f, contentY + 20.0f, win.w - 8.0f, 10.0f, "Show Ghost" });
-                // Highlight Ghost Checkbox (id = 6)
-                elements.push_back({ 6, -1, win.x + 4.0f, contentY + 32.0f, win.w - 8.0f, 10.0f, "Highlight" });
-                // Ghost Alpha Slider (id = 7)
-                elements.push_back({ 7, -1, win.x + 4.0f, contentY + 44.0f, win.w - 8.0f, 18.0f, "Alpha" });
-            }
-            else if (win.id == 2) { // Character
-                std::string charLabels[] = {
-                    "Sing Length", "Scale", "Flip X", "Antialiasing",
-                    "Pos X", "Pos Y", "Cam Off X", "Cam Off Y"
-                };
-                float elementYs[] = { 4.0f, 18.0f, 32.0f, 44.0f, 58.0f, 72.0f, 86.0f, 100.0f };
-                float elementHeights[] = { 12.0f, 12.0f, 10.0f, 10.0f, 12.0f, 12.0f, 12.0f, 12.0f };
-                for (int i = 0; i < 8; i++) {
-                    elements.push_back({ 8 + i, -1, win.x + 4.0f, contentY + elementYs[i], win.w - 8.0f, elementHeights[i], charLabels[i] });
-                }
-            }
-            else if (win.id == 3) { // Animations
-                // Animations List Box (id = 16)
-                elements.push_back({ 16, -1, win.x + 4.0f, contentY + 4.0f, win.w - 8.0f, 54.0f, "AnimList" });
-                // FPS (id = 17)
-                elements.push_back({ 17, -1, win.x + 4.0f, contentY + 74.0f, win.w - 8.0f, 12.0f, "FPS" });
-                // Loop Checkbox (id = 18)
-                elements.push_back({ 18, -1, win.x + 4.0f, contentY + 88.0f, win.w - 8.0f, 10.0f, "Loop" });
-                // Offset X (id = 19)
-                elements.push_back({ 19, -1, win.x + 4.0f, contentY + 100.0f, win.w - 8.0f, 12.0f, "Offset X" });
-                // Offset Y (id = 20)
-                elements.push_back({ 20, -1, win.x + 4.0f, contentY + 114.0f, win.w - 8.0f, 12.0f, "Offset Y" });
-            }
+        }
+        else if (win.id == 3) { // Animations
+            float listH = std::max(20.0f * scale, contentH - 64.0f * scale);
+            listH = std::max(20.0f * scale, std::floor(listH / itemH) * itemH);
+
+            elements.push_back({ 16, -1, win.x + pad, contentY + pad, win.w - pad * 2, listH, "AnimList" });
+            elements.push_back({ 17, -1, win.x + pad, contentY + pad * 2 + listH, win.w - pad * 2, itemH, "FPS" });
+            elements.push_back({ 18, -1, win.x + pad, contentY + pad * 2 + listH + itemH + 2.0f * scale, win.w - pad * 2, itemH, "Loop" });
+            elements.push_back({ 19, -1, win.x + pad, contentY + pad * 2 + listH + (itemH + 2.0f * scale) * 2, win.w - pad * 2, itemH, "Offset X" });
+            elements.push_back({ 20, -1, win.x + pad, contentY + pad * 2 + listH + (itemH + 2.0f * scale) * 3, win.w - pad * 2, itemH, "Offset Y" });
+        }
+        else if (win.id == 4) { // Camera
+            elements.push_back({ 21, -1, win.x + pad, contentY + pad, win.w - pad * 2, itemH, "Enable" });
+            elements.push_back({ 22, -1, win.x + pad, contentY + pad * 2 + itemH, win.w - pad * 2, itemH, "Zoom" });
+        }
+        else if (win.id == 5) { // Reference
+            float listH = 38.0f * scale;
+            elements.push_back({ 23, -1, win.x + pad, contentY + pad, win.w - pad * 2, listH, "RefCharList" });
+            elements.push_back({ 29, -1, win.x + pad, contentY + pad * 2 + listH, win.w - pad * 2, listH, "RefAnimList" });
+            
+            float nextY = contentY + pad * 3 + listH * 2;
+            elements.push_back({ 24, -1, win.x + pad, nextY, win.w - pad * 2, itemH, "Show Ref" });
+            elements.push_back({ 26, -1, win.x + pad, nextY + itemH + 2.0f * scale, win.w - pad * 2, itemH, "Ref Alpha" });
+            elements.push_back({ 27, -1, win.x + pad, nextY + (itemH + 2.0f * scale) * 2, win.w - pad * 2, itemH, "Ref Pos X" });
+            elements.push_back({ 28, -1, win.x + pad, nextY + (itemH + 2.0f * scale) * 3, win.w - pad * 2, itemH, "Ref Pos Y" });
         }
     }
     return elements;
@@ -101,10 +165,182 @@ static std::vector<UIElement> getPCLayout(const std::vector<CharacterEditorState
 
 #include "../backend/ModHandler.hpp"
 
+void CharacterEditorState::drawText(const std::string& text, float x, float y, float scale, bool centered, u32 color, float depth, float maxWidth, bool rightAlign, bool centerY) {
+    if (!vcrFont || !textBuf || text.empty()) return;
+    C2D_Text gText;
+    C2D_TextFontParse(&gText, vcrFont, textBuf, text.c_str());
+    C2D_TextOptimize(&gText);
+    float tw = 0.0f, th = 0.0f;
+    C2D_TextGetDimensions(&gText, scale, scale, &tw, &th);
+    float actualScale = scale;
+    if (maxWidth > 0.0f && tw > maxWidth) {
+        actualScale *= (maxWidth / tw);
+        C2D_TextGetDimensions(&gText, actualScale, actualScale, &tw, &th);
+    }
+    float dx = x;
+    if (rightAlign) {
+        dx = x - tw;
+    } else if (centered) {
+        dx = x - tw * 0.5f;
+    }
+    float dy = (centerY || centered) ? (y - th * 0.5f) : y;
+    dx = std::round(dx);
+    dy = std::round(dy);
+    C2D_DrawText(&gText, C2D_WithColor, dx, dy, depth, actualScale, actualScale, color);
+}
+
+void CharacterEditorState::drawStyledButton(float x, float y, float w, float h, const std::string& title, const std::string& subtitle, u32 topCol, u32 botCol, u32 borderCol) {
+    C2D_DrawRectangle(x, y, 0.5f, w, h, topCol, topCol, botCol, botCol);
+    C2D_DrawLine(x, y, borderCol, x + w, y, borderCol, 1.0f, 0.52f);
+    C2D_DrawLine(x, y, borderCol, x, y + h, borderCol, 1.0f, 0.52f);
+    C2D_DrawLine(x + w, y, borderCol, x + w, y + h, borderCol, 1.0f, 0.52f);
+    C2D_DrawLine(x, y + h, borderCol, x + w, y + h, borderCol, 1.0f, 0.52f);
+
+    if (subtitle.empty()) {
+        drawText(title, x + w * 0.5f, y + h * 0.5f, 0.36f, true, CWhite, 0.85f, w - 8.0f);
+    } else {
+        drawText(title, x + w * 0.5f, y + h * 0.33f, 0.34f, true, CWhite, 0.85f, w - 8.0f);
+        drawText(subtitle, x + w * 0.5f, y + h * 0.72f, 0.28f, true, C2D_Color32(0, 210, 255, 255), 0.85f, w - 8.0f);
+    }
+}
+
+void CharacterEditorState::renderCheckbox(float x, float y, bool checked, bool selected, float depth) {
+    u32 boxBg = selected ? C2D_Color32(0, 110, 200, 255) : C2D_Color32(30, 32, 42, 255);
+    u32 boxBorder = selected ? C2D_Color32(0, 210, 255, 255) : C2D_Color32(80, 80, 100, 255);
+    float boxW = 12.0f * (pcMode ? pcUiScale : 1.0f);
+    float boxH = 12.0f * (pcMode ? pcUiScale : 1.0f);
+
+    C2D_DrawRectSolid(x, y, depth, boxW, boxH, boxBg);
+    C2D_DrawLine(x, y, boxBorder, x + boxW, y, boxBorder, 1.0f, depth + 0.001f);
+    C2D_DrawLine(x, y, boxBorder, x, y + boxH, boxBorder, 1.0f, depth + 0.001f);
+    C2D_DrawLine(x + boxW, y, boxBorder, x + boxW, y + boxH, boxBorder, 1.0f, depth + 0.001f);
+    C2D_DrawLine(x, y + boxH, boxBorder, x + boxW, y + boxH, boxBorder, 1.0f, depth + 0.001f);
+
+    if (checked) {
+        float innerPad = 2.5f * (pcMode ? pcUiScale : 1.0f);
+        u32 checkColor = C2D_Color32(0, 230, 150, 255);
+        C2D_DrawRectSolid(x + innerPad, y + innerPad, depth + 0.002f, boxW - innerPad * 2.0f, boxH - innerPad * 2.0f, checkColor);
+    }
+}
+
+void CharacterEditorState::renderSlider(float x, float y, float w, float valPct, bool selected, float depth) {
+    float barH = 4.0f * (pcMode ? pcUiScale : 1.0f);
+    u32 bgCol = C2D_Color32(25, 27, 36, 255);
+    u32 fillCol = selected ? C2D_Color32(0, 210, 255, 255) : C2D_Color32(0, 140, 210, 255);
+
+    C2D_DrawRectSolid(x, y, depth, w, barH, bgCol);
+    if (valPct > 0.0f) {
+        C2D_DrawRectSolid(x, y, depth + 0.001f, w * std::min(1.0f, std::max(0.0f, valPct)), barH, fillCol);
+    }
+
+    float handleW = 6.0f * (pcMode ? pcUiScale : 1.0f);
+    float handleH = 10.0f * (pcMode ? pcUiScale : 1.0f);
+    float handleX = x + (w - handleW) * std::min(1.0f, std::max(0.0f, valPct));
+    float handleY = y + (barH - handleH) * 0.5f;
+
+    u32 handleCol = selected ? CWhite : C2D_Color32(200, 200, 210, 255);
+    C2D_DrawRectSolid(handleX, handleY, depth + 0.002f, handleW, handleH, handleCol);
+}
+
+void CharacterEditorState::renderButton(float x, float y, float w, float h, const std::string& label, bool selected, float depth) {
+    u32 topCol = selected ? C2D_Color32(0, 110, 200, 255) : C2D_Color32(35, 38, 50, 255);
+    u32 botCol = selected ? C2D_Color32(0, 75, 150, 255) : C2D_Color32(22, 24, 32, 255);
+    u32 borderCol = selected ? C2D_Color32(0, 210, 255, 255) : C2D_Color32(70, 72, 88, 255);
+
+    C2D_DrawRectangle(x, y, depth, w, h, topCol, topCol, botCol, botCol);
+    C2D_DrawLine(x, y, borderCol, x + w, y, borderCol, 1.0f, depth + 0.001f);
+    C2D_DrawLine(x, y, borderCol, x, y + h, borderCol, 1.0f, depth + 0.001f);
+    C2D_DrawLine(x + w, y, borderCol, x + w, y + h, borderCol, 1.0f, depth + 0.001f);
+    C2D_DrawLine(x, y + h, borderCol, x + w, y + h, borderCol, 1.0f, depth + 0.001f);
+
+    float ts = pcMode ? 0.26f * pcUiScale : 0.35f;
+    drawText(label, x + w * 0.5f, y + h * 0.5f, ts, true, CWhite, depth + 0.002f, w - 4.0f, false, true);
+}
+
+void CharacterEditorState::renderStepper(float itemX, float itemY, float itemW, const std::string& label, const std::string& valStr, bool selected, float depth) {
+    float h = pcMode ? (10.0f * pcUiScale) : 20.0f;
+    if (selected) renderLeftAccent(itemX, itemY, h, depth);
+
+    float ts = pcMode ? (0.24f * pcUiScale) : 0.32f;
+    float padLeft = pcMode ? (4.0f * pcUiScale) : 10.0f;
+    drawText(label, itemX + padLeft, itemY + h * 0.5f, ts, false, CWhite, depth + 0.001f, itemW * 0.45f, false, true);
+
+    float btnW = pcMode ? (12.0f * pcUiScale) : 20.0f;
+    float btnH = pcMode ? (8.0f * pcUiScale) : 16.0f;
+    float btnY = itemY + (h - btnH) * 0.5f;
+
+    float minusX = itemX + itemW - (pcMode ? (38.0f * pcUiScale) : 75.0f);
+    float plusX = itemX + itemW - (pcMode ? (14.0f * pcUiScale) : 22.0f);
+    float midX = (minusX + btnW + plusX) * 0.5f;
+
+    u32 btnBg = selected ? C2D_Color32(0, 110, 200, 255) : C2D_Color32(32, 35, 48, 255);
+    u32 btnBorder = selected ? C2D_Color32(0, 210, 255, 255) : C2D_Color32(75, 80, 100, 255);
+
+    // Minus Button [-]
+    C2D_DrawRectSolid(minusX, btnY, depth + 0.001f, btnW, btnH, btnBg);
+    C2D_DrawLine(minusX, btnY, btnBorder, minusX + btnW, btnY, btnBorder, 1.0f, depth + 0.002f);
+    C2D_DrawLine(minusX, btnY, btnBorder, minusX, btnY + btnH, btnBorder, 1.0f, depth + 0.002f);
+    C2D_DrawLine(minusX + btnW, btnY, btnBorder, minusX + btnW, btnY + btnH, btnBorder, 1.0f, depth + 0.002f);
+    C2D_DrawLine(minusX, btnY + btnH, btnBorder, minusX + btnW, btnY + btnH, btnBorder, 1.0f, depth + 0.002f);
+    drawText("-", minusX + btnW * 0.5f, btnY + btnH * 0.5f, ts, true, CWhite, depth + 0.003f, 0.0f, false, true);
+
+    // Value text in middle
+    drawText(valStr, midX, itemY + h * 0.5f, ts, true, selected ? C2D_Color32(0, 230, 255, 255) : CWhite, depth + 0.002f, std::max(5.0f, plusX - (minusX + btnW) - 2.0f), false, true);
+
+    // Plus Button [+]
+    C2D_DrawRectSolid(plusX, btnY, depth + 0.001f, btnW, btnH, btnBg);
+    C2D_DrawLine(plusX, btnY, btnBorder, plusX + btnW, btnY, btnBorder, 1.0f, depth + 0.002f);
+    C2D_DrawLine(plusX, btnY, btnBorder, plusX, btnY + btnH, btnBorder, 1.0f, depth + 0.002f);
+    C2D_DrawLine(plusX + btnW, btnY, btnBorder, plusX + btnW, btnY + btnH, btnBorder, 1.0f, depth + 0.002f);
+    C2D_DrawLine(plusX, btnY + btnH, btnBorder, plusX + btnW, btnY + btnH, btnBorder, 1.0f, depth + 0.002f);
+    drawText("+", plusX + btnW * 0.5f, btnY + btnH * 0.5f, ts, true, CWhite, depth + 0.003f, 0.0f, false, true);
+}
+
+void CharacterEditorState::renderArrowsVal(float itemX, float itemY, float itemW, const std::string& label, const std::string& valStr, bool selected, float depth) {
+    renderStepper(itemX, itemY, itemW, label, valStr, selected, depth);
+}
+
+void CharacterEditorState::renderListBox(float bx, float by, float bw, float bh, const std::vector<std::string>& items, int selectedIdx, float scrollY, bool activeSelected, float depth) {
+    C2D_DrawRectSolid(bx, by, depth, bw, bh, C2D_Color32(18, 20, 28, 240));
+    u32 borderCol = activeSelected ? C2D_Color32(0, 210, 255, 255) : C2D_Color32(60, 62, 75, 255);
+    C2D_DrawLine(bx, by, borderCol, bx + bw, by, borderCol, 1.0f, depth + 0.001f);
+    C2D_DrawLine(bx, by, borderCol, bx, by + bh, borderCol, 1.0f, depth + 0.001f);
+    C2D_DrawLine(bx + bw, by, borderCol, bx + bw, by + bh, borderCol, 1.0f, depth + 0.001f);
+    C2D_DrawLine(bx, by + bh, borderCol, bx + bw, by + bh, borderCol, 1.0f, depth + 0.001f);
+
+    float itemH = pcMode ? 10.0f * pcUiScale : 18.0f;
+    float ts = pcMode ? 0.24f * pcUiScale : 0.32f;
+
+    setScissorBox(bx + 1.0f, by + 1.0f, bw - 2.0f, bh - 2.0f);
+
+    for (size_t i = 0; i < items.size(); i++) {
+        float itemY = by + i * itemH - scrollY;
+        if (itemY + itemH < by || itemY > by + bh) continue;
+
+        bool isCur = ((int)i == selectedIdx);
+        if (isCur) {
+            u32 itemBg = activeSelected ? C2D_Color32(0, 110, 200, 255) : C2D_Color32(40, 44, 60, 255);
+            C2D_DrawRectSolid(bx + 1.0f, itemY, depth + 0.002f, bw - 2.0f, itemH, itemBg);
+        }
+
+        std::string txt = items[i];
+        float maxW = bw - 14.0f * (pcMode ? pcUiScale : 1.0f);
+        drawText(txt, bx + 6.0f * (pcMode ? pcUiScale : 1.0f), itemY + itemH * 0.5f, ts, false, isCur ? CWhite : C2D_Color32(180, 185, 200, 255), depth + 0.003f, maxW, false, true);
+    }
+
+    disableScissor();
+}
+
+void CharacterEditorState::renderLeftAccent(float itemX, float itemY, float h, float depth) {
+    float barW = pcMode ? 2.0f * pcUiScale : 3.0f;
+    C2D_DrawRectSolid(itemX, itemY, depth + 0.005f, barW, h, C2D_Color32(0, 210, 255, 255));
+}
+
+
 CharacterEditorState::CharacterEditorState() {
-    // 1. Scan default characters
-    DIR* dir = opendir(Paths::resolve("romfs:/preload/characters").c_str());
-    if (dir) {
+    auto scanDir = [this](const std::string& path) {
+        DIR* dir = opendir(Paths::resolve(path).c_str());
+        if (!dir) return;
         struct dirent* dp;
         while ((dp = readdir(dir)) != nullptr) {
             std::string file = dp->d_name;
@@ -116,53 +352,72 @@ CharacterEditorState::CharacterEditorState() {
             }
         }
         closedir(dir);
-    }
+    };
 
-    // 2. Scan custom characters folder (sdmc:/SnakeEngine/characters/)
-    DIR* customDir = opendir(Paths::resolve("sdmc:/SnakeEngine/characters").c_str());
-    if (customDir) {
-        struct dirent* dp;
-        while ((dp = readdir(customDir)) != nullptr) {
-            std::string file = dp->d_name;
-            if (file.find(".json") != std::string::npos) {
-                std::string charName = file.substr(0, file.find_last_of('.'));
-                if (std::find(characterList.begin(), characterList.end(), charName) == characterList.end()) {
-                    characterList.push_back(charName);
-                }
-            }
-        }
-        closedir(customDir);
-    }
+    scanDir("romfs:/preload/characters");
+    scanDir("romfs:/shared/characters");
+    scanDir("sdmc:/SnakeEngine/characters");
 
-    // 3. Scan characters in active mods (mods/<folder>/characters/)
     for (const auto& mod : ModHandler::get().getMods()) {
-        if (!mod.active) continue;
-        std::string modCharPath = ModHandler::getWorkingBase() + mod.folder + "/characters";
-        DIR* modDir = opendir(modCharPath.c_str());
-        if (modDir) {
-            struct dirent* dp;
-            while ((dp = readdir(modDir)) != nullptr) {
-                std::string file = dp->d_name;
-                if (file.find(".json") != std::string::npos) {
-                    std::string charName = file.substr(0, file.find_last_of('.'));
-                    if (std::find(characterList.begin(), characterList.end(), charName) == characterList.end()) {
-                        characterList.push_back(charName);
-                    }
-                }
-            }
-            closedir(modDir);
+        if (mod.active) {
+            scanDir(ModHandler::getWorkingBase() + mod.folder + "/characters");
         }
     }
 
     if (characterList.empty()) characterList.push_back("bf");
 
-    // Initialize floating windows for PC Mode
     windows = {
-        { "Settings", 5.0f, 15.0f, 110.0f, 114.0f, true, 0 },
-        { "Ghost", 5.0f, 134.0f, 110.0f, 82.0f, false, 1 },
-        { "Character", 120.0f, 15.0f, 110.0f, 134.0f, true, 2 },
-        { "Animations", 120.0f, 155.0f, 110.0f, 178.0f, false, 3 }
+        { "Settings", 4.0f, 15.0f, 152.0f, 100.0f, true, 0 },
+        { "Ghost", 4.0f, 118.0f, 152.0f, 80.0f, false, 1 },
+        { "Character", 160.0f, 15.0f, 156.0f, 124.0f, true, 2 },
+        { "Animations", 160.0f, 121.0f, 156.0f, 114.0f, false, 3 },
+        { "Camera", 160.0f, 60.0f, 156.0f, 55.0f, false, 4 },
+        { "Reference", 4.0f, 15.0f, 152.0f, 175.0f, false, 5 }
     };
+}
+
+void CharacterEditorState::loadRefCharacter(const std::string& name) {
+    if (refObj) {
+        delete refObj;
+        refObj = nullptr;
+    }
+
+    std::string oldModFolder = ModHandler::get().currentModFolder;
+    ModHandler::get().currentModFolder = resolveModFolderForCharacter(name);
+
+    refObj = new Character();
+    refObj->loadFromPsychJson(Paths::characterJson(name));
+    refObj->alpha = refAlpha;
+    refObj->dance();
+
+    ModHandler::get().currentModFolder = oldModFolder;
+
+    auto it = std::find(characterList.begin(), characterList.end(), name);
+    if (it != characterList.end()) {
+        curRefCharIndex = std::distance(characterList.begin(), it);
+    }
+
+    refCharScrollY = 0.0f;
+    updateRefAnimList();
+}
+
+void CharacterEditorState::updateRefAnimList() {
+    refAnimList.clear();
+    if (refObj) {
+        for (const auto& kv : refObj->animations) {
+            refAnimList.push_back(kv.first);
+        }
+    }
+    curRefAnimIndex = 0;
+    refAnimSliderIndex = 0;
+    refAnimScrollY = 0.0f;
+    playCurRefAnim();
+}
+
+void CharacterEditorState::playCurRefAnim() {
+    if (refObj && !refAnimList.empty() && curRefAnimIndex < (int)refAnimList.size()) {
+        refObj->playAnim(refAnimList[curRefAnimIndex], true);
+    }
 }
 
 void CharacterEditorState::loadCharacter(const std::string& name) {
@@ -170,32 +425,25 @@ void CharacterEditorState::loadCharacter(const std::string& name) {
     if (ghostObj) delete ghostObj;
 
     currentCharacter = name;
-
-    // Detect which mod folder contains the character JSON to load assets from it
-    std::string targetModFolder = "";
-    std::string customPath = "sdmc:/SnakeEngine/characters/" + name + ".json";
-    if (!Paths::fileExists(customPath)) {
-        for (const auto& mod : ModHandler::get().getMods()) {
-            if (!mod.active) continue;
-            std::string path = ModHandler::getWorkingBase() + mod.folder + "/characters/" + name + ".json";
-            if (Paths::fileExists(path)) {
-                targetModFolder = mod.folder;
-                break;
-            }
-        }
-    }
-    ModHandler::get().currentModFolder = targetModFolder;
+    ModHandler::get().currentModFolder = resolveModFolderForCharacter(name);
     
     charObj = new Character();
     charObj->loadFromPsychJson(Paths::characterJson(name));
-    charObj->isPlayer = false; // Default face
+    charObj->isPlayer = true; // Player character faces right
     charObj->dance();
 
     ghostObj = new Character();
     ghostObj->loadFromPsychJson(Paths::characterJson(name));
-    ghostObj->isPlayer = false;
+    ghostObj->isPlayer = charObj->isPlayer;
     ghostObj->alpha = ghostAlpha;
     ghostObj->isHighlighted = ghostHighlight;
+    if (charObj) {
+        ghostObj->x = charObj->x;
+        ghostObj->y = charObj->y;
+        ghostObj->baseX = ghostObj->x;
+        ghostObj->baseY = ghostObj->y;
+    }
+    ghostObj->animFinished = true; // freeze ghost initially
     ghostObj->dance();
     ghostObj->animFinished = true; // freeze ghost initially
 
@@ -234,7 +482,15 @@ void CharacterEditorState::update(float dt) {
         saveMessageTimer -= dt;
     }
 
+    if (currentStage) {
+        for (auto& s : currentStage->sprites) {
+            s.update(dt);
+        }
+    }
+
     if (charObj) charObj->update(dt);
+    if (ghostObj) ghostObj->update(dt);
+    if (refObj) refObj->update(dt);
 
     if (keyJustPressed(KEY_X)) {
         pcMode = !pcMode;
@@ -250,6 +506,7 @@ void CharacterEditorState::update(float dt) {
     if (hidKeysHeld() & KEY_R) camZoom -= 1.0f * dt;
     if (camZoom < 0.1f) camZoom = 0.1f;
 
+
     if (keyJustPressed(KEY_SELECT) || keyJustPressed(KEY_B)) {
         exitState();
         return;
@@ -259,7 +516,7 @@ void CharacterEditorState::update(float dt) {
     // Populate visibleOptionIds for PC Mode accordion navigation
     std::vector<int> visibleOptionIds;
     if (pcMode && uiExpanded) {
-        auto layout = getPCLayout(windows);
+        auto layout = getPCLayout(windows, pcUiScale);
         for (const auto& elem : layout) {
             if (elem.id != -1) {
                 visibleOptionIds.push_back(elem.id);
@@ -275,6 +532,8 @@ void CharacterEditorState::update(float dt) {
     if (!pcMode) {
         if (currentTab == 2) maxOpts = 8;
         else if (currentTab == 3) maxOpts = 5;
+        else if (currentTab == 4) maxOpts = 2;
+        else if (currentTab == 5) maxOpts = 6;
     } else {
         maxOpts = visibleOptionIds.size();
     }
@@ -310,10 +569,14 @@ void CharacterEditorState::update(float dt) {
                 pressRight = true;
             } else if (currentTab == 3 && curSelected == 2) {
                 pressRight = true;
+            } else if (currentTab == 4 && curSelected == 0) {
+                pressRight = true;
+            } else if (currentTab == 5 && (curSelected == 0 || curSelected == 1 || curSelected == 2)) {
+                pressRight = true;
             }
         } else if (!visibleOptionIds.empty()) {
             int optId = visibleOptionIds[curSelected];
-            if (optId == 1 || optId == 2 || optId == 3 || optId == 4 || optId == 5 || optId == 6 || optId == 10 || optId == 11 || optId == 18) {
+            if (optId == 1 || optId == 2 || optId == 3 || optId == 4 || optId == 5 || optId == 6 || optId == 10 || optId == 11 || optId == 18 || optId == 21 || optId == 24) {
                 pressRight = true;
             }
         }
@@ -335,6 +598,7 @@ void CharacterEditorState::update(float dt) {
                 } else if (curSelected == 1) { // Playable
                     charObj->isPlayer = !charObj->isPlayer;
                     ghostObj->isPlayer = charObj->isPlayer;
+                    centerCameraOnTarget();
                     playCurAnim();
                 } else if (curSelected == 2) { // Reload
                     loadCharacter(currentCharacter);
@@ -454,6 +718,56 @@ void CharacterEditorState::update(float dt) {
                     }
                 }
             }
+            else if (currentTab == 4) { // Camera
+                if (curSelected == 0) { // Enable Frame
+                    showCamBounds = !showCamBounds;
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                } else if (curSelected == 1) { // Cam Zoom
+                    simCamZoom += pressLeft ? -0.05f : 0.05f;
+                    if (simCamZoom < 0.1f) simCamZoom = 0.1f;
+                    if (simCamZoom > 3.0f) simCamZoom = 3.0f;
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                }
+            }
+            else if (currentTab == 5) { // Reference
+                if (curSelected == 0) { // Ref Char Listbox
+                    curRefCharIndex += pressLeft ? -1 : 1;
+                    if (curRefCharIndex < 0) curRefCharIndex = characterList.size() - 1;
+                    if (curRefCharIndex >= (int)characterList.size()) curRefCharIndex = 0;
+                    loadRefCharacter(characterList[curRefCharIndex]);
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                } else if (curSelected == 1) { // Ref Anim Listbox
+                    if (!refAnimList.empty()) {
+                        refAnimSliderIndex += pressLeft ? -1 : 1;
+                        if (refAnimSliderIndex < 0) refAnimSliderIndex = refAnimList.size() - 1;
+                        if (refAnimSliderIndex >= (int)refAnimList.size()) refAnimSliderIndex = 0;
+                        curRefAnimIndex = refAnimSliderIndex;
+                        playCurRefAnim();
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                    }
+                } else if (curSelected == 2) { // Show Ref
+                    showRefChar = !showRefChar;
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                } else if (curSelected == 3) { // Ref Alpha
+                    refAlpha += pressLeft ? -0.1f : 0.1f;
+                    if (refAlpha < 0.0f) refAlpha = 0.0f;
+                    if (refAlpha > 1.0f) refAlpha = 1.0f;
+                    if (refObj) refObj->alpha = refAlpha;
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                } else if (curSelected == 4) { // Ref Pos X
+                    if (refObj) {
+                        refObj->x += pressLeft ? -change : change;
+                        refObj->baseX = refObj->x;
+                    }
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                } else if (curSelected == 5) { // Ref Pos Y
+                    if (refObj) {
+                        refObj->y += pressLeft ? -change : change;
+                        refObj->baseY = refObj->y;
+                    }
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                }
+            }
         } else if (!visibleOptionIds.empty()) {
             // PC Mode Accordion-based value adjustments
             int optId = visibleOptionIds[curSelected];
@@ -469,6 +783,7 @@ void CharacterEditorState::update(float dt) {
             } else if (optId == 1) { // Playable
                 charObj->isPlayer = !charObj->isPlayer;
                 ghostObj->isPlayer = charObj->isPlayer;
+                centerCameraOnTarget();
                 playCurAnim();
                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
             } else if (optId == 2) { // Reload
@@ -599,6 +914,46 @@ void CharacterEditorState::update(float dt) {
                 ghostObj->animations[curAnimName].offsetY = charObj->animations[curAnimName].offsetY;
                 playCurAnim();
                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+            } else if (optId == 21) { // Enable Frame Checkbox
+                showCamBounds = !showCamBounds;
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+            } else if (optId == 22) { // Cam Zoom Stepper
+                simCamZoom += pressLeft ? -0.05f : 0.05f;
+                if (simCamZoom < 0.1f) simCamZoom = 0.1f;
+                if (simCamZoom > 3.0f) simCamZoom = 3.0f;
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+            } else if (optId == 23) { // Ref Char listbox
+                curRefCharIndex += pressLeft ? -1 : 1;
+                if (curRefCharIndex < 0) curRefCharIndex = characterList.size() - 1;
+                if (curRefCharIndex >= (int)characterList.size()) curRefCharIndex = 0;
+                loadRefCharacter(characterList[curRefCharIndex]);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+            } else if (optId == 29) { // Ref Anim listbox
+                if (!refAnimList.empty()) {
+                    refAnimSliderIndex += pressLeft ? -1 : 1;
+                    if (refAnimSliderIndex < 0) refAnimSliderIndex = refAnimList.size() - 1;
+                    if (refAnimSliderIndex >= (int)refAnimList.size()) refAnimSliderIndex = 0;
+                    curRefAnimIndex = refAnimSliderIndex;
+                    playCurRefAnim();
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                }
+            } else if (optId == 24) { // Show Ref Checkbox
+                showRefChar = !showRefChar;
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+            } else if (optId == 26) { // Ref Alpha Stepper
+                refAlpha += pressLeft ? -0.05f : 0.05f;
+                if (refAlpha < 0.0f) refAlpha = 0.0f;
+                if (refAlpha > 1.0f) refAlpha = 1.0f;
+                if (refObj) refObj->alpha = refAlpha;
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+            } else if (optId == 27 && refObj) { // Ref Pos X
+                refObj->x += pressLeft ? -change : change;
+                refObj->baseX = refObj->x;
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+            } else if (optId == 28 && refObj) { // Ref Pos Y
+                refObj->y += pressLeft ? -change : change;
+                refObj->baseY = refObj->y;
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
             }
         }
     }
@@ -612,20 +967,146 @@ void CharacterEditorState::update(float dt) {
     bool touchDown = keyJustPressed(KEY_TOUCH);
     bool touchUp = (!touchHeld && touchHeldLastFrame);
 
-    // Toggle button tap check (expand/collapse UI in PC mode)
+    if (touchDown) {
+        touchStartPx = touch.px;
+        touchStartPy = touch.py;
+        touchMoved = false;
+        lastTouchX = touch.px;
+        lastTouchY = touch.py;
+    }
+
+    if (touchHeld) {
+        float mdx = touch.px - touchStartPx;
+        float mdy = touch.py - touchStartPy;
+        if (mdx * mdx + mdy * mdy > 100.0f) {
+            touchMoved = true;
+        }
+    }
+
+    // Top header & Bottom taskbar buttons check in PC mode
     if (touchDown && pcMode) {
-        if (touch.px >= 2 && touch.px <= 18 && touch.py >= 0 && touch.py <= 14) {
-            uiExpanded = !uiExpanded;
+        float headerH = 14.0f * pcUiScale;
+        float footerH = 14.0f * pcUiScale;
+        float stW = 112.0f * pcUiScale;
+        float stX = 320.0f - stW - 3.0f;
+        float btnBoxW = 16.0f * pcUiScale;
+
+        if (touch.px >= 0 && touch.px <= btnBoxW + 2.0f && touch.py >= 0 && touch.py <= headerH) {
+            showAnimOverlay = !showAnimOverlay;
             AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
             touchHeld = false;
             touchDown = false;
             touchUp = false;
+        } else if (touch.px >= btnBoxW + 3.0f && touch.px <= btnBoxW * 2.0f + 5.0f && touch.py >= 0 && touch.py <= headerH) {
+            dragTargetMode = (dragTargetMode == 0) ? 1 : 0;
+            centerCameraOnTarget();
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+            touchHeld = false;
+            touchDown = false;
+            touchUp = false;
+        } else if (touch.py >= 0 && touch.py <= headerH && touch.px >= stX - 5.0f) {
+            float oldScale = pcUiScale;
+            if (touch.px >= stX && touch.px <= stX + 22.0f * pcUiScale) { // Decrement [-]
+                pcUiScale -= 0.10f;
+                if (pcUiScale < 0.60f) pcUiScale = 0.60f;
+            } else if (touch.px >= stX + stW - 22.0f * pcUiScale && touch.px <= 320.0f) { // Increment [+]
+                pcUiScale += 0.10f;
+                if (pcUiScale > 1.50f) pcUiScale = 1.50f;
+            } else { // Reset center
+                pcUiScale = 1.00f;
+            }
+            if (pcUiScale != oldScale) {
+                float ratio = pcUiScale / oldScale;
+                for (auto& win : windows) {
+                    win.w *= ratio;
+                    win.h *= ratio;
+                    if (win.w < 60.0f * pcUiScale) win.w = 60.0f * pcUiScale;
+                    if (win.w > 300.0f) win.w = 300.0f;
+                    if (win.h < 50.0f * pcUiScale) win.h = 50.0f * pcUiScale;
+                    if (win.h > 210.0f) win.h = 210.0f;
+                }
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+            }
+            touchHeld = false;
+            touchDown = false;
+            touchUp = false;
+        }
+        else if (touch.py >= 240.0f - footerH && touch.py <= 240.0f) {
+            int clickedWinId = -1;
+            float tX0 = 3.0f;
+            float tW0 = 24.0f * pcUiScale;
+            float tW1 = 30.0f * pcUiScale;
+            float tW2 = 26.0f * pcUiScale;
+            float tW3 = 28.0f * pcUiScale;
+            float tW4 = 25.0f * pcUiScale;
+            float tW5 = 24.0f * pcUiScale;
+
+            if (touch.px >= tX0 && touch.px <= tX0 + tW0) clickedWinId = 0;       // Set
+            else if (touch.px >= tX0 + tW0 + 2.0f && touch.px <= tX0 + tW0 + tW1 + 2.0f) clickedWinId = 1;  // Ghost
+            else if (touch.px >= tX0 + tW0 + tW1 + 4.0f && touch.px <= tX0 + tW0 + tW1 + tW2 + 4.0f) clickedWinId = 2; // Char
+            else if (touch.px >= tX0 + tW0 + tW1 + tW2 + 6.0f && touch.px <= tX0 + tW0 + tW1 + tW2 + tW3 + 6.0f) clickedWinId = 3; // Anim
+            else if (touch.px >= tX0 + tW0 + tW1 + tW2 + tW3 + 8.0f && touch.px <= tX0 + tW0 + tW1 + tW2 + tW3 + tW4 + 8.0f) clickedWinId = 4; // Cam
+            else if (touch.px >= tX0 + tW0 + tW1 + tW2 + tW3 + tW4 + 10.0f && touch.px <= tX0 + tW0 + tW1 + tW2 + tW3 + tW4 + tW5 + 10.0f) clickedWinId = 5; // Ref
+
+            if (clickedWinId != -1) {
+                for (size_t i = 0; i < windows.size(); i++) {
+                    if (windows[i].id == clickedWinId) {
+                        windows[i].expanded = !windows[i].expanded;
+                        if (windows[i].expanded) {
+                            UIWindow temp = windows[i];
+                            windows.erase(windows.begin() + i);
+                            windows.push_back(temp);
+                        }
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        break;
+                    }
+                }
+                touchHeld = false;
+                touchDown = false;
+                touchUp = false;
+            }
         }
     }
 
     if (touchHeld) {
         if (pcMode) {
-            if (draggedWindowId != -1) {
+            if (resizingWindowId != -1) {
+                // Resize window with minimum and maximum boundaries per window content
+                for (auto& win : windows) {
+                    if (win.id == resizingWindowId) {
+                        float newW = touch.px - win.x;
+                        float newH = touch.py - win.y;
+
+                        float minW = 120.0f * pcUiScale;
+                        float minH = 80.0f * pcUiScale;
+                        if (win.id == 0) { // Character list
+                            minW = 130.0f * pcUiScale;
+                            minH = 85.0f * pcUiScale;
+                        } else if (win.id == 1) { // Ghost
+                            minW = 120.0f * pcUiScale;
+                            minH = 75.0f * pcUiScale;
+                        } else if (win.id == 2) { // Settings
+                            minW = 130.0f * pcUiScale;
+                            minH = 105.0f * pcUiScale;
+                        } else if (win.id == 3) { // Animations
+                            minW = 130.0f * pcUiScale;
+                            minH = 90.0f * pcUiScale;
+                        } else if (win.id == 5) { // Reference
+                            minW = 130.0f * pcUiScale;
+                            minH = 100.0f * pcUiScale;
+                        }
+
+                        if (newW < minW) newW = minW;
+                        if (newW > 280.0f) newW = 280.0f;
+                        if (newH < minH) newH = minH;
+                        if (newH > 220.0f) newH = 220.0f;
+
+                        win.w = newW;
+                        win.h = newH;
+                        break;
+                    }
+                }
+            } else if (draggedWindowId != -1) {
                 // Drag the window
                 for (auto& win : windows) {
                     if (win.id == draggedWindowId) {
@@ -643,7 +1124,7 @@ void CharacterEditorState::update(float dt) {
             } else if (isDraggingCharList) {
                 float dy = touch.py - dragStartY;
                 charScrollY = dragStartScroll - dy;
-                float itemH = 8.5f;
+                float itemH = 10.0f * pcUiScale;
                 float boxH = 54.0f;
                 float maxScroll = (characterList.size() * itemH) - boxH;
                 if (maxScroll < 0.0f) maxScroll = 0.0f;
@@ -652,17 +1133,35 @@ void CharacterEditorState::update(float dt) {
             } else if (isDraggingAnimList) {
                 float dy = touch.py - dragStartY;
                 animScrollY = dragStartScroll - dy;
-                float itemH = 8.5f;
+                float itemH = 10.0f * pcUiScale;
                 float boxH = 54.0f;
                 float maxScroll = (animList.size() * itemH) - boxH;
                 if (maxScroll < 0.0f) maxScroll = 0.0f;
                 if (animScrollY < 0.0f) animScrollY = 0.0f;
                 if (animScrollY > maxScroll) animScrollY = maxScroll;
+            } else if (isDraggingRefCharList) {
+                float dy = touch.py - dragStartY;
+                refCharScrollY = dragStartScroll - dy;
+                float itemH = 10.0f * pcUiScale;
+                float boxH = 38.0f * pcUiScale;
+                float maxScroll = (characterList.size() * itemH) - boxH;
+                if (maxScroll < 0.0f) maxScroll = 0.0f;
+                if (refCharScrollY < 0.0f) refCharScrollY = 0.0f;
+                if (refCharScrollY > maxScroll) refCharScrollY = maxScroll;
+            } else if (isDraggingRefAnimList) {
+                float dy = touch.py - dragStartY;
+                refAnimScrollY = dragStartScroll - dy;
+                float itemH = 10.0f * pcUiScale;
+                float boxH = 38.0f * pcUiScale;
+                float maxScroll = (refAnimList.size() * itemH) - boxH;
+                if (maxScroll < 0.0f) maxScroll = 0.0f;
+                if (refAnimScrollY < 0.0f) refAnimScrollY = 0.0f;
+                if (refAnimScrollY > maxScroll) refAnimScrollY = maxScroll;
             } else {
                 // Continuous Slider Dragging
                 bool touchingAnyWindow = false;
                 if (uiExpanded) {
-                    auto layout = getPCLayout(windows);
+                    auto layout = getPCLayout(windows, pcUiScale);
                     for (const auto& elem : layout) {
                         if (elem.id == 7) { // Ghost Alpha Slider
                             float sliderX = elem.x + 4.0f;
@@ -675,6 +1174,17 @@ void CharacterEditorState::update(float dt) {
                                 ghostAlpha = pct;
                                 ghostObj->alpha = ghostAlpha;
                             }
+                        } else if (elem.id == 26) { // Ref Alpha Slider
+                            float sliderX = elem.x + 4.0f;
+                            float sliderW = elem.w - 8.0f;
+                            if (touch.px >= elem.x && touch.px <= elem.x + elem.w && touch.py >= elem.y && touch.py <= elem.y + elem.h) {
+                                touchingAnyWindow = true;
+                                float pct = (touch.px - sliderX) / sliderW;
+                                if (pct < 0.0f) pct = 0.0f;
+                                if (pct > 1.0f) pct = 1.0f;
+                                refAlpha = pct;
+                                if (refObj) refObj->alpha = refAlpha;
+                            }
                         } else {
                             if (touch.px >= elem.x && touch.px <= elem.x + elem.w && touch.py >= elem.y && touch.py <= elem.y + elem.h) {
                                 touchingAnyWindow = true;
@@ -682,8 +1192,8 @@ void CharacterEditorState::update(float dt) {
                         }
                     }
                     for (const auto& win : windows) {
-                        float winH = win.expanded ? win.h : 12.0f;
-                        if (touch.px >= win.x && touch.px <= win.x + win.w && touch.py >= win.y && touch.py <= win.y + winH) {
+                        if (!win.expanded) continue;
+                        if (touch.px >= win.x && touch.px <= win.x + win.w && touch.py >= win.y && touch.py <= win.y + win.h) {
                             touchingAnyWindow = true;
                         }
                     }
@@ -697,6 +1207,16 @@ void CharacterEditorState::update(float dt) {
                         if (hidKeysHeld() & KEY_Y) {
                             camX -= dx / camZoom;
                             camY -= dy / camZoom;
+                        } else if (dragTargetMode == 1 && refObj) {
+                            float posScale = (240.0f / 720.0f) * camZoom;
+                            if (posScale > 0.001f) {
+                                float dOffX = dx / posScale;
+                                float dOffY = dy / posScale;
+                                refObj->x += dOffX;
+                                refObj->y += dOffY;
+                                refObj->baseX = refObj->x;
+                                refObj->baseY = refObj->y;
+                            }
                         } else if (charObj && !animList.empty()) {
                             std::string curAnimName = animList[curAnimIndex];
                             float scaleFactor = charObj->charScale * (240.0f / 720.0f) * camZoom;
@@ -733,17 +1253,16 @@ void CharacterEditorState::update(float dt) {
             lastTouchY = -1;
 
             float boxX = 10.0f;
-            float boxY = 32.0f;
+            float boxY = 28.0f;
             float boxW = 300.0f;
-            float boxH = 80.0f;
-            float itemH = 16.0f;
+            float boxH = 82.0f;
 
             if (touchDown) {
                 // 1. Tab Headers (Normal Mode Only)
                 if (touch.py >= 0 && touch.py <= 24) {
-                    float tabW = 80.0f;
+                    float tabW = 53.33f;
                     int newTab = (int)(touch.px / tabW);
-                    if (newTab >= 0 && newTab <= 3) {
+                    if (newTab >= 0 && newTab <= 5) {
                         currentTab = newTab;
                         curSelected = 0;
                         isDraggingCharList = false;
@@ -764,15 +1283,24 @@ void CharacterEditorState::update(float dt) {
                     isDraggingAnimList = true;
                     curSelected = 0;
                 }
-                
-                touchStartPx = touch.px;
-                touchStartPy = touch.py;
+                else if (currentTab == 5 && touch.px >= boxX && touch.px <= boxX + boxW && touch.py >= 27.0f && touch.py <= 75.0f) {
+                    dragStartY = touch.py;
+                    dragStartScroll = refCharScrollY;
+                    isDraggingRefCharList = true;
+                    curSelected = 0;
+                }
+                else if (currentTab == 5 && touch.px >= boxX && touch.px <= boxX + boxW && touch.py >= 78.0f && touch.py <= 126.0f) {
+                    dragStartY = touch.py;
+                    dragStartScroll = refAnimScrollY;
+                    isDraggingRefAnimList = true;
+                    curSelected = 1;
+                }
             }
 
             if (currentTab == 1) {
-                float sliderX = 20.0f;
-                float sliderW = 280.0f;
-                float sliderY = 120.0f;
+                float sliderX = 15.0f;
+                float sliderW = 290.0f;
+                float sliderY = 136.0f;
                 if (touch.py >= sliderY - 10.0f && touch.py <= sliderY + 24.0f) {
                     curSelected = 3;
                     float pct = (touch.px - sliderX) / sliderW;
@@ -781,11 +1309,25 @@ void CharacterEditorState::update(float dt) {
                     ghostAlpha = pct;
                     ghostObj->alpha = ghostAlpha;
                 }
+            } else if (currentTab == 5) {
+                float sliderX = 15.0f;
+                float sliderW = 290.0f;
+                float sliderY = 166.0f;
+                if (touch.py >= sliderY - 10.0f && touch.py <= sliderY + 12.0f) {
+                    curSelected = 3;
+                    float pct = (touch.px - sliderX) / sliderW;
+                    if (pct < 0.0f) pct = 0.0f;
+                    if (pct > 1.0f) pct = 1.0f;
+                    refAlpha = pct;
+                    if (refObj) refObj->alpha = refAlpha;
+                }
             }
 
             if (isDraggingCharList) {
                 float dy = touch.py - dragStartY;
                 charScrollY = dragStartScroll - dy;
+                float itemH = 18.0f;
+                float boxH = 82.0f;
                 float maxScroll = (characterList.size() * itemH) - boxH;
                 if (maxScroll < 0.0f) maxScroll = 0.0f;
                 if (charScrollY < 0.0f) charScrollY = 0.0f;
@@ -794,10 +1336,32 @@ void CharacterEditorState::update(float dt) {
             else if (isDraggingAnimList) {
                 float dy = touch.py - dragStartY;
                 animScrollY = dragStartScroll - dy;
+                float itemH = 18.0f;
+                float boxH = 70.0f;
                 float maxScroll = (animList.size() * itemH) - boxH;
                 if (maxScroll < 0.0f) maxScroll = 0.0f;
                 if (animScrollY < 0.0f) animScrollY = 0.0f;
                 if (animScrollY > maxScroll) animScrollY = maxScroll;
+            }
+            else if (isDraggingRefCharList) {
+                float dy = touch.py - dragStartY;
+                refCharScrollY = dragStartScroll - dy;
+                float itemH = 18.0f;
+                float boxH = 48.0f;
+                float maxScroll = (characterList.size() * itemH) - boxH;
+                if (maxScroll < 0.0f) maxScroll = 0.0f;
+                if (refCharScrollY < 0.0f) refCharScrollY = 0.0f;
+                if (refCharScrollY > maxScroll) refCharScrollY = maxScroll;
+            }
+            else if (isDraggingRefAnimList) {
+                float dy = touch.py - dragStartY;
+                refAnimScrollY = dragStartScroll - dy;
+                float itemH = 18.0f;
+                float boxH = 48.0f;
+                float maxScroll = (refAnimList.size() * itemH) - boxH;
+                if (maxScroll < 0.0f) maxScroll = 0.0f;
+                if (refAnimScrollY < 0.0f) refAnimScrollY = 0.0f;
+                if (refAnimScrollY > maxScroll) refAnimScrollY = maxScroll;
             }
         }
     } else {
@@ -805,12 +1369,13 @@ void CharacterEditorState::update(float dt) {
         lastTouchY = -1;
     }
 
-    // Touch Down Processing for PC Mode (Focus and Drag start)
+    // Touch Down Processing for PC Mode (Focus, Resize, and Drag start)
     if (touchDown && pcMode && uiExpanded) {
         for (int i = (int)windows.size() - 1; i >= 0; i--) {
             auto& win = windows[i];
-            float winH = win.expanded ? win.h : 12.0f;
-            if (touch.px >= win.x && touch.px <= win.x + win.w && touch.py >= win.y && touch.py <= win.y + winH) {
+            if (!win.expanded) continue; // Minimized windows do not draw or intercept touches on main canvas
+
+            if (touch.px >= win.x && touch.px <= win.x + win.w && touch.py >= win.y && touch.py <= win.y + win.h) {
                 // Focus: Bring window to front
                 if (i < (int)windows.size() - 1) {
                     UIWindow temp = win;
@@ -819,11 +1384,14 @@ void CharacterEditorState::update(float dt) {
                 }
                 auto& focusedWin = windows.back();
 
-                if (touch.py <= focusedWin.y + 12.0f) {
+                // Check resize handle (bottom-right 14x14)
+                if (touch.px >= focusedWin.x + focusedWin.w - 14.0f && touch.py >= focusedWin.y + focusedWin.h - 14.0f) {
+                    resizingWindowId = focusedWin.id;
+                }
+                else if (touch.py <= focusedWin.y + 12.0f * pcUiScale) {
                     // Clicked title bar
-                    // Check collapse button (right 12px)
-                    if (touch.px >= focusedWin.x + focusedWin.w - 12.0f) {
-                        focusedWin.expanded = !focusedWin.expanded;
+                    if (touch.px >= focusedWin.x + focusedWin.w - 14.0f * pcUiScale) {
+                        focusedWin.expanded = false; // Minimize to bottom taskbar!
                         AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                     } else {
                         // Start dragging window
@@ -833,7 +1401,7 @@ void CharacterEditorState::update(float dt) {
                     }
                 } else {
                     // Clicked inside body - check listboxes start drag
-                    auto layout = getPCLayout(windows);
+                    auto layout = getPCLayout(windows, pcUiScale);
                     for (const auto& elem : layout) {
                         if (elem.id == 0 && touch.px >= elem.x && touch.px <= elem.x + elem.w && touch.py >= elem.y && touch.py <= elem.y + elem.h) {
                             dragStartY = touch.py;
@@ -847,12 +1415,21 @@ void CharacterEditorState::update(float dt) {
                             isDraggingAnimList = true;
                             auto it = std::find(visibleOptionIds.begin(), visibleOptionIds.end(), elem.id);
                             if (it != visibleOptionIds.end()) curSelected = std::distance(visibleOptionIds.begin(), it);
+                        } else if (elem.id == 23 && touch.px >= elem.x && touch.px <= elem.x + elem.w && touch.py >= elem.y && touch.py <= elem.y + elem.h) {
+                            dragStartY = touch.py;
+                            dragStartScroll = refCharScrollY;
+                            isDraggingRefCharList = true;
+                            auto it = std::find(visibleOptionIds.begin(), visibleOptionIds.end(), elem.id);
+                            if (it != visibleOptionIds.end()) curSelected = std::distance(visibleOptionIds.begin(), it);
+                        } else if (elem.id == 29 && touch.px >= elem.x && touch.px <= elem.x + elem.w && touch.py >= elem.y && touch.py <= elem.y + elem.h) {
+                            dragStartY = touch.py;
+                            dragStartScroll = refAnimScrollY;
+                            isDraggingRefAnimList = true;
+                            auto it = std::find(visibleOptionIds.begin(), visibleOptionIds.end(), elem.id);
+                            if (it != visibleOptionIds.end()) curSelected = std::distance(visibleOptionIds.begin(), it);
                         }
                     }
                 }
-                
-                touchStartPx = touch.px;
-                touchStartPy = touch.py;
                 break;
             }
         }
@@ -860,28 +1437,24 @@ void CharacterEditorState::update(float dt) {
 
     // Touch Up: Gesture tap detection
     if (touchUp) {
-        float boxX = 10.0f;
-        float boxY = 32.0f;
-        float boxW = 300.0f;
-        float boxH = 80.0f;
-        float itemH = 16.0f;
-
         draggedWindowId = -1;
+        resizingWindowId = -1;
         isDraggingCharList = false;
         isDraggingAnimList = false;
+        isDraggingRefCharList = false;
+        isDraggingRefAnimList = false;
 
-        float dx = touchStartPx - touch.px;
-        float dy = touchStartPy - touch.py;
-        
-        // Tap gesture confirmed if stylus moved less than 5 pixels
-        if (dx * dx + dy * dy < 25.0f && touchStartPy >= 0.0f && touchStartPy < 240.0f && (!pcMode || uiExpanded)) {
+        float touchDistSq = (touchStartPx - lastTouchX) * (touchStartPx - lastTouchX) + (touchStartPy - lastTouchY) * (touchStartPy - lastTouchY);
+        bool wasTap = (!touchMoved || touchDistSq < 225.0f);
+
+        // Execute tap action if touch didn't drag significantly
+        if (wasTap && touchStartPy >= 0.0f && touchStartPy < 240.0f && (!pcMode || uiExpanded)) {
             if (pcMode) {
-                auto layout = getPCLayout(windows);
+                auto layout = getPCLayout(windows, pcUiScale);
                 for (const auto& elem : layout) {
                     if (touchStartPx >= elem.x && touchStartPx <= elem.x + elem.w && touchStartPy >= elem.y && touchStartPy <= elem.y + elem.h) {
                         if (elem.id != -1) {
                             // Tapped a control element
-                            // Set curSelected index to sync selection
                             auto it = std::find(visibleOptionIds.begin(), visibleOptionIds.end(), elem.id);
                             if (it != visibleOptionIds.end()) {
                                 curSelected = std::distance(visibleOptionIds.begin(), it);
@@ -889,7 +1462,7 @@ void CharacterEditorState::update(float dt) {
                             
                             // Process action for this control
                             if (elem.id == 0) { // Character listbox
-                                int tapped = (int)((touchStartPy - elem.y + charScrollY) / 8.5f);
+                                int tapped = (int)((touchStartPy - elem.y + charScrollY) / (10.0f * pcUiScale));
                                 if (tapped >= 0 && tapped < (int)characterList.size()) {
                                     curCharIndex = tapped;
                                     loadCharacter(characterList[curCharIndex]);
@@ -898,6 +1471,7 @@ void CharacterEditorState::update(float dt) {
                             } else if (elem.id == 1) { // Playable Checkbox
                                 charObj->isPlayer = !charObj->isPlayer;
                                 ghostObj->isPlayer = charObj->isPlayer;
+                                centerCameraOnTarget();
                                 playCurAnim();
                                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                             } else if (elem.id == 2) { // Reload Button
@@ -943,13 +1517,43 @@ void CharacterEditorState::update(float dt) {
                                 ghostObj->setAntialiasing(!ghostObj->noAntialiasing);
                                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                             } else if (elem.id == 16) { // Animations listbox
-                                int tapped = (int)((touchStartPy - elem.y + animScrollY) / 8.5f);
+                                int tapped = (int)((touchStartPy - elem.y + animScrollY) / (10.0f * pcUiScale));
                                 if (tapped >= 0 && tapped < (int)animList.size()) {
                                     animSliderIndex = tapped;
                                     curAnimIndex = animSliderIndex;
                                     playCurAnim();
                                     AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                                 }
+                            } else if (elem.id == 21) { // Enable Cam Frame Checkbox
+                                showCamBounds = !showCamBounds;
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                            } else if (elem.id == 23) { // Ref Char listbox tap
+                                int tapped = (int)((touchStartPy - elem.y + refCharScrollY) / (10.0f * pcUiScale));
+                                if (tapped >= 0 && tapped < (int)characterList.size()) {
+                                    curRefCharIndex = tapped;
+                                    loadRefCharacter(characterList[curRefCharIndex]);
+                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                }
+                            } else if (elem.id == 29) { // Ref Anim listbox tap
+                                int tapped = (int)((touchStartPy - elem.y + refAnimScrollY) / (10.0f * pcUiScale));
+                                if (tapped >= 0 && tapped < (int)refAnimList.size()) {
+                                    refAnimSliderIndex = tapped;
+                                    curRefAnimIndex = refAnimSliderIndex;
+                                    playCurRefAnim();
+                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                }
+                            } else if (elem.id == 24) { // Show Ref Checkbox
+                                showRefChar = !showRefChar;
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                            } else if (elem.id == 26) { // Ref Alpha Slider
+                                float sliderX = elem.x + 4.0f;
+                                float sliderW = elem.w - 8.0f;
+                                float pct = (touchStartPx - sliderX) / sliderW;
+                                if (pct < 0.0f) pct = 0.0f;
+                                if (pct > 1.0f) pct = 1.0f;
+                                refAlpha = pct;
+                                if (refObj) refObj->alpha = refAlpha;
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                             } else if (elem.id == 18) { // Loop Checkbox
                                 if (!animList.empty()) {
                                     std::string curAnimName = animList[animSliderIndex];
@@ -960,10 +1564,10 @@ void CharacterEditorState::update(float dt) {
                                 }
                             } else {
                                 // Arrows adjusted elements
-                                float arrowL = elem.x + elem.w - 32.0f;
-                                float arrowR = elem.x + elem.w - 12.0f;
-                                bool isLeft = (touchStartPx >= arrowL && touchStartPx <= arrowL + 12.0f);
-                                bool isRight = (touchStartPx >= arrowR && touchStartPx <= arrowR + 12.0f);
+                                float arrowL = elem.x + elem.w - 32.0f * pcUiScale;
+                                float arrowR = elem.x + elem.w - 12.0f * pcUiScale;
+                                bool isLeft = (touchStartPx >= arrowL - 4.0f * pcUiScale && touchStartPx <= arrowL + 14.0f * pcUiScale);
+                                bool isRight = (touchStartPx >= arrowR - 4.0f * pcUiScale && touchStartPx <= arrowR + 14.0f * pcUiScale);
                                 if (isLeft || isRight) {
                                     float sign = isLeft ? -1.0f : 1.0f;
                                     if (elem.id == 8) { // Sing Length
@@ -1019,6 +1623,16 @@ void CharacterEditorState::update(float dt) {
                                         charObj->animations[curAnimName].offsetY += sign * change;
                                         ghostObj->animations[curAnimName].offsetY = charObj->animations[curAnimName].offsetY;
                                         playCurAnim();
+                                    } else if (elem.id == 22) { // Cam Zoom Stepper
+                                        simCamZoom += sign * 0.05f;
+                                        if (simCamZoom < 0.1f) simCamZoom = 0.1f;
+                                        if (simCamZoom > 3.0f) simCamZoom = 3.0f;
+                                    } else if (elem.id == 27 && refObj) { // Ref Pos X
+                                        refObj->x += sign * change;
+                                        refObj->baseX = refObj->x;
+                                    } else if (elem.id == 28 && refObj) { // Ref Pos Y
+                                        refObj->y += sign * change;
+                                        refObj->baseY = refObj->y;
                                     }
                                     AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                                 }
@@ -1029,8 +1643,12 @@ void CharacterEditorState::update(float dt) {
                 }
             } else {
                 // Original 3DS Tab tap detection logic (Normal Mode) - Improved for touch sensitivity
+                float minusX = 235.0f;
+                float plusX = 288.0f;
+
                 if (currentTab == 0) { // Settings
                     // Tapped Character List Box
+                    float boxX = 10.0f, boxY = 28.0f, boxW = 300.0f, boxH = 82.0f, itemH = 18.0f;
                     if (touchStartPx >= boxX && touchStartPx <= boxX + boxW && touchStartPy >= boxY && touchStartPy <= boxY + boxH) {
                         int tapped = (int)((touchStartPy - boxY + charScrollY) / itemH);
                         if (tapped >= 0 && tapped < (int)characterList.size()) {
@@ -1040,17 +1658,18 @@ void CharacterEditorState::update(float dt) {
                         }
                     }
                     // Playable Checkbox (forgiving row height tap)
-                    float checkY = 120.0f;
+                    float checkY = 118.0f;
                     if (touchStartPy >= checkY - 5.0f && touchStartPy <= checkY + 20.0f) {
                         curSelected = 1;
                         charObj->isPlayer = !charObj->isPlayer;
                         ghostObj->isPlayer = charObj->isPlayer;
+                        centerCameraOnTarget();
                         playCurAnim();
                         AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                     }
                     // Reload Button
                     float btnY = 145.0f;
-                    float btnH = 20.0f;
+                    float btnH = 24.0f;
                     if (touchStartPy >= btnY - 2.0f && touchStartPy <= btnY + btnH + 2.0f && touchStartPx >= 10 && touchStartPx <= 310) {
                         curSelected = 2;
                         loadCharacter(currentCharacter);
@@ -1058,7 +1677,7 @@ void CharacterEditorState::update(float dt) {
                     }
                     // Save Button
                     float saveY = 175.0f;
-                    float saveH = 20.0f;
+                    float saveH = 24.0f;
                     if (touchStartPy >= saveY - 2.0f && touchStartPy <= saveY + saveH + 2.0f && touchStartPx >= 10 && touchStartPx <= 310) {
                         curSelected = 3;
                         saveCharacter();
@@ -1067,8 +1686,8 @@ void CharacterEditorState::update(float dt) {
                 }
                 else if (currentTab == 1) { // Ghost
                     // Make Ghost Button
-                    float btnY = 32.0f;
-                    float btnH = 20.0f;
+                    float btnY = 30.0f;
+                    float btnH = 26.0f;
                     if (touchStartPy >= btnY - 2.0f && touchStartPy <= btnY + btnH + 2.0f && touchStartPx >= 10 && touchStartPx <= 310) {
                         curSelected = 0;
                         ghostObj->isPlayer = charObj->isPlayer;
@@ -1090,15 +1709,15 @@ void CharacterEditorState::update(float dt) {
                         AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.5f);
                     }
                     // Show Ghost Checkbox (forgiving row height)
-                    float checkShowY = 62.0f;
-                    if (touchStartPy >= checkShowY - 5.0f && touchStartPy <= checkShowY + 18.0f) {
+                    float checkShowY = 64.0f;
+                    if (touchStartPy >= checkShowY - 5.0f && touchStartPy <= checkShowY + 20.0f) {
                         curSelected = 1;
                         showGhost = !showGhost;
                         AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                     }
                     // Highlight Ghost Checkbox (forgiving row height)
-                    float checkHighY = 82.0f;
-                    if (touchStartPy >= checkHighY - 5.0f && touchStartPy <= checkHighY + 18.0f) {
+                    float checkHighY = 88.0f;
+                    if (touchStartPy >= checkHighY - 5.0f && touchStartPy <= checkHighY + 20.0f) {
                         curSelected = 2;
                         ghostHighlight = !ghostHighlight;
                         ghostObj->isHighlighted = ghostHighlight;
@@ -1107,8 +1726,8 @@ void CharacterEditorState::update(float dt) {
                 }
                 else if (currentTab == 2) { // Character
                     for (int i = 0; i < 8; i++) {
-                        float itemY = 32.0f + i * 20.0f;
-                        float itemH = 16.0f;
+                        float itemY = 28.0f + i * 24.0f;
+                        float itemH = 20.0f;
                         if (touchStartPy >= itemY - 2.0f && touchStartPy <= itemY + itemH + 2.0f) {
                             curSelected = i;
                             if (i == 2) { // Flip X
@@ -1123,9 +1742,7 @@ void CharacterEditorState::update(float dt) {
                                 ghostObj->setAntialiasing(!ghostObj->noAntialiasing);
                                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                             } else {
-                                float arrowL = 200.0f;
-                                float arrowR = 280.0f;
-                                if (touchStartPx >= arrowL - 10.0f && touchStartPx <= arrowL + 25.0f) { // Left arrow
+                                if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) { // [-] button
                                     if (i == 0) {
                                         charObj->singDuration -= 0.5f;
                                         if (charObj->singDuration < 0.1f) charObj->singDuration = 0.1f;
@@ -1165,7 +1782,7 @@ void CharacterEditorState::update(float dt) {
                                         ghostObj->camOffsetY = charObj->camOffsetY;
                                     }
                                     AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
-                                } else if (touchStartPx >= arrowR - 10.0f && touchStartPx <= arrowR + 25.0f) { // Right arrow
+                                } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) { // [+] button
                                     if (i == 0) {
                                         charObj->singDuration += 0.5f;
                                         ghostObj->singDuration = charObj->singDuration;
@@ -1211,6 +1828,7 @@ void CharacterEditorState::update(float dt) {
                 }
                 else if (currentTab == 3) { // Animations
                     // Tapped Animations List Box
+                    float boxX = 10.0f, boxY = 28.0f, boxW = 300.0f, boxH = 70.0f, itemH = 18.0f;
                     if (touchStartPx >= boxX && touchStartPx <= boxX + boxW && touchStartPy >= boxY && touchStartPy <= boxY + boxH) {
                         int tapped = (int)((touchStartPy - boxY + animScrollY) / itemH);
                         if (tapped >= 0 && tapped < (int)animList.size()) {
@@ -1223,20 +1841,18 @@ void CharacterEditorState::update(float dt) {
                     
                     if (!animList.empty()) {
                         std::string curAnimName = animList[animSliderIndex];
-                        float arrowL = 200.0f;
-                        float arrowR = 280.0f;
 
                         // FPS
-                        float fpsY = 138.0f;
-                        if (touchStartPy >= fpsY - 5.0f && touchStartPy <= fpsY + 18.0f) {
+                        float fpsY = 122.0f;
+                        if (touchStartPy >= fpsY - 4.0f && touchStartPy <= fpsY + 18.0f) {
                             curSelected = 1;
-                            if (touchStartPx >= arrowL - 10.0f && touchStartPx <= arrowL + 25.0f) {
+                            if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) {
                                 charObj->animations[curAnimName].fps--;
                                 if (charObj->animations[curAnimName].fps < 1) charObj->animations[curAnimName].fps = 1;
                                 ghostObj->animations[curAnimName].fps = charObj->animations[curAnimName].fps;
                                 playCurAnim();
                                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
-                            } else if (touchStartPx >= arrowR - 10.0f && touchStartPx <= arrowR + 25.0f) {
+                            } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) {
                                 charObj->animations[curAnimName].fps++;
                                 ghostObj->animations[curAnimName].fps = charObj->animations[curAnimName].fps;
                                 playCurAnim();
@@ -1244,7 +1860,7 @@ void CharacterEditorState::update(float dt) {
                             }
                         }
                         // Loop (forgiving row height)
-                        else if (touchStartPy >= 150.0f && touchStartPy <= 170.0f) {
+                        else if (touchStartPy >= 142.0f && touchStartPy <= 164.0f) {
                             curSelected = 2;
                             charObj->setAnimLoop(curAnimName, !charObj->animations[curAnimName].loop);
                             ghostObj->setAnimLoop(curAnimName, charObj->animations[curAnimName].loop);
@@ -1252,15 +1868,15 @@ void CharacterEditorState::update(float dt) {
                             AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                         }
                         // Offset X
-                        float offXY = 174.0f;
-                        if (touchStartPy >= offXY - 5.0f && touchStartPy <= offXY + 18.0f) {
+                        float offXY = 166.0f;
+                        if (touchStartPy >= offXY - 4.0f && touchStartPy <= offXY + 18.0f) {
                             curSelected = 3;
-                            if (touchStartPx >= arrowL - 10.0f && touchStartPx <= arrowL + 25.0f) {
+                            if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) {
                                 charObj->animations[curAnimName].offsetX -= change;
                                 ghostObj->animations[curAnimName].offsetX = charObj->animations[curAnimName].offsetX;
                                 playCurAnim();
                                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
-                            } else if (touchStartPx >= arrowR - 10.0f && touchStartPx <= arrowR + 25.0f) {
+                            } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) {
                                 charObj->animations[curAnimName].offsetX += change;
                                 ghostObj->animations[curAnimName].offsetX = charObj->animations[curAnimName].offsetX;
                                 playCurAnim();
@@ -1268,34 +1884,177 @@ void CharacterEditorState::update(float dt) {
                             }
                         }
                         // Offset Y
-                        float offYY = 192.0f;
-                        if (touchStartPy >= offYY - 5.0f && touchStartPy <= offYY + 18.0f) {
+                        float offYY = 188.0f;
+                        if (touchStartPy >= offYY - 4.0f && touchStartPy <= offYY + 18.0f) {
                             curSelected = 4;
-                            if (touchStartPx >= arrowL - 10.0f && touchStartPx <= arrowL + 25.0f) {
+                            if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) {
                                 charObj->animations[curAnimName].offsetY -= change;
                                 ghostObj->animations[curAnimName].offsetY = charObj->animations[curAnimName].offsetY;
                                 playCurAnim();
                                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
-                            } else if (touchStartPx >= arrowR - 10.0f && touchStartPx <= arrowR + 25.0f) {
+                            } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) {
                                 charObj->animations[curAnimName].offsetY += change;
                                 ghostObj->animations[curAnimName].offsetY = charObj->animations[curAnimName].offsetY;
                                 playCurAnim();
                                 AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
                             }
                         }
+                    }
+                }
+                else if (currentTab == 4) { // Camera
+                    float checkY = 40.0f;
+                    if (touchStartPy >= checkY - 5.0f && touchStartPy <= checkY + 24.0f) {
+                        curSelected = 0;
+                        showCamBounds = !showCamBounds;
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                    }
+                    float zoomY = 80.0f;
+                    if (touchStartPy >= zoomY - 5.0f && touchStartPy <= zoomY + 24.0f) {
+                        curSelected = 1;
+                        if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) {
+                            simCamZoom -= 0.05f;
+                            if (simCamZoom < 0.1f) simCamZoom = 0.1f;
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) {
+                            simCamZoom += 0.05f;
+                            if (simCamZoom > 3.0f) simCamZoom = 3.0f;
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        }
+                    }
+                }
+                else if (currentTab == 5) { // Reference
+                    float box1X = 10.0f, box1Y = 27.0f, box1W = 300.0f, box1H = 48.0f;
+                    float box2X = 10.0f, box2Y = 78.0f, box2W = 300.0f, box2H = 48.0f;
+                    float checkShowY = 126.0f;
+                    float alphaY = 148.0f;
+                    float posX_Y = 184.0f;
+                    float posY_Y = 206.0f;
+
+                    if (touchStartPx >= box1X && touchStartPx <= box1X + box1W && touchStartPy >= box1Y && touchStartPy <= box1Y + box1H) {
+                        curSelected = 0;
+                        int tapped = (int)((touchStartPy - box1Y + refCharScrollY) / 18.0f);
+                        if (tapped >= 0 && tapped < (int)characterList.size()) {
+                            curRefCharIndex = tapped;
+                            loadRefCharacter(characterList[curRefCharIndex]);
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        }
+                    }
+                    else if (touchStartPx >= box2X && touchStartPx <= box2X + box2W && touchStartPy >= box2Y && touchStartPy <= box2Y + box2H) {
+                        curSelected = 1;
+                        if (!refAnimList.empty()) {
+                            int tapped = (int)((touchStartPy - box2Y + refAnimScrollY) / 18.0f);
+                            if (tapped >= 0 && tapped < (int)refAnimList.size()) {
+                                refAnimSliderIndex = tapped;
+                                curRefAnimIndex = refAnimSliderIndex;
+                                playCurRefAnim();
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                            }
+                        }
+                    }
+                    else if (touchStartPy >= checkShowY - 4.0f && touchStartPy <= checkShowY + 18.0f) {
+                        curSelected = 2;
+                        showRefChar = !showRefChar;
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                    }
+                    else if (touchStartPy >= alphaY - 4.0f && touchStartPy <= alphaY + 28.0f) {
+                        curSelected = 3;
+                        float sliderX = 15.0f;
+                        float sliderW = 290.0f;
+                        if (touchStartPx >= sliderX - 5.0f && touchStartPx <= sliderX + sliderW + 5.0f) {
+                            float pct = (touchStartPx - sliderX) / sliderW;
+                            if (pct < 0.0f) pct = 0.0f;
+                            if (pct > 1.0f) pct = 1.0f;
+                            refAlpha = pct;
+                            if (refObj) refObj->alpha = refAlpha;
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        }
+                    }
+                    else if (touchStartPy >= posX_Y - 4.0f && touchStartPy <= posX_Y + 18.0f) {
+                        curSelected = 4;
+                        if (refObj) {
+                            if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) refObj->x -= change;
+                            else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) refObj->x += change;
+                            refObj->baseX = refObj->x;
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        }
+                    }
+                    else if (touchStartPy >= posY_Y - 4.0f && touchStartPy <= posY_Y + 18.0f) {
+                        curSelected = 5;
+                        if (refObj) {
+                            if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) refObj->y -= change;
+                            else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) refObj->y += change;
+                            refObj->baseY = refObj->y;
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        }
+                    }
                 }
             }
         }
-    }
     }
 
     touchHeldLastFrame = touchHeld;
 }
 
+void CharacterEditorState::centerCameraOnTarget() {
+    if (!currentStage) return;
+
+    float bfStageX = currentStage->bfX;
+    float bfStageY = currentStage->bfY;
+    float dadStageX = currentStage->dadX;
+    float dadStageY = currentStage->dadY;
+
+    float mainStageX = (charObj && charObj->isPlayer) ? bfStageX : dadStageX;
+    float mainStageY = (charObj && charObj->isPlayer) ? bfStageY : dadStageY;
+    float refStageX = (charObj && charObj->isPlayer) ? dadStageX : bfStageX;
+    float refStageY = (charObj && charObj->isPlayer) ? dadStageY : bfStageY;
+
+    if (dragTargetMode == 1 && refObj) {
+        bool isP = refObj->isPlayer;
+        float stageCamX = isP ? currentStage->bfCamX : currentStage->dadCamX;
+        float stageCamY = isP ? currentStage->bfCamY : currentStage->dadCamY;
+        float refWorldX = refStageX + refObj->x;
+        float refWorldY = refStageY + refObj->y;
+        camX = refWorldX + 150.0f + refObj->camOffsetX + stageCamX;
+        camY = refWorldY + 150.0f + refObj->camOffsetY + stageCamY;
+    } else if (charObj) {
+        bool isP = charObj->isPlayer;
+        float stageCamX = isP ? currentStage->bfCamX : currentStage->dadCamX;
+        float stageCamY = isP ? currentStage->bfCamY : currentStage->dadCamY;
+        float mainWorldX = mainStageX + charObj->x;
+        float mainWorldY = mainStageY + charObj->y;
+        camX = mainWorldX + 150.0f + charObj->camOffsetX + stageCamX;
+        camY = mainWorldY + 150.0f + charObj->camOffsetY + stageCamY;
+    } else {
+        camX = (mainStageX + refStageX) * 0.5f;
+        camY = (mainStageY + refStageY) * 0.5f - 100.0f;
+    }
+    camZoom = currentStage->defaultZoom;
+}
+
 void CharacterEditorState::saveCharacter() {
     if (charObj && !currentCharacter.empty()) {
+        float oldX = charObj->x;
+        float oldY = charObj->y;
+        float oldBaseX = charObj->baseX;
+        float oldBaseY = charObj->baseY;
+
+        if (currentStage) {
+            float activeStageX = charObj->isPlayer ? currentStage->bfX : currentStage->dadX;
+            float activeStageY = charObj->isPlayer ? currentStage->bfY : currentStage->dadY;
+            charObj->x -= activeStageX;
+            charObj->y -= activeStageY;
+            charObj->baseX = charObj->x;
+            charObj->baseY = charObj->y;
+        }
+
         std::string path = "sdmc:/SnakeEngine/characters/" + currentCharacter + ".json";
         charObj->saveToPsychJson(path);
+
+        charObj->x = oldX;
+        charObj->y = oldY;
+        charObj->baseX = oldBaseX;
+        charObj->baseY = oldBaseY;
+
         saveMessageTimer = 3.0f;
     }
 }
@@ -1303,117 +2062,269 @@ void CharacterEditorState::saveCharacter() {
 CharacterEditorState::~CharacterEditorState() {
     if (charObj) delete charObj;
     if (ghostObj) delete ghostObj;
+    if (refObj) delete refObj;
+    if (currentStage) delete currentStage;
     if (textBuf) C2D_TextBufDelete(textBuf);
 }
 
 void CharacterEditorState::init() {
     MusicBeatState::init();
-    textBuf = C2D_TextBufNew(4096);
+    vcrFont = globalVCRFont;
+    if (!vcrFont) {
+        vcrFont = C2D_FontLoad("romfs:/fonts/vcr.bcfnt");
+    }
+    if (!textBuf) {
+        textBuf = C2D_TextBufNew(8192);
+    }
+    currentStage = new Stage(Paths::stageJson("stage"));
+
     loadCharacter(currentCharacter);
+    std::string defaultRef = "dad";
+    if (std::find(characterList.begin(), characterList.end(), "dad") == characterList.end()) {
+        if (characterList.size() > 1) defaultRef = characterList[1];
+        else defaultRef = currentCharacter;
+    }
+    loadRefCharacter(defaultRef);
+
+    centerCameraOnTarget();
 }
 
 void CharacterEditorState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
-    C2D_TextBufClear(textBuf);
+    if (textBuf) C2D_TextBufClear(textBuf);
 
-    // 1. TOP SCREEN: Draw Character, static crosshair, and camera target scope
+    // Sanitize animation selection bounds to prevent crashes
+    if (!animList.empty()) {
+        if (curAnimIndex < 0) curAnimIndex = 0;
+        if (curAnimIndex >= (int)animList.size()) curAnimIndex = (int)animList.size() - 1;
+        if (animSliderIndex < 0) animSliderIndex = 0;
+        if (animSliderIndex >= (int)animList.size()) animSliderIndex = (int)animList.size() - 1;
+    }
+
+    // 1. TOP SCREEN (400x240): Canvas & Character Rendering
     C2D_SceneBegin(top);
-    C2D_TargetClear(top, C2D_Color32(50, 50, 55, 255));
+    C2D_TargetClear(top, C2D_Color32(18, 18, 24, 255));
 
-    // Screen Center crosshair
-    C2D_DrawLine(200, 0, C2D_Color32(255, 0, 0, 80), 200, 240, C2D_Color32(255, 0, 0, 80), 1.0f, 0.0f);
-    C2D_DrawLine(0, 120, C2D_Color32(255, 0, 0, 80), 400, 120, C2D_Color32(255, 0, 0, 80), 1.0f, 0.0f);
+    // Top Header Bar
+    C2D_DrawRectSolid(0, 0, 0.8f, 400, 22, C2D_Color32(10, 10, 16, 245));
+    C2D_DrawRectSolid(0, 21, 0.81f, 400, 1, C2D_Color32(0, 210, 255, 255));
+    drawText("CHARACTER EDITOR - " + currentCharacter, 12, 4, 0.38f, false, C2D_Color32(0, 210, 255, 255), 0.88f);
 
-    float cx = 200 - camX;
-    float cy = 120 - camY;
+    std::string zoomHUD = "Zoom: " + std::to_string(camZoom).substr(0,4) + "x | Cam: (" + std::to_string((int)camX) + "," + std::to_string((int)camY) + ")";
+    drawText(zoomHUD, 388, 4, 0.34f, false, C2D_Color32(190, 200, 215, 220), 0.88f, 0.0f, true);
 
-    if (showGhost && ghostObj) {
-        ghostObj->draw(cx, cy, 0.5f, camZoom, 0, 0);
-    }
-    if (charObj) {
-        charObj->draw(cx, cy, 0.6f, camZoom, 0, 0);
-    }
+    // Canvas Center Crosshair (subtle lines)
+    C2D_DrawLine(200, 22, C2D_Color32(255, 0, 0, 65), 200, 240, C2D_Color32(255, 0, 0, 65), 1.0f, 0.0f);
+    C2D_DrawLine(0, 120, C2D_Color32(255, 0, 0, 65), 400, 120, C2D_Color32(255, 0, 0, 65), 1.0f, 0.0f);
 
     float screenScale = 240.0f / 720.0f;
-    
-    // Draw Camera Follow Target Scope (green circular target)
-    if (charObj) {
-        float followBaseX = (200.0f - camX + charObj->x + 150.0f + charObj->camOffsetX);
-        float followBaseY = (120.0f - camY + charObj->y + 150.0f + charObj->camOffsetY);
-        float screenFollowX = (followBaseX * screenScale * camZoom) + 200.0f;
-        float screenFollowY = (followBaseY * screenScale * camZoom) + 120.0f;
-        
-        C2D_DrawCircleSolid(screenFollowX, screenFollowY, 0.9f, 2.0f, C2D_Color32(0, 255, 0, 255));
-        C2D_DrawLine(screenFollowX - 8, screenFollowY, C2D_Color32(0, 255, 0, 200), screenFollowX + 8, screenFollowY, C2D_Color32(0, 255, 0, 200), 1.0f, 0.9f);
-        C2D_DrawLine(screenFollowX, screenFollowY - 8, C2D_Color32(0, 255, 0, 200), screenFollowX, screenFollowY + 8, C2D_Color32(0, 255, 0, 200), 1.0f, 0.9f);
+
+    auto* cs = SpritesheetCache::get().load("stages/stage");
+    if (cs && !cs->frames.empty()) {
+        const Frame& f = cs->frames[0];
+        C2D_Image img = { f.tex, &f.uv };
+        float scale = 3.5f;
+        float drawScaleX = scale * screenScale * camZoom;
+        float drawScaleY = scale * screenScale * camZoom;
+
+        float drawX = ((24.0f - camX) * camZoom * screenScale) + 200.0f;
+        float drawY = ((-124.0f - camY) * camZoom * screenScale) + 120.0f;
+
+        float originX = (f.frameW > 0 ? (float)f.frameW : (float)f.w) / 2.0f;
+        float originY = (f.frameH > 0 ? (float)f.frameH : (float)f.h) / 2.0f;
+        if (originX <= 0.0f) originX = 512.0f;
+        if (originY <= 0.0f) originY = 280.0f;
+
+        drawX += originX * (1.0f - scale) * screenScale * camZoom;
+        drawY += originY * (1.0f - scale) * screenScale * camZoom;
+
+        C2D_DrawImageAt(img, drawX, drawY, 0.10f, nullptr, drawScaleX, drawScaleY);
+    } else if (currentStage) {
+        currentStage->draw(camX, camY, camZoom, false);
     }
 
-    // TOP HUD: No offsets text!
-    char topHUD[128];
-    snprintf(topHUD, sizeof(topHUD), "Zoom: %.2fx | Cam: (%d, %d)", camZoom, (int)camX, (int)camY);
+    float bfStageX = currentStage ? currentStage->bfX : 0.0f;
+    float bfStageY = currentStage ? currentStage->bfY : 0.0f;
+    float dadStageX = currentStage ? currentStage->dadX : 0.0f;
+    float dadStageY = currentStage ? currentStage->dadY : 0.0f;
 
-    C2D_Text topInfo;
-    C2D_TextParse(&topInfo, textBuf, topHUD);
-    C2D_TextOptimize(&topInfo);
-    C2D_DrawText(&topInfo, C2D_WithColor, 6.0f, 6.0f, 0.95f, 0.45f, 0.45f, C2D_Color32(230, 230, 235, 200));
+    float mainStageX = (charObj && charObj->isPlayer) ? bfStageX : dadStageX;
+    float mainStageY = (charObj && charObj->isPlayer) ? bfStageY : dadStageY;
+    float refStageX = (refObj && refObj->isPlayer) ? bfStageX : dadStageX;
+    float refStageY = (refObj && refObj->isPlayer) ? bfStageY : dadStageY;
+
+    if (showGhost && ghostObj) {
+        ghostObj->draw(mainStageX, mainStageY, 0.5f, camZoom, camX, camY);
+    }
+    if (showRefChar && refObj) {
+        refObj->draw(refStageX, refStageY, 0.55f, camZoom, camX, camY);
+    }
+    if (charObj) {
+        charObj->draw(mainStageX, mainStageY, 0.6f, camZoom, camX, camY);
+    }
 
 
-    // 2. BOTTOM SCREEN: Tab UI or PC Mode Split
+
+    // Camera Follow Target Scope (green circular target)
+    Character* targetChar = (dragTargetMode == 1 && refObj) ? refObj : charObj;
+    if (targetChar) {
+        bool targetIsPlayer = (dragTargetMode == 1 && refObj) ? refObj->isPlayer : (charObj ? charObj->isPlayer : true);
+        float rawTargetStageX = targetIsPlayer ? (currentStage ? currentStage->bfX : 0.0f) : (currentStage ? currentStage->dadX : 0.0f);
+        float rawTargetStageY = targetIsPlayer ? (currentStage ? currentStage->bfY : 0.0f) : (currentStage ? currentStage->dadY : 0.0f);
+        float targetStageCamX = targetIsPlayer ? (currentStage ? currentStage->bfCamX : 0.0f) : (currentStage ? currentStage->dadCamX : 0.0f);
+        float targetStageCamY = targetIsPlayer ? (currentStage ? currentStage->bfCamY : 0.0f) : (currentStage ? currentStage->dadCamY : 0.0f);
+
+        float targetWorldX = rawTargetStageX + targetChar->x + 150.0f + targetChar->camOffsetX + targetStageCamX;
+        float targetWorldY = rawTargetStageY + targetChar->y + 150.0f + targetChar->camOffsetY + targetStageCamY;
+        float screenFollowX = ((targetWorldX - camX) * screenScale * camZoom) + 200.0f;
+        float screenFollowY = ((targetWorldY - camY) * screenScale * camZoom) + 120.0f;
+
+        float armLenScreen = 24.0f * screenScale * camZoom;
+        float dotRadScreen = 5.0f * screenScale * camZoom;
+        if (dotRadScreen < 1.0f) dotRadScreen = 1.0f;
+        if (armLenScreen < 2.0f) armLenScreen = 2.0f;
+
+        C2D_DrawCircleSolid(screenFollowX, screenFollowY, 0.70f, dotRadScreen, C2D_Color32(0, 255, 0, 255));
+        C2D_DrawLine(screenFollowX - armLenScreen, screenFollowY, C2D_Color32(0, 255, 0, 200), screenFollowX + armLenScreen, screenFollowY, C2D_Color32(0, 255, 0, 200), 1.0f, 0.70f);
+        C2D_DrawLine(screenFollowX, screenFollowY - armLenScreen, C2D_Color32(0, 255, 0, 200), screenFollowX, screenFollowY + armLenScreen, C2D_Color32(0, 255, 0, 200), 1.0f, 0.70f);
+
+        // Simulated Camera Viewport Box (Golden Yellow)
+        if (showCamBounds) {
+            float rectW = (1280.0f / simCamZoom) * screenScale * camZoom;
+            float rectH = (720.0f / simCamZoom) * screenScale * camZoom;
+            float rectX = screenFollowX - rectW * 0.5f;
+            float rectY = screenFollowY - rectH * 0.5f;
+            u32 camBoxCol = C2D_Color32(255, 215, 0, 220);
+
+            C2D_DrawLine(rectX, rectY, camBoxCol, rectX + rectW, rectY, camBoxCol, 1.0f, 0.71f);
+            C2D_DrawLine(rectX, rectY, camBoxCol, rectX, rectY + rectH, camBoxCol, 1.0f, 0.71f);
+            C2D_DrawLine(rectX + rectW, rectY, camBoxCol, rectX + rectW, rectY + rectH, camBoxCol, 1.0f, 0.71f);
+            C2D_DrawLine(rectX, rectY + rectH, camBoxCol, rectX + rectW, rectY + rectH, camBoxCol, 1.0f, 0.71f);
+
+            char camZoomStr[32];
+            snprintf(camZoomStr, sizeof(camZoomStr), "CAM FRAME (%.2fx)", simCamZoom);
+            drawText(camZoomStr, rectX + 4.0f, rectY + 2.0f, 0.26f, false, camBoxCol, 0.72f);
+        }
+    }
+
+    // 2. BOTTOM SCREEN (320x240): Tab UI or PC Mode Split
     C2D_SceneBegin(bottom);
     C2D_TargetClear(bottom, C2D_Color32(18, 18, 22, 255));
 
-    float panelW = pcMode ? (uiExpanded ? 110.0f : 0.0f) : 320.0f;
 
     if (pcMode) {
-        // Draw Character Preview fullscreen behind windows
         float previewX = 0.0f;
         float previewW = 320.0f;
         float previewCenterX = 160.0f;
 
-        C2D_DrawRectSolid(previewX, 0.0f, 0.1f, previewW, 240.0f, C2D_Color32(50, 50, 55, 255));
+        C2D_DrawRectSolid(previewX, 0.0f, 0.01f, previewW, 240.0f, C2D_Color32(22, 24, 32, 255));
 
-        // Subtle grid lines in preview area (behind character)
         for (float gx = 0.0f; gx <= 320.0f; gx += 20.0f) {
-            C2D_DrawLine(gx, 14.0f, C2D_Color32(70, 70, 82, 45), gx, 226.0f, C2D_Color32(70, 70, 82, 45), 1.0f, 0.15f);
+            C2D_DrawLine(gx, 14.0f, C2D_Color32(70, 70, 82, 45), gx, 226.0f, C2D_Color32(70, 70, 82, 45), 1.0f, 0.02f);
         }
         for (float gy = 34.0f; gy <= 226.0f; gy += 20.0f) {
-            C2D_DrawLine(0.0f, gy, C2D_Color32(70, 70, 82, 45), 320.0f, gy, C2D_Color32(70, 70, 82, 45), 1.0f, 0.15f);
+            C2D_DrawLine(0.0f, gy, C2D_Color32(70, 70, 82, 45), 320.0f, gy, C2D_Color32(70, 70, 82, 45), 1.0f, 0.02f);
         }
 
-        // Crosshair (subtler in PC mode, clipped to content area)
-        C2D_DrawLine(previewCenterX, 14.0f, C2D_Color32(255, 0, 0, 55), previewCenterX, 226.0f, C2D_Color32(255, 0, 0, 55), 1.0f, 0.2f);
-        C2D_DrawLine(0.0f, 120.0f, C2D_Color32(255, 0, 0, 55), 320.0f, 120.0f, C2D_Color32(255, 0, 0, 55), 1.0f, 0.2f);
+        C2D_DrawLine(previewCenterX, 14.0f, C2D_Color32(255, 0, 0, 55), previewCenterX, 226.0f, C2D_Color32(255, 0, 0, 55), 1.0f, 0.03f);
+        C2D_DrawLine(0.0f, 120.0f, C2D_Color32(255, 0, 0, 55), 320.0f, 120.0f, C2D_Color32(255, 0, 0, 55), 1.0f, 0.03f);
 
-        float pcCx = previewCenterX - camX;
-        float pcCy = 120.0f - camY;
+        float pcStageX = -40.0f / (screenScale * camZoom);
+        float bfStageX = (currentStage ? currentStage->bfX : 0.0f) + pcStageX;
+        float bfStageY = currentStage ? currentStage->bfY : 0.0f;
+        float dadStageX = (currentStage ? currentStage->dadX : 0.0f) + pcStageX;
+        float dadStageY = currentStage ? currentStage->dadY : 0.0f;
+
+        float mainStageX = (charObj && charObj->isPlayer) ? bfStageX : dadStageX;
+        float mainStageY = (charObj && charObj->isPlayer) ? bfStageY : dadStageY;
+        float refStageX = (refObj && refObj->isPlayer) ? bfStageX : dadStageX;
+        float refStageY = (refObj && refObj->isPlayer) ? bfStageY : dadStageY;
+
+        auto* cs = SpritesheetCache::get().load("stages/stage");
+        if (cs && !cs->frames.empty()) {
+            const Frame& f = cs->frames[0];
+            C2D_Image img = { f.tex, &f.uv };
+            float scale = 3.5f;
+            float drawScaleX = scale * screenScale * camZoom;
+            float drawScaleY = scale * screenScale * camZoom;
+
+            float drawX = ((24.0f - camX) * camZoom * screenScale) + 160.0f;
+            float drawY = ((-124.0f - camY) * camZoom * screenScale) + 120.0f;
+
+            float originX = (f.frameW > 0 ? (float)f.frameW : (float)f.w) / 2.0f;
+            float originY = (f.frameH > 0 ? (float)f.frameH : (float)f.h) / 2.0f;
+            if (originX <= 0.0f) originX = 512.0f;
+            if (originY <= 0.0f) originY = 280.0f;
+
+            drawX += originX * (1.0f - scale) * screenScale * camZoom;
+            drawY += originY * (1.0f - scale) * screenScale * camZoom;
+
+            C2D_DrawImageAt(img, drawX, drawY, 0.10f, nullptr, drawScaleX, drawScaleY);
+        } else if (currentStage) {
+            currentStage->draw(camX, camY, camZoom, false, -40.0f, 0.0f);
+        }
 
         if (showGhost && ghostObj) {
-            ghostObj->draw(pcCx, pcCy, 0.3f, camZoom, 0, 0);
+            ghostObj->draw(mainStageX, mainStageY, 0.3f, camZoom, camX, camY);
+        }
+        if (showRefChar && refObj) {
+            refObj->draw(refStageX, refStageY, 0.35f, camZoom, camX, camY);
         }
         if (charObj) {
-            charObj->draw(pcCx, pcCy, 0.4f, camZoom, 0, 0);
+            charObj->draw(mainStageX, mainStageY, 0.4f, camZoom, camX, camY);
         }
 
-        // Draw camera follow scope in PC preview window
-        if (charObj) {
-            float pcFollowX = ((previewCenterX - camX + charObj->x + 150.0f + charObj->camOffsetX) * screenScale * camZoom) + previewCenterX;
-            float pcFollowY = ((120.0f - camY + charObj->y + 150.0f + charObj->camOffsetY) * screenScale * camZoom) + 120.0f;
-            C2D_DrawCircleSolid(pcFollowX, pcFollowY, 0.9f, 2.0f, C2D_Color32(0, 255, 0, 255));
-            C2D_DrawLine(pcFollowX - 6, pcFollowY, C2D_Color32(0, 255, 0, 200), pcFollowX + 6, pcFollowY, C2D_Color32(0, 255, 0, 200), 1.0f, 0.9f);
-            C2D_DrawLine(pcFollowX, pcFollowY - 6, C2D_Color32(0, 255, 0, 200), pcFollowX, pcFollowY + 6, C2D_Color32(0, 255, 0, 200), 1.0f, 0.9f);
+
+
+        Character* targetChar = (dragTargetMode == 1 && refObj) ? refObj : charObj;
+        if (targetChar) {
+            bool targetIsPlayer = (dragTargetMode == 1 && refObj) ? refObj->isPlayer : (charObj ? charObj->isPlayer : true);
+            float rawTargetStageX = targetIsPlayer ? (currentStage ? currentStage->bfX : 0.0f) : (currentStage ? currentStage->dadX : 0.0f);
+            float rawTargetStageY = targetIsPlayer ? (currentStage ? currentStage->bfY : 0.0f) : (currentStage ? currentStage->dadY : 0.0f);
+            float targetStageCamX = targetIsPlayer ? (currentStage ? currentStage->bfCamX : 0.0f) : (currentStage ? currentStage->dadCamX : 0.0f);
+            float targetStageCamY = targetIsPlayer ? (currentStage ? currentStage->bfCamY : 0.0f) : (currentStage ? currentStage->dadCamY : 0.0f);
+
+            float targetWorldX = rawTargetStageX + targetChar->x + 150.0f + targetChar->camOffsetX + targetStageCamX;
+            float targetWorldY = rawTargetStageY + targetChar->y + 150.0f + targetChar->camOffsetY + targetStageCamY;
+            float pcFollowX = ((targetWorldX - camX) * screenScale * camZoom) + previewCenterX;
+            float pcFollowY = ((targetWorldY - camY) * screenScale * camZoom) + 120.0f;
+
+            float armLenScreen = 24.0f * screenScale * camZoom;
+            float dotRadScreen = 5.0f * screenScale * camZoom;
+            if (dotRadScreen < 1.0f) dotRadScreen = 1.0f;
+            if (armLenScreen < 2.0f) armLenScreen = 2.0f;
+
+            C2D_DrawCircleSolid(pcFollowX, pcFollowY, 0.50f, dotRadScreen, C2D_Color32(0, 255, 0, 255));
+            C2D_DrawLine(pcFollowX - armLenScreen, pcFollowY, C2D_Color32(0, 255, 0, 200), pcFollowX + armLenScreen, pcFollowY, C2D_Color32(0, 255, 0, 200), 1.0f, 0.50f);
+            C2D_DrawLine(pcFollowX, pcFollowY - armLenScreen, C2D_Color32(0, 255, 0, 200), pcFollowX, pcFollowY + armLenScreen, C2D_Color32(0, 255, 0, 200), 1.0f, 0.50f);
+
+            if (showCamBounds) {
+                float rectW = (1280.0f / simCamZoom) * screenScale * camZoom;
+                float rectH = (720.0f / simCamZoom) * screenScale * camZoom;
+                float rectX = pcFollowX - rectW * 0.5f;
+                float rectY = pcFollowY - rectH * 0.5f;
+                u32 camBoxCol = C2D_Color32(255, 215, 0, 220);
+
+                C2D_DrawLine(rectX, rectY, camBoxCol, rectX + rectW, rectY, camBoxCol, 1.0f, 0.51f);
+                C2D_DrawLine(rectX, rectY, camBoxCol, rectX, rectY + rectH, camBoxCol, 1.0f, 0.51f);
+                C2D_DrawLine(rectX + rectW, rectY, camBoxCol, rectX + rectW, rectY + rectH, camBoxCol, 1.0f, 0.51f);
+                C2D_DrawLine(rectX, rectY + rectH, camBoxCol, rectX + rectW, rectY + rectH, camBoxCol, 1.0f, 0.51f);
+            }
         }
 
-        // Animation offset overlay (shown over character, like Psych Engine PC)
-        if (charObj && !animList.empty()) {
+        float headerH = 14.0f * pcUiScale;
+        float footerH = 14.0f * pcUiScale;
+
+        if (showAnimOverlay && charObj && !animList.empty()) {
             float ovX = 4.0f;
-            float ovY = 17.0f;
-            float ovScale = 0.22f;
-            float ovLineH = 9.5f;
-            int maxVisible = (int)((224.0f - ovY) / ovLineH);
+            float ovY = headerH + 3.0f;
+            float ovScale = 0.26f * pcUiScale;
+            float ovLineH = 10.5f * pcUiScale;
+            int maxVisible = (int)(((240.0f - footerH) - ovY) / ovLineH);
             if (maxVisible < 1) maxVisible = 1;
             int count = (int)animList.size();
             int showCount = count < maxVisible ? count : maxVisible;
 
-            C2D_DrawRectSolid(ovX - 2.0f, ovY - 1.0f, 0.44f, 84.0f, showCount * ovLineH + 3.0f, C2D_Color32(0, 0, 0, 110));
+            u32 outlineCol = C2D_Color32(0, 0, 0, 255);
 
             for (int ai = 0; ai < showCount; ai++) {
                 const std::string& aName = animList[ai];
@@ -1425,52 +2336,113 @@ void CharacterEditorState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom)
                 snprintf(animLine, sizeof(animLine), "%s: [%d,%d]", displayName.c_str(), (int)ox, (int)oy);
 
                 u32 animLineCol = (ai == curAnimIndex)
-                    ? C2D_Color32(0, 220, 220, 255)
-                    : C2D_Color32(200, 200, 210, 180);
+                    ? C2D_Color32(0, 210, 255, 255)
+                    : C2D_Color32(230, 230, 240, 255);
 
-                C2D_Text animLineT;
-                C2D_TextParse(&animLineT, textBuf, animLine);
-                C2D_TextOptimize(&animLineT);
-                C2D_DrawText(&animLineT, C2D_WithColor, ovX, ovY + ai * ovLineH, 0.45f, ovScale, ovScale, animLineCol);
+                float ly = ovY + ai * ovLineH;
+                // Black 4-way outline
+                drawText(animLine, ovX - 1.0f, ly, ovScale, false, outlineCol, 0.44f);
+                drawText(animLine, ovX + 1.0f, ly, ovScale, false, outlineCol, 0.44f);
+                drawText(animLine, ovX, ly - 1.0f, ovScale, false, outlineCol, 0.44f);
+                drawText(animLine, ovX, ly + 1.0f, ovScale, false, outlineCol, 0.44f);
+                // Main colored text
+                drawText(animLine, ovX, ly, ovScale, false, animLineCol, 0.45f);
             }
         }
 
-        // Preview Header bar: character name + active animation
-        C2D_DrawRectSolid(0.0f, 0.0f, 0.62f, 320.0f, 14.0f, C2D_Color32(10, 10, 16, 230));
-        C2D_DrawRectSolid(0.0f, 13.0f, 0.63f, 320.0f, 1.0f, C2D_Color32(0, 100, 180, 200));
+        // Preview Header bar
+        C2D_DrawRectSolid(0.0f, 0.0f, 0.62f, 320.0f, headerH, C2D_Color32(10, 10, 16, 230));
+        C2D_DrawRectSolid(0.0f, headerH - 1.0f, 0.63f, 320.0f, 1.0f, C2D_Color32(0, 210, 255, 200));
         {
             std::string headerStr = currentCharacter;
-            if (!animList.empty()) {
+            if (!animList.empty() && curAnimIndex < (int)animList.size()) {
                 std::string animPart = animList[curAnimIndex];
                 if (animPart.length() > 12) animPart = animPart.substr(0, 11) + "~";
                 headerStr += "  |  " + animPart;
             }
-            if (headerStr.length() > 28) headerStr = headerStr.substr(0, 26) + "..";
-            C2D_Text headerT;
-            C2D_TextParse(&headerT, textBuf, headerStr.c_str());
-            C2D_TextOptimize(&headerT);
-            float tw = 0, th = 0;
-            C2D_TextGetDimensions(&headerT, 0.24f, 0.24f, &tw, &th);
-            C2D_DrawText(&headerT, C2D_WithColor, (320.0f - tw) * 0.5f, (14.0f - th) * 0.5f, 0.65f, 0.24f, 0.24f, C2D_Color32(220, 225, 235, 255));
+            drawText(headerStr, 160.0f, headerH * 0.5f, 0.28f * pcUiScale, true, C2D_Color32(220, 225, 235, 255), 0.65f, 240.0f, false, true);
         }
 
-        // Collapse/Expand toggle button at the top-left of the preview header
-        C2D_Text toggleT;
-        C2D_TextParse(&toggleT, textBuf, uiExpanded ? "<-" : "->");
-        C2D_TextOptimize(&toggleT);
-        float ttw = 0, tth = 0;
-        C2D_TextGetDimensions(&toggleT, 0.24f, 0.24f, &ttw, &tth);
-        C2D_DrawRectSolid(3.0f, 1.0f, 0.64f, 16.0f, 12.0f, C2D_Color32(30, 30, 45, 255));
-        C2D_DrawText(&toggleT, C2D_WithColor, 3.0f + (16.0f - ttw) * 0.5f, 1.0f + (12.0f - tth) * 0.5f, 0.65f, 0.24f, 0.24f, C2D_Color32(0, 210, 255, 255));
+        // Toggle Animation List Overlay button
+        float btnBoxW = 16.0f * pcUiScale;
+        float btnBoxH = 12.0f * pcUiScale;
+        C2D_DrawRectSolid(3.0f, 1.0f, 0.64f, btnBoxW, btnBoxH, C2D_Color32(30, 30, 45, 255));
+        drawText(showAnimOverlay ? "<-" : "->", 3.0f + btnBoxW * 0.5f, 1.0f + btnBoxH * 0.5f, 0.28f * pcUiScale, true, C2D_Color32(0, 210, 255, 255), 0.65f, 0.0f, false, true);
 
-        // Preview Footer bar: frame count + zoom
-        C2D_DrawRectSolid(0.0f, 226.0f, 0.62f, 320.0f, 14.0f, C2D_Color32(10, 10, 16, 230));
-        C2D_DrawRectSolid(0.0f, 226.0f, 0.63f, 320.0f, 1.0f, C2D_Color32(0, 100, 180, 200));
+        // Toggle Drag Target (Player P / Reference R) button
+        float btn2X = 3.0f + btnBoxW + 3.0f;
+        u32 prBg = (dragTargetMode == 1) ? C2D_Color32(60, 40, 20, 255) : C2D_Color32(30, 30, 45, 255);
+        u32 prTxtCol = (dragTargetMode == 1) ? C2D_Color32(255, 170, 0, 255) : C2D_Color32(0, 210, 255, 255);
+        C2D_DrawRectSolid(btn2X, 1.0f, 0.64f, btnBoxW, btnBoxH, prBg);
+        drawText(dragTargetMode == 1 ? "R" : "P", btn2X + btnBoxW * 0.5f, 1.0f + btnBoxH * 0.5f, 0.28f * pcUiScale, true, prTxtCol, 0.65f, 0.0f, false, true);
+
+        // UI Scale Stepper control [-] SCALE: 1.0x [+]
+        float stW = 112.0f * pcUiScale;
+        float stX = 320.0f - stW - 3.0f;
+        C2D_DrawRectSolid(stX, 1.0f, 0.64f, stW, btnBoxH, C2D_Color32(30, 30, 45, 255));
+        C2D_DrawRectSolid(stX + 1.0f, 2.0f, 0.65f, 16.0f * pcUiScale, btnBoxH - 2.0f, C2D_Color32(45, 50, 70, 255));
+        drawText("-", stX + 8.0f * pcUiScale, 1.0f + btnBoxH * 0.5f, 0.28f * pcUiScale, true, C2D_Color32(0, 210, 255, 255), 0.66f, 0.0f, false, true);
+        
+        char scaleStr[24];
+        snprintf(scaleStr, sizeof(scaleStr), "SCALE:%.2fx", pcUiScale);
+        drawText(scaleStr, stX + stW * 0.5f, 1.0f + btnBoxH * 0.5f, 0.24f * pcUiScale, true, CWhite, 0.66f, 0.0f, false, true);
+
+        C2D_DrawRectSolid(stX + stW - 16.0f * pcUiScale, 2.0f, 0.65f, 15.0f * pcUiScale, btnBoxH - 2.0f, C2D_Color32(45, 50, 70, 255));
+        drawText("+", stX + stW - 8.0f * pcUiScale, 1.0f + btnBoxH * 0.5f, 0.28f * pcUiScale, true, C2D_Color32(0, 210, 255, 255), 0.66f, 0.0f, false, true);
+
+        // Preview Footer bar & PC Mode Taskbar
+        float footerY = 240.0f - footerH;
+        C2D_DrawRectSolid(0.0f, footerY, 0.62f, 320.0f, footerH, C2D_Color32(10, 10, 16, 230));
+        C2D_DrawRectSolid(0.0f, footerY, 0.63f, 320.0f, 1.0f, C2D_Color32(0, 210, 255, 200));
+
+        if (pcMode && uiExpanded) {
+            // Windows Taskbar items on left side
+            struct TaskbarItem { int id; std::string name; float x, w; };
+            float tX0 = 3.0f;
+            float tW0 = 24.0f * pcUiScale;
+            float tW1 = 30.0f * pcUiScale;
+            float tW2 = 26.0f * pcUiScale;
+            float tW3 = 28.0f * pcUiScale;
+            float tW4 = 25.0f * pcUiScale;
+            float tW5 = 24.0f * pcUiScale;
+            TaskbarItem taskbarItems[] = {
+                { 0, "Set", tX0, tW0 },
+                { 1, "Ghost", tX0 + tW0 + 2.0f, tW1 },
+                { 2, "Char", tX0 + tW0 + tW1 + 4.0f, tW2 },
+                { 3, "Anim", tX0 + tW0 + tW1 + tW2 + 6.0f, tW3 },
+                { 4, "Cam", tX0 + tW0 + tW1 + tW2 + tW3 + 8.0f, tW4 },
+                { 5, "Ref", tX0 + tW0 + tW1 + tW2 + tW3 + tW4 + 10.0f, tW5 }
+            };
+
+            for (int i = 0; i < 6; i++) {
+                const auto& item = taskbarItems[i];
+                const UIWindow* winPtr = nullptr;
+                for (const auto& w : windows) {
+                    if (w.id == item.id) { winPtr = &w; break; }
+                }
+                if (!winPtr) continue;
+
+                bool isMinimized = !winPtr->expanded;
+                u32 btnBg = isMinimized ? C2D_Color32(35, 45, 65, 255) : C2D_Color32(20, 22, 28, 200);
+                u32 txtCol = isMinimized ? C2D_Color32(0, 210, 255, 255) : C2D_Color32(140, 145, 160, 255);
+                u32 borderCol = isMinimized ? C2D_Color32(0, 210, 255, 255) : C2D_Color32(50, 50, 65, 255);
+
+                C2D_DrawRectSolid(item.x, footerY + 1.0f, 0.64f, item.w, footerH - 2.0f, btnBg);
+                C2D_DrawLine(item.x, footerY + 1.0f, borderCol, item.x + item.w, footerY + 1.0f, borderCol, 1.0f, 0.65f);
+                C2D_DrawLine(item.x, footerY + 1.0f, borderCol, item.x, footerY + footerH - 1.0f, borderCol, 1.0f, 0.65f);
+                C2D_DrawLine(item.x + item.w, footerY + 1.0f, borderCol, item.x + item.w, footerY + footerH - 1.0f, borderCol, 1.0f, 0.65f);
+                C2D_DrawLine(item.x, footerY + footerH - 1.0f, borderCol, item.x + item.w, footerY + footerH - 1.0f, borderCol, 1.0f, 0.65f);
+
+                drawText(item.name, item.x + item.w * 0.5f, footerY + footerH * 0.5f, 0.25f * pcUiScale, true, txtCol, 0.66f, 0.0f, false, true);
+            }
+        }
+
+        // Camera / Zoom info string right-aligned on bottom bar
         {
             char footerStr[48];
             int curFr = charObj ? charObj->curFrame : 0;
             int totalFr = 0;
-            if (charObj && !animList.empty()) {
+            if (charObj && !animList.empty() && curAnimIndex < (int)animList.size()) {
                 totalFr = (int)charObj->animations[animList[curAnimIndex]].indices.size();
             }
             if (totalFr > 0) {
@@ -1480,242 +2452,13 @@ void CharacterEditorState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom)
             } else {
                 snprintf(footerStr, sizeof(footerStr), "Z:%.2fx  Cam:(%d,%d)", camZoom, (int)camX, (int)camY);
             }
-            C2D_Text footerT;
-            C2D_TextParse(&footerT, textBuf, footerStr);
-            C2D_TextOptimize(&footerT);
-            float tw = 0, th = 0;
-            C2D_TextGetDimensions(&footerT, 0.24f, 0.24f, &tw, &th);
-            C2D_DrawText(&footerT, C2D_WithColor, (320.0f - tw) * 0.5f, 226.0f + (14.0f - th) * 0.5f, 0.65f, 0.24f, 0.24f, C2D_Color32(190, 200, 215, 220));
+            drawText(footerStr, 316.0f, footerY + footerH * 0.5f, 0.25f * pcUiScale, false, C2D_Color32(190, 200, 215, 220), 0.65f, 0.0f, true, true);
         }
     }
 
-    // Draw Tab Headers (only in Normal Mode)
-    if (!pcMode) {
-        float tabW = 80.0f;
-        std::string tabLabelsNormal[] = { "Settings", "Ghost", "Character", "Animations" };
-
-        for (int i = 0; i < 4; i++) {
-            bool isActive = (i == currentTab);
-            u32 tabBg = isActive ? C2D_Color32(0, 110, 220, 255) : C2D_Color32(28, 28, 34, 255);
-
-            C2D_DrawRectSolid(i * tabW, 0.0f, 0.4f, tabW, 24.0f, tabBg);
-            C2D_DrawLine(i * tabW, 24.0f, C2D_Color32(50, 50, 65, 255), (i + 1) * tabW, 24.0f, C2D_Color32(50, 50, 65, 255), 1.0f, 0.45f);
-
-            if (isActive) {
-                // Accent underline on active tab
-                C2D_DrawRectSolid(i * tabW + 1, 21.0f, 0.45f, tabW - 2, 2.5f, C2D_Color32(0, 210, 255, 255));
-            }
-
-            C2D_Text labelT;
-            C2D_TextParse(&labelT, textBuf, tabLabelsNormal[i].c_str());
-            C2D_TextOptimize(&labelT);
-
-            float tw = 0, th = 0;
-            C2D_TextGetDimensions(&labelT, 0.35f, 0.35f, &tw, &th);
-            C2D_DrawText(&labelT, C2D_WithColor, i * tabW + (tabW - tw) * 0.5f, (24.0f - th) * 0.5f, 0.5f, 0.35f, 0.35f, C2D_Color32(255, 255, 255, 255));
-        }
-    }
-
-    // UI Helpers (Closure lambdas)
-    auto drawCheckbox = [&](float x, float y, bool checked, bool selected) {
-        float size = pcMode ? 7.0f : 14.0f;
-        float padding = pcMode ? 0.5f : 1.0f;
-        u32 borderCol = selected ? C2D_Color32(255, 170, 0, 255) : C2D_Color32(65, 65, 80, 255);
-        C2D_DrawRectSolid(x, y, 0.5f, size, size, borderCol);
-        C2D_DrawRectSolid(x + padding, y + padding, 0.55f, size - padding * 2, size - padding * 2, C2D_Color32(20, 20, 26, 255));
-        if (checked) {
-            C2D_DrawRectSolid(x + padding + (pcMode ? 0.5f : 1.0f), y + padding + (pcMode ? 0.5f : 1.0f), 0.6f, size - padding * 2 - (pcMode ? 1.0f : 2.0f), size - padding * 2 - (pcMode ? 1.0f : 2.0f), C2D_Color32(0, 190, 230, 255));
-        }
-    };
-
-    auto drawSlider = [&](float x, float y, float w, float valPct, bool selected) {
-        float lineH = pcMode ? 1.0f : 2.0f;
-        float handleW = pcMode ? 4.0f : 8.0f;
-        float handleH = pcMode ? 7.0f : 14.0f;
-        C2D_DrawRectSolid(x, y + handleH * 0.5f - lineH * 0.5f, 0.5f, w, lineH, C2D_Color32(60, 62, 78, 255));
-        C2D_DrawRectSolid(x, y + handleH * 0.5f - lineH * 0.5f, 0.51f, valPct * w, lineH, C2D_Color32(0, 190, 230, 255));
-        
-        float handleX = x + valPct * (w - handleW);
-        u32 handleCol = selected ? C2D_Color32(255, 170, 0, 255) : C2D_Color32(0, 150, 190, 255);
-        C2D_DrawRectSolid(handleX, y, 0.55f, handleW, handleH, handleCol);
-    };
-
-    auto drawButton = [&](float x, float y, float w, float h, const std::string& label, bool selected) {
-        u32 topCol = selected ? C2D_Color32(0, 130, 255, 255) : C2D_Color32(48, 50, 64, 255);
-        u32 botCol = selected ? C2D_Color32(0, 90, 200, 255) : C2D_Color32(32, 34, 46, 255);
-        C2D_DrawRectangle(x, y, 0.5f, w, h, topCol, topCol, botCol, botCol);
-        
-        u32 borderCol = selected ? C2D_Color32(0, 180, 255, 255) : C2D_Color32(60, 62, 78, 255);
-        C2D_DrawLine(x, y, borderCol, x + w, y, borderCol, 1.0f, 0.52f);
-        C2D_DrawLine(x, y, borderCol, x, y + h, borderCol, 1.0f, 0.52f);
-        C2D_DrawLine(x + w, y, borderCol, x + w, y + h, borderCol, 1.0f, 0.52f);
-        C2D_DrawLine(x, y + h, borderCol, x + w, y + h, borderCol, 1.0f, 0.52f);
-        
-        C2D_Text btnT;
-        C2D_TextParse(&btnT, textBuf, label.c_str());
-        C2D_TextOptimize(&btnT);
-        float tw = 0, th = 0;
-        float textScale = pcMode ? 0.18f : 0.35f;
-        C2D_TextGetDimensions(&btnT, textScale, textScale, &tw, &th);
-        C2D_DrawText(&btnT, C2D_WithColor, x + (w - tw) * 0.5f, y + (h - th) * 0.5f, 0.6f, textScale, textScale, C2D_Color32(255, 255, 255, 255));
-    };
-
-    auto drawArrowsVal = [&](float itemX, float itemY, float itemW, const std::string& label, const std::string& valStr, bool selected) {
-        float arrowL = pcMode ? (itemX + itemW - 32.0f) : 200.0f;
-        float arrowR = pcMode ? (itemX + itemW - 12.0f) : 280.0f;
-        float textScale = pcMode ? 0.18f : 0.35f;
-
-        if (selected) {
-            C2D_DrawRectSolid(itemX, itemY, 0.48f, 2.0f, pcMode ? 10.0f : 12.0f, C2D_Color32(255, 170, 0, 255));
-        }
-
-        C2D_Text labelT;
-        C2D_TextParse(&labelT, textBuf, label.c_str());
-        C2D_TextOptimize(&labelT);
-        C2D_DrawText(&labelT, C2D_WithColor, itemX + 4.0f, itemY + (pcMode ? 0.5f : 1.0f), 0.5f, textScale, textScale, C2D_Color32(230, 235, 245, 255));
-        
-        C2D_Text arrL;
-        C2D_TextParse(&arrL, textBuf, "<");
-        C2D_TextOptimize(&arrL);
-        C2D_DrawText(&arrL, C2D_WithColor, arrowL, itemY + (pcMode ? 0.5f : 1.0f), 0.5f, textScale, textScale, selected ? C2D_Color32(255, 170, 0, 255) : C2D_Color32(110, 112, 130, 255));
-        
-        C2D_Text valT;
-        C2D_TextParse(&valT, textBuf, valStr.c_str());
-        C2D_TextOptimize(&valT);
-        float vw = 0, vh = 0;
-        C2D_TextGetDimensions(&valT, textScale, textScale, &vw, &vh);
-        float valX = arrowL + (pcMode ? 8.0f : 15.0f) + (arrowR - arrowL - (pcMode ? 8.0f : 15.0f) - vw) * 0.5f;
-        C2D_DrawText(&valT, C2D_WithColor, valX, itemY + (pcMode ? 0.5f : 1.0f), 0.5f, textScale, textScale, selected ? C2D_Color32(255, 255, 255, 255) : C2D_Color32(0, 190, 230, 255));
-        
-        C2D_Text arrR;
-        C2D_TextParse(&arrR, textBuf, ">");
-        C2D_TextOptimize(&arrR);
-        C2D_DrawText(&arrR, C2D_WithColor, arrowR, itemY + (pcMode ? 0.5f : 1.0f), 0.5f, textScale, textScale, selected ? C2D_Color32(255, 170, 0, 255) : C2D_Color32(110, 112, 130, 255));
-    };
-
-    auto drawListBox = [&](float bx, float by, float bw, float bh, 
-                           const std::vector<std::string>& items, int selectedIdx, 
-                           float scrollY, bool activeSelected) {
-        C2D_DrawRectSolid(bx, by, 0.45f, bw, bh, C2D_Color32(20, 20, 26, 255));
-        u32 borderCol = activeSelected ? C2D_Color32(255, 170, 0, 255) : C2D_Color32(65, 65, 80, 255);
-        C2D_DrawRectSolid(bx, by, 0.46f, bw, 1.0f, borderCol);
-        C2D_DrawRectSolid(bx, by + bh - 1.0f, 0.46f, bw, 1.0f, borderCol);
-        C2D_DrawRectSolid(bx, by, 0.46f, 1.0f, bh, borderCol);
-        C2D_DrawRectSolid(bx + bw - 1.0f, by, 0.46f, 1.0f, bh, borderCol);
-        
-        float ih = pcMode ? 8.5f : 16.0f;
-        float ts = pcMode ? 0.18f : 0.38f;
-        
-        for (size_t i = 0; i < items.size(); i++) {
-            float itemY = by + i * ih - scrollY;
-            if (itemY + ih <= by || itemY >= by + bh) {
-                continue;
-            }
-            
-            bool isSel = (i == (size_t)selectedIdx);
-            u32 textCol = isSel ? C2D_Color32(0, 190, 230, 255) : C2D_Color32(220, 225, 235, 255);
-            if (isSel) {
-                C2D_DrawRectSolid(bx + (pcMode ? 1 : 2), itemY, 0.47f, bw - (pcMode ? 2 : 4), ih, C2D_Color32(0, 120, 220, 70));
-            }
-            
-            C2D_Text itemT;
-            C2D_TextParse(&itemT, textBuf, items[i].c_str());
-            C2D_TextOptimize(&itemT);
-            
-            float th = 0;
-            C2D_TextGetDimensions(&itemT, ts, ts, nullptr, &th);
-            C2D_DrawText(&itemT, C2D_WithColor, bx + (pcMode ? 3.0f : 6.0f), itemY + (ih - th) * 0.5f, 0.48f, ts, ts, textCol);
-        }
-        
-        float totalH = items.size() * ih;
-        if (totalH > bh) {
-            float barH = (bh / totalH) * bh;
-            float barY = by + (scrollY / totalH) * bh;
-            C2D_DrawRectSolid(bx + bw - (pcMode ? 2.5f : 4.0f), barY, 0.49f, (pcMode ? 1.0f : 2.0f), barH, C2D_Color32(0, 190, 230, 160));
-        }
-    };
-
-    // Helper: 1px horizontal separator between UI sections (PC mode only)
-    auto drawSectionSep = [&](float y) {
-        if (!pcMode) return;
-        C2D_DrawRectSolid(0.0f, y, 0.48f, 320.0f, 1.0f, C2D_Color32(45, 47, 60, 255));
-    };
-
-    // Helper: 2px left vertical accent bar on selected non-arrow rows
-    auto drawLeftAccent = [&](float itemX, float itemY, float h) {
-        if (pcMode) {
-            C2D_DrawRectSolid(itemX, itemY, 0.48f, 2.0f, h, C2D_Color32(255, 170, 0, 255));
-        }
-    };
-
-    // Wrap tab/accordion drawing logic
     if (pcMode) {
         if (uiExpanded) {
-            // Draw floating windows in back-to-front order (focus order)
-            for (const auto& win : windows) {
-                float winH = win.expanded ? win.h : 12.0f;
-                bool isFocused = (windows.back().id == win.id);
-
-                // 1. Soft drop shadow (offset down and right)
-                C2D_DrawRectSolid(win.x + 1.5f, win.y + 1.5f, 0.38f, win.w, winH, C2D_Color32(0, 0, 0, 75));
-
-                // 2. Frosted dark window body
-                C2D_DrawRectSolid(win.x, win.y, 0.40f, win.w, winH, C2D_Color32(22, 23, 30, 225));
-                
-                // 3. Title bar with Vertical Metallic Gradient
-                u32 titleTopCol = isFocused ? C2D_Color32(44, 46, 62, 255) : C2D_Color32(32, 33, 40, 255);
-                u32 titleBotCol = isFocused ? C2D_Color32(30, 32, 44, 255) : C2D_Color32(22, 23, 28, 255);
-                C2D_DrawRectangle(win.x, win.y, 0.45f, win.w, 12.0f, titleTopCol, titleTopCol, titleBotCol, titleBotCol);
-
-                // 4. Accent outline / border
-                u32 borderCol = isFocused ? C2D_Color32(255, 170, 0, 255) : C2D_Color32(65, 65, 80, 255);
-                C2D_DrawLine(win.x, win.y + 11.0f, borderCol, win.x + win.w, win.y + 11.0f, borderCol, 1.0f, 0.47f);
-                C2D_DrawLine(win.x, win.y, borderCol, win.x + win.w, win.y, borderCol, 1.0f, 0.48f);
-                C2D_DrawLine(win.x, win.y, borderCol, win.x, win.y + winH, borderCol, 1.0f, 0.48f);
-                C2D_DrawLine(win.x + win.w, win.y, borderCol, win.x + win.w, win.y + winH, borderCol, 1.0f, 0.48f);
-                C2D_DrawLine(win.x, win.y + winH, borderCol, win.x + win.w, win.y + winH, borderCol, 1.0f, 0.48f);
-                
-                // 5. Title text offset
-                C2D_Text titleT;
-                C2D_TextParse(&titleT, textBuf, win.title.c_str());
-                C2D_TextOptimize(&titleT);
-                float th = 0;
-                C2D_TextGetDimensions(&titleT, 0.20f, 0.20f, nullptr, &th);
-                C2D_DrawText(&titleT, C2D_WithColor, win.x + 6.0f, win.y + (12.0f - th) * 0.5f, 0.5f, 0.20f, 0.20f, isFocused ? C2D_Color32(255, 255, 255, 255) : C2D_Color32(180, 180, 195, 255));
-                
-                // 7. Collapse button [-]/[+] on the right side
-                C2D_Text btnCollapseT;
-                C2D_TextParse(&btnCollapseT, textBuf, win.expanded ? "[-]" : "[+]");
-                C2D_TextOptimize(&btnCollapseT);
-                float ctw = 0, cth = 0;
-                C2D_TextGetDimensions(&btnCollapseT, 0.20f, 0.20f, &ctw, &cth);
-                C2D_DrawText(&btnCollapseT, C2D_WithColor, win.x + win.w - 14.0f, win.y + (12.0f - cth) * 0.5f, 0.5f, 0.20f, 0.20f, C2D_Color32(0, 190, 230, 255));
-
-                if (win.id == 3 && win.expanded && charObj) {
-                    std::string curAnimName = animList.empty() ? "" : animList[animSliderIndex];
-                    if (!curAnimName.empty()) {
-                        float symY = win.y + 12.0f + 62.0f;
-                        float indY = win.y + 12.0f + 128.0f;
-                        float textScale = 0.18f;
-                        
-                        std::string prefix = charObj->animations[curAnimName].prefix;
-                        if (prefix.length() > 14) prefix = prefix.substr(0, 12) + "...";
-                        C2D_Text symT;
-                        std::string symHUD = "Symbol: " + prefix;
-                        C2D_TextParse(&symT, textBuf, symHUD.c_str());
-                        C2D_TextOptimize(&symT);
-                        C2D_DrawText(&symT, C2D_WithColor, win.x + 8.0f, symY, 0.5f, textScale, textScale, C2D_Color32(180, 180, 200, 255));
-                        
-                        C2D_Text indT;
-                        std::string indHUD = "Indices: " + getIndicesString(charObj->animations[curAnimName].indices, pcMode);
-                        C2D_TextParse(&indT, textBuf, indHUD.c_str());
-                        C2D_TextOptimize(&indT);
-                        C2D_DrawText(&indT, C2D_WithColor, win.x + 8.0f, indY, 0.5f, 0.18f, 0.18f, C2D_Color32(180, 180, 200, 255));
-                    }
-                }
-            }
-
-            auto layout = getPCLayout(windows);
+            auto layout = getPCLayout(windows, pcUiScale);
             std::vector<int> visibleOptionIds;
             for (const auto& elem : layout) {
                 if (elem.id != -1) {
@@ -1723,260 +2466,309 @@ void CharacterEditorState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom)
                 }
             }
 
-            for (const auto& elem : layout) {
-                if (elem.id != -1) {
-                    bool isSelected = (!visibleOptionIds.empty() && visibleOptionIds[curSelected] == elem.id);
+            for (size_t winIdx = 0; winIdx < windows.size(); winIdx++) {
+                const auto& win = windows[winIdx];
+                if (!win.expanded) continue;
 
-                    if (elem.id == 0) {
-                        drawListBox(elem.x, elem.y, elem.w, elem.h, characterList, curCharIndex, charScrollY, isSelected);
-                    } else if (elem.id == 1) {
-                        if (isSelected) drawLeftAccent(elem.x, elem.y, elem.h);
-                        C2D_Text playT;
-                        C2D_TextParse(&playT, textBuf, "Playable");
-                        C2D_TextOptimize(&playT);
-                        float th = 0;
-                        C2D_TextGetDimensions(&playT, 0.20f, 0.20f, nullptr, &th);
-                        C2D_DrawText(&playT, C2D_WithColor, elem.x + 4.0f, elem.y + (elem.h - th) * 0.5f, 0.5f, 0.20f, 0.20f, C2D_Color32(255, 255, 255, 255));
-                        drawCheckbox(elem.x + elem.w - 12.0f, elem.y + (elem.h - 7.0f) * 0.5f, charObj->isPlayer, isSelected);
-                    } else if (elem.id == 2) {
-                        drawButton(elem.x, elem.y, elem.w, elem.h, "RELOAD", isSelected);
-                    } else if (elem.id == 3) {
-                        drawButton(elem.x, elem.y, elem.w, elem.h, "SAVE", isSelected);
-                    } else if (elem.id == 4) {
-                        drawButton(elem.x, elem.y, elem.w, elem.h, "MAKE GHOST", isSelected);
-                    } else if (elem.id == 5) {
-                        if (isSelected) drawLeftAccent(elem.x, elem.y, elem.h);
-                        C2D_Text showT;
-                        C2D_TextParse(&showT, textBuf, "Show Ghost");
-                        C2D_TextOptimize(&showT);
-                        float th = 0;
-                        C2D_TextGetDimensions(&showT, 0.20f, 0.20f, nullptr, &th);
-                        C2D_DrawText(&showT, C2D_WithColor, elem.x + 4.0f, elem.y + (elem.h - th) * 0.5f, 0.5f, 0.20f, 0.20f, C2D_Color32(255, 255, 255, 255));
-                        drawCheckbox(elem.x + elem.w - 12.0f, elem.y + (elem.h - 7.0f) * 0.5f, showGhost, isSelected);
-                    } else if (elem.id == 6) {
-                        if (isSelected) drawLeftAccent(elem.x, elem.y, elem.h);
-                        C2D_Text highlightT;
-                        C2D_TextParse(&highlightT, textBuf, "Highlight");
-                        C2D_TextOptimize(&highlightT);
-                        float th = 0;
-                        C2D_TextGetDimensions(&highlightT, 0.20f, 0.20f, nullptr, &th);
-                        C2D_DrawText(&highlightT, C2D_WithColor, elem.x + 4.0f, elem.y + (elem.h - th) * 0.5f, 0.5f, 0.20f, 0.20f, C2D_Color32(255, 255, 255, 255));
-                        drawCheckbox(elem.x + elem.w - 12.0f, elem.y + (elem.h - 7.0f) * 0.5f, ghostHighlight, isSelected);
-                    } else if (elem.id == 7) {
-                        if (isSelected) drawLeftAccent(elem.x, elem.y, elem.h);
-                        C2D_Text alphaT;
-                        std::string alphaHUD = "Alpha: " + std::to_string(ghostAlpha).substr(0, 4);
-                        C2D_TextParse(&alphaT, textBuf, alphaHUD.c_str());
-                        C2D_TextOptimize(&alphaT);
-                        C2D_DrawText(&alphaT, C2D_WithColor, elem.x + 4.0f, elem.y, 0.5f, 0.18f, 0.18f, C2D_Color32(255, 255, 255, 255));
-                        drawSlider(elem.x + 4.0f, elem.y + 9.0f, elem.w - 8.0f, ghostAlpha, isSelected);
-                    } else if (elem.id == 10) {
-                        if (isSelected) drawLeftAccent(elem.x, elem.y, elem.h);
-                        C2D_Text flipT;
-                        C2D_TextParse(&flipT, textBuf, "Flip X");
-                        C2D_TextOptimize(&flipT);
-                        float th = 0;
-                        C2D_TextGetDimensions(&flipT, 0.20f, 0.20f, nullptr, &th);
-                        C2D_DrawText(&flipT, C2D_WithColor, elem.x + 4.0f, elem.y + (elem.h - th) * 0.5f, 0.5f, 0.20f, 0.20f, C2D_Color32(255, 255, 255, 255));
-                        drawCheckbox(elem.x + elem.w - 12.0f, elem.y + (elem.h - 7.0f) * 0.5f, charObj->flipX, isSelected);
-                    } else if (elem.id == 11) {
-                        if (isSelected) drawLeftAccent(elem.x, elem.y, elem.h);
-                        C2D_Text aaT;
-                        C2D_TextParse(&aaT, textBuf, "Antialiasing");
-                        C2D_TextOptimize(&aaT);
-                        float th = 0;
-                        C2D_TextGetDimensions(&aaT, 0.20f, 0.20f, nullptr, &th);
-                        C2D_DrawText(&aaT, C2D_WithColor, elem.x + 4.0f, elem.y + (elem.h - th) * 0.5f, 0.5f, 0.20f, 0.20f, C2D_Color32(255, 255, 255, 255));
-                        drawCheckbox(elem.x + elem.w - 12.0f, elem.y + (elem.h - 7.0f) * 0.5f, !charObj->noAntialiasing, isSelected);
-                    } else if (elem.id == 16) {
-                        if (animList.empty()) {
-                            C2D_Text noneT;
-                            C2D_TextParse(&noneT, textBuf, "No Anims Loaded");
-                            C2D_TextOptimize(&noneT);
-                            C2D_DrawText(&noneT, C2D_WithColor, elem.x + 4.0f, elem.y + 12.0f, 0.5f, 0.18f, 0.18f, C2D_Color32(255, 100, 100, 255));
-                        } else {
-                            drawListBox(elem.x, elem.y, elem.w, elem.h, animList, animSliderIndex, animScrollY, isSelected);
+                float winH = win.h;
+                bool isFocused = (winIdx == windows.size() - 1);
+                float winZ = 0.40f + winIdx * 0.05f;
+
+                C2D_DrawRectSolid(win.x + 1.5f, win.y + 1.5f, winZ, win.w, winH, C2D_Color32(0, 0, 0, 75));
+                C2D_DrawRectSolid(win.x, win.y, winZ + 0.005f, win.w, winH, C2D_Color32(22, 24, 32, 245));
+                
+                float titleH = 12.0f * pcUiScale;
+                u32 titleTopCol = isFocused ? C2D_Color32(35, 45, 60, 255) : C2D_Color32(25, 27, 34, 255);
+                u32 titleBotCol = isFocused ? C2D_Color32(20, 30, 45, 255) : C2D_Color32(18, 19, 24, 255);
+                C2D_DrawRectangle(win.x, win.y, winZ + 0.010f, win.w, titleH, titleTopCol, titleTopCol, titleBotCol, titleBotCol);
+
+                u32 borderCol = isFocused ? C2D_Color32(0, 210, 255, 255) : C2D_Color32(65, 65, 80, 255);
+                C2D_DrawLine(win.x, win.y + titleH - 1.0f, borderCol, win.x + win.w, win.y + titleH - 1.0f, borderCol, 1.0f, winZ + 0.012f);
+                C2D_DrawLine(win.x, win.y, borderCol, win.x + win.w, win.y, borderCol, 1.0f, winZ + 0.012f);
+                C2D_DrawLine(win.x, win.y, borderCol, win.x, win.y + winH, borderCol, 1.0f, winZ + 0.012f);
+                C2D_DrawLine(win.x + win.w, win.y, borderCol, win.x + win.w, win.y + winH, borderCol, 1.0f, winZ + 0.012f);
+                C2D_DrawLine(win.x, win.y + winH, borderCol, win.x + win.w, win.y + winH, borderCol, 1.0f, winZ + 0.012f);
+                
+                float winTitleTs = 0.26f * pcUiScale;
+                drawText(win.title, win.x + 6.0f * pcUiScale, win.y + titleH * 0.5f, winTitleTs, false, isFocused ? CWhite : C2D_Color32(180, 180, 195, 255), winZ + 0.015f, 0.0f, false, true);
+                drawText(win.expanded ? "[-]" : "[+]", win.x + win.w - 14.0f * pcUiScale, win.y + titleH * 0.5f, winTitleTs, false, C2D_Color32(0, 210, 255, 255), winZ + 0.015f, 0.0f, false, true);
+
+                if (win.expanded) {
+                    C2D_DrawLine(win.x + win.w - 8.0f, win.y + win.h - 2.0f, borderCol, win.x + win.w - 2.0f, win.y + win.h - 8.0f, borderCol, 1.0f, winZ + 0.02f);
+                    C2D_DrawLine(win.x + win.w - 5.0f, win.y + win.h - 2.0f, borderCol, win.x + win.w - 2.0f, win.y + win.h - 5.0f, borderCol, 1.0f, winZ + 0.02f);
+
+                    for (const auto& elem : layout) {
+                        bool belongs = false;
+                        if (win.id == 0 && (elem.id >= 0 && elem.id <= 3)) belongs = true;
+                        else if (win.id == 1 && (elem.id >= 4 && elem.id <= 7)) belongs = true;
+                        else if (win.id == 2 && (elem.id >= 8 && elem.id <= 15)) belongs = true;
+                        else if (win.id == 3 && (elem.id >= 16 && elem.id <= 20)) belongs = true;
+                        else if (win.id == 4 && (elem.id >= 21 && elem.id <= 22)) belongs = true;
+                        else if (win.id == 5 && (elem.id >= 23 && elem.id <= 29)) belongs = true;
+
+                        if (belongs) {
+                            bool isSelected = (!visibleOptionIds.empty() && curSelected < (int)visibleOptionIds.size() && visibleOptionIds[curSelected] == elem.id);
+
+                            if (elem.id == 0) {
+                                renderListBox(elem.x, elem.y, elem.w, elem.h, characterList, curCharIndex, charScrollY, isSelected, winZ + 0.025f);
+                            } else if (elem.id == 1) {
+                                if (isSelected) renderLeftAccent(elem.x, elem.y, elem.h, winZ + 0.025f);
+                                drawText("Playable", elem.x + 4.0f * pcUiScale, elem.y + elem.h * 0.5f, 0.26f * pcUiScale, false, CWhite, winZ + 0.025f, 0.0f, false, true);
+                                renderCheckbox(elem.x + elem.w - 12.0f * pcUiScale, elem.y + (elem.h - 7.0f * pcUiScale) * 0.5f, charObj->isPlayer, isSelected, winZ + 0.025f);
+                            } else if (elem.id == 2) {
+                                renderButton(elem.x, elem.y, elem.w, elem.h, "RELOAD", isSelected, winZ + 0.025f);
+                            } else if (elem.id == 3) {
+                                renderButton(elem.x, elem.y, elem.w, elem.h, "SAVE", isSelected, winZ + 0.025f);
+                            } else if (elem.id == 4) {
+                                renderButton(elem.x, elem.y, elem.w, elem.h, "MAKE GHOST", isSelected, winZ + 0.025f);
+                            } else if (elem.id == 5) {
+                                if (isSelected) renderLeftAccent(elem.x, elem.y, elem.h, winZ + 0.025f);
+                                drawText("Show Ghost", elem.x + 4.0f * pcUiScale, elem.y + elem.h * 0.5f, 0.26f * pcUiScale, false, CWhite, winZ + 0.025f, 0.0f, false, true);
+                                renderCheckbox(elem.x + elem.w - 12.0f * pcUiScale, elem.y + (elem.h - 7.0f * pcUiScale) * 0.5f, showGhost, isSelected, winZ + 0.025f);
+                            } else if (elem.id == 6) {
+                                if (isSelected) renderLeftAccent(elem.x, elem.y, elem.h, winZ + 0.025f);
+                                drawText("Highlight", elem.x + 4.0f * pcUiScale, elem.y + elem.h * 0.5f, 0.26f * pcUiScale, false, CWhite, winZ + 0.025f, 0.0f, false, true);
+                                renderCheckbox(elem.x + elem.w - 12.0f * pcUiScale, elem.y + (elem.h - 7.0f * pcUiScale) * 0.5f, ghostHighlight, isSelected, winZ + 0.025f);
+                            } else if (elem.id == 7) {
+                                if (isSelected) renderLeftAccent(elem.x, elem.y, elem.h, winZ + 0.025f);
+                                drawText("Alpha: " + fmtFloat(ghostAlpha, 2), elem.x + 4.0f * pcUiScale, elem.y + 4.0f * pcUiScale, 0.24f * pcUiScale, false, CWhite, winZ + 0.025f, 0.0f, false, true);
+                                renderSlider(elem.x + 4.0f * pcUiScale, elem.y + 9.0f * pcUiScale, elem.w - 8.0f * pcUiScale, ghostAlpha, isSelected, winZ + 0.025f);
+                            } else if (elem.id == 10) {
+                                if (isSelected) renderLeftAccent(elem.x, elem.y, elem.h, winZ + 0.025f);
+                                drawText("Flip X", elem.x + 4.0f * pcUiScale, elem.y + elem.h * 0.5f, 0.26f * pcUiScale, false, CWhite, winZ + 0.025f, 0.0f, false, true);
+                                renderCheckbox(elem.x + elem.w - 12.0f * pcUiScale, elem.y + (elem.h - 7.0f * pcUiScale) * 0.5f, charObj->flipX, isSelected, winZ + 0.025f);
+                            } else if (elem.id == 11) {
+                                if (isSelected) renderLeftAccent(elem.x, elem.y, elem.h, winZ + 0.025f);
+                                drawText("Antialiasing", elem.x + 4.0f * pcUiScale, elem.y + elem.h * 0.5f, 0.26f * pcUiScale, false, CWhite, winZ + 0.025f, 0.0f, false, true);
+                                renderCheckbox(elem.x + elem.w - 12.0f * pcUiScale, elem.y + (elem.h - 7.0f * pcUiScale) * 0.5f, !charObj->noAntialiasing, isSelected, winZ + 0.025f);
+                            } else if (elem.id == 16) {
+                                if (animList.empty()) {
+                                    drawText("No Anims Loaded", elem.x + 4.0f * pcUiScale, elem.y + 12.0f * pcUiScale, 0.24f * pcUiScale, false, C2D_Color32(255, 100, 100, 255), winZ + 0.025f);
+                                } else {
+                                    renderListBox(elem.x, elem.y, elem.w, elem.h, animList, animSliderIndex, animScrollY, isSelected, winZ + 0.025f);
+                                }
+                            } else if (elem.id == 18) {
+                                if (isSelected) renderLeftAccent(elem.x, elem.y, elem.h, winZ + 0.025f);
+                                drawText("Loop", elem.x + 4.0f * pcUiScale, elem.y + elem.h * 0.5f, 0.26f * pcUiScale, false, CWhite, winZ + 0.025f, 0.0f, false, true);
+                                bool loopVal = (!animList.empty() && animSliderIndex < (int)animList.size()) ? charObj->animations[animList[animSliderIndex]].loop : false;
+                                renderCheckbox(elem.x + elem.w - 12.0f * pcUiScale, elem.y + (elem.h - 7.0f * pcUiScale) * 0.5f, loopVal, isSelected, winZ + 0.025f);
+                            } else if (elem.id == 21) {
+                                if (isSelected) renderLeftAccent(elem.x, elem.y, elem.h, winZ + 0.025f);
+                                drawText("Enable Frame", elem.x + 4.0f * pcUiScale, elem.y + elem.h * 0.5f, 0.26f * pcUiScale, false, CWhite, winZ + 0.025f, 0.0f, false, true);
+                                renderCheckbox(elem.x + elem.w - 12.0f * pcUiScale, elem.y + (elem.h - 7.0f * pcUiScale) * 0.5f, showCamBounds, isSelected, winZ + 0.025f);
+                            } else if (elem.id == 23) {
+                                renderListBox(elem.x, elem.y, elem.w, elem.h, characterList, curRefCharIndex, refCharScrollY, isSelected, winZ + 0.025f);
+                            } else if (elem.id == 29) {
+                                if (refAnimList.empty()) {
+                                    drawText("No Ref Anims", elem.x + 4.0f * pcUiScale, elem.y + 8.0f * pcUiScale, 0.24f * pcUiScale, false, C2D_Color32(255, 100, 100, 255), winZ + 0.025f);
+                                } else {
+                                    renderListBox(elem.x, elem.y, elem.w, elem.h, refAnimList, refAnimSliderIndex, refAnimScrollY, isSelected, winZ + 0.025f);
+                                }
+                            } else if (elem.id == 24) {
+                                if (isSelected) renderLeftAccent(elem.x, elem.y, elem.h, winZ + 0.025f);
+                                drawText("Show Ref", elem.x + 4.0f * pcUiScale, elem.y + elem.h * 0.5f, 0.26f * pcUiScale, false, CWhite, winZ + 0.025f, 0.0f, false, true);
+                                renderCheckbox(elem.x + elem.w - 12.0f * pcUiScale, elem.y + (elem.h - 7.0f * pcUiScale) * 0.5f, showRefChar, isSelected, winZ + 0.025f);
+                            } else if (elem.id == 26) {
+                                if (isSelected) renderLeftAccent(elem.x, elem.y, elem.h, winZ + 0.025f);
+                                drawText("Ref Alpha: " + fmtFloat(refAlpha, 2), elem.x + 4.0f * pcUiScale, elem.y + 4.0f * pcUiScale, 0.24f * pcUiScale, false, CWhite, winZ + 0.025f, 0.0f, false, true);
+                                renderSlider(elem.x + 4.0f * pcUiScale, elem.y + 9.0f * pcUiScale, elem.w - 8.0f * pcUiScale, refAlpha, isSelected, winZ + 0.025f);
+                            } else {
+                                std::string valStr = "";
+                                if (elem.id == 8) valStr = fmtFloat(charObj->singDuration, 2);
+                                else if (elem.id == 9) valStr = fmtFloat(charObj->charScale, 2);
+                                else if (elem.id == 12) valStr = std::to_string((int)charObj->x);
+                                else if (elem.id == 13) valStr = std::to_string((int)charObj->y);
+                                else if (elem.id == 14) valStr = std::to_string((int)charObj->camOffsetX);
+                                else if (elem.id == 15) valStr = std::to_string((int)charObj->camOffsetY);
+                                else if (elem.id == 17) valStr = (animList.empty() || animSliderIndex >= (int)animList.size()) ? "0" : std::to_string(charObj->animations[animList[animSliderIndex]].fps);
+                                else if (elem.id == 19) valStr = (animList.empty() || animSliderIndex >= (int)animList.size()) ? "0" : std::to_string((int)charObj->animations[animList[animSliderIndex]].offsetX);
+                                else if (elem.id == 20) valStr = (animList.empty() || animSliderIndex >= (int)animList.size()) ? "0" : std::to_string((int)charObj->animations[animList[animSliderIndex]].offsetY);
+                                else if (elem.id == 22) valStr = fmtFloat(simCamZoom, 2) + "x";
+                                else if (elem.id == 27) valStr = std::to_string((int)(refObj ? refObj->x : 0));
+                                else if (elem.id == 28) valStr = std::to_string((int)(refObj ? refObj->y : 0));
+
+                                renderArrowsVal(elem.x, elem.y, elem.w, elem.label, valStr, isSelected, winZ + 0.025f);
+                            }
                         }
-                    } else if (elem.id == 18) {
-                        if (isSelected) drawLeftAccent(elem.x, elem.y, elem.h);
-                        C2D_Text loopT;
-                        C2D_TextParse(&loopT, textBuf, "Loop");
-                        C2D_TextOptimize(&loopT);
-                        float th = 0;
-                        C2D_TextGetDimensions(&loopT, 0.20f, 0.20f, nullptr, &th);
-                        C2D_DrawText(&loopT, C2D_WithColor, elem.x + 4.0f, elem.y + (elem.h - th) * 0.5f, 0.5f, 0.20f, 0.20f, C2D_Color32(255, 255, 255, 255));
-                        drawCheckbox(elem.x + elem.w - 12.0f, elem.y + (elem.h - 7.0f) * 0.5f, animList.empty() ? false : charObj->animations[animList[animSliderIndex]].loop, isSelected);
-                    } else {
-                        std::string valStr = "";
-                        if (elem.id == 8) valStr = std::to_string(charObj->singDuration).substr(0, 4);
-                        else if (elem.id == 9) valStr = std::to_string(charObj->charScale).substr(0, 4);
-                        else if (elem.id == 12) valStr = std::to_string((int)charObj->x);
-                        else if (elem.id == 13) valStr = std::to_string((int)charObj->y);
-                        else if (elem.id == 14) valStr = std::to_string((int)charObj->camOffsetX);
-                        else if (elem.id == 15) valStr = std::to_string((int)charObj->camOffsetY);
-                        else if (elem.id == 17) valStr = animList.empty() ? "0" : std::to_string(charObj->animations[animList[animSliderIndex]].fps);
-                        else if (elem.id == 19) valStr = animList.empty() ? "0" : std::to_string((int)charObj->animations[animList[animSliderIndex]].offsetX);
-                        else if (elem.id == 20) valStr = animList.empty() ? "0" : std::to_string((int)charObj->animations[animList[animSliderIndex]].offsetY);
-
-                        drawArrowsVal(elem.x, elem.y, elem.w, elem.label, valStr, isSelected);
                     }
                 }
             }
         }
     } else {
-        // Draw Tab Contents (Normal Mode)
+        float tabW = 53.33f;
+        std::string tabLabelsNormal[] = { "SET", "GHOST", "CHAR", "ANIM", "CAM", "REF" };
+
+        C2D_DrawRectSolid(0, 0, 0.35f, 320, 24, C2D_Color32(10, 10, 16, 245));
+        C2D_DrawRectSolid(0, 23, 0.36f, 320, 1, C2D_Color32(0, 210, 255, 255));
+
+        for (int i = 0; i < 6; i++) {
+            bool isActive = (i == currentTab);
+            u32 tabBg = isActive ? C2D_Color32(0, 110, 200, 255) : C2D_Color32(22, 24, 32, 255);
+
+            C2D_DrawRectSolid(i * tabW, 0.0f, 0.40f, tabW, 23.0f, tabBg);
+            C2D_DrawLine(i * tabW, 0.0f, C2D_Color32(50, 55, 75, 255), i * tabW, 23.0f, C2D_Color32(50, 55, 75, 255), 1.0f, 0.42f);
+
+            if (isActive) {
+                C2D_DrawRectSolid(i * tabW + 1, 21.0f, 0.45f, tabW - 2, 2.0f, C2D_Color32(0, 210, 255, 255));
+            }
+
+            drawText(tabLabelsNormal[i], i * tabW + tabW * 0.5f, 11.5f, 0.30f, true, isActive ? CWhite : C2D_Color32(170, 180, 200, 255), 0.50f, 0.0f, false, true);
+        }
+
         if (currentTab == 0) {
             float boxX = 10.0f;
-            float boxY = 32.0f;
+            float boxY = 28.0f;
             float boxW = 300.0f;
-            float boxH = 80.0f;
-            drawListBox(boxX, boxY, boxW, boxH, characterList, curCharIndex, charScrollY, curSelected == 0);
-            drawSectionSep(120.0f);
-            float playY = 120.0f;
-            float textScale = 0.38f;
-            C2D_Text playT;
-            C2D_TextParse(&playT, textBuf, "Playable");
-            C2D_TextOptimize(&playT);
-            C2D_DrawText(&playT, C2D_WithColor, 8.0f, playY, 0.5f, textScale, textScale, C2D_Color32(255, 255, 255, 255));
-            drawCheckbox(320.0f - 25.0f, playY, charObj->isPlayer, curSelected == 1);
-            drawSectionSep(140.0f);
+            float boxH = 82.0f;
+            renderListBox(boxX, boxY, boxW, boxH, characterList, curCharIndex, charScrollY, curSelected == 0);
+            
+            float playY = 118.0f;
+            drawText("Playable Character", 12.0f, playY + 10.0f, 0.35f, false, CWhite, 0.5f, 0.0f, false, true);
+            renderCheckbox(320.0f - 25.0f, playY + 3.0f, charObj->isPlayer, curSelected == 1);
+            
             float btnY1 = 145.0f;
             float btnY2 = 175.0f;
-            float btnH = 20.0f;
-            drawButton(10.0f, btnY1, 300.0f, btnH, "RELOAD CHARACTER", curSelected == 2);
-            drawButton(10.0f, btnY2, 300.0f, btnH, "SAVE CHARACTER", curSelected == 3);
+            float btnH = 24.0f;
+            renderButton(10.0f, btnY1, 300.0f, btnH, "RELOAD CHARACTER", curSelected == 2);
+            renderButton(10.0f, btnY2, 300.0f, btnH, "SAVE CHARACTER", curSelected == 3);
         }
         else if (currentTab == 1) {
-            float btnY = 32.0f;
-            float btnH = 20.0f;
-            drawButton(10.0f, btnY, 300.0f, btnH, "MAKE GHOST FROM CURRENT", curSelected == 0);
-            drawSectionSep(46.0f);
-            float checkShowY = 62.0f;
-            float checkHighY = 82.0f;
-            float textScale = 0.38f;
-            C2D_Text showT;
-            C2D_TextParse(&showT, textBuf, "Show Ghost");
-            C2D_TextOptimize(&showT);
-            C2D_DrawText(&showT, C2D_WithColor, 8.0f, checkShowY, 0.5f, textScale, textScale, C2D_Color32(255, 255, 255, 255));
-            drawCheckbox(320.0f - 25.0f, checkShowY, showGhost, curSelected == 1);
-            C2D_Text highlightT;
-            C2D_TextParse(&highlightT, textBuf, "Highlight Ghost");
-            C2D_TextOptimize(&highlightT);
-            C2D_DrawText(&highlightT, C2D_WithColor, 8.0f, checkHighY, 0.5f, textScale, textScale, C2D_Color32(255, 255, 255, 255));
-            drawCheckbox(320.0f - 25.0f, checkHighY, ghostHighlight, curSelected == 2);
-            drawSectionSep(84.0f);
-            float alphaY = 106.0f;
-            float sliderX = 20.0f;
-            float sliderY = 120.0f;
-            float sliderW = 280.0f;
-            C2D_Text alphaT;
-            std::string alphaHUD = "Ghost Alpha: " + std::to_string(ghostAlpha).substr(0, 4);
-            C2D_TextParse(&alphaT, textBuf, alphaHUD.c_str());
-            C2D_TextOptimize(&alphaT);
-            C2D_DrawText(&alphaT, C2D_WithColor, 8.0f, alphaY, 0.5f, 0.35f, 0.35f, C2D_Color32(255, 255, 255, 255));
-            drawSlider(sliderX, sliderY, sliderW, ghostAlpha, curSelected == 3);
+            float btnY = 30.0f;
+            float btnH = 26.0f;
+            renderButton(10.0f, btnY, 300.0f, btnH, "MAKE GHOST FROM CURRENT", curSelected == 0);
+            
+            float checkShowY = 64.0f;
+            float checkHighY = 88.0f;
+            drawText("Show Ghost", 12.0f, checkShowY + 10.0f, 0.35f, false, CWhite, 0.5f, 0.0f, false, true);
+            renderCheckbox(320.0f - 25.0f, checkShowY + 3.0f, showGhost, curSelected == 1);
+            
+            drawText("Highlight Ghost", 12.0f, checkHighY + 10.0f, 0.35f, false, CWhite, 0.5f, 0.0f, false, true);
+            renderCheckbox(320.0f - 25.0f, checkHighY + 3.0f, ghostHighlight, curSelected == 2);
+            
+            float alphaY = 114.0f;
+            float sliderX = 15.0f;
+            float sliderY = 136.0f;
+            float sliderW = 290.0f;
+            drawText("Ghost Alpha: " + fmtFloat(ghostAlpha, 2), 12.0f, alphaY + 6.0f, 0.35f, false, CWhite, 0.5f, 0.0f, false, true);
+            renderSlider(sliderX, sliderY, sliderW, ghostAlpha, curSelected == 3);
         }
         else if (currentTab == 2) {
             for (int i = 0; i < 8; i++) {
-                float itemY = 32.0f + i * 20.0f;
+                float itemY = 28.0f + i * 24.0f;
                 bool selected = (curSelected == i);
-                float textScale = 0.38f;
                 if (i == 0) {
-                    drawArrowsVal(0.0f, itemY, 320.0f, "Sing Length", std::to_string(charObj->singDuration).substr(0, 4), selected);
+                    renderArrowsVal(0.0f, itemY, 320.0f, "Sing Length", fmtFloat(charObj->singDuration, 2), selected);
                 } else if (i == 1) {
-                    drawArrowsVal(0.0f, itemY, 320.0f, "Scale", std::to_string(charObj->charScale).substr(0, 4), selected);
+                    renderArrowsVal(0.0f, itemY, 320.0f, "Scale", fmtFloat(charObj->charScale, 2), selected);
                 } else if (i == 2) {
-                    C2D_Text flipT;
-                    C2D_TextParse(&flipT, textBuf, "Flip X");
-                    C2D_TextOptimize(&flipT);
-                    C2D_DrawText(&flipT, C2D_WithColor, 8.0f, itemY, 0.5f, textScale, textScale, C2D_Color32(255, 255, 255, 255));
-                    drawCheckbox(320.0f - 25.0f, itemY, charObj->flipX, selected);
+                    drawText("Flip X", 12.0f, itemY + 12.0f, 0.35f, false, CWhite, 0.5f, 0.0f, false, true);
+                    renderCheckbox(320.0f - 25.0f, itemY + 5.0f, charObj->flipX, selected);
                 } else if (i == 3) {
-                    C2D_Text aaT;
-                    C2D_TextParse(&aaT, textBuf, "Antialiasing");
-                    C2D_TextOptimize(&aaT);
-                    C2D_DrawText(&aaT, C2D_WithColor, 8.0f, itemY, 0.5f, textScale, textScale, C2D_Color32(255, 255, 255, 255));
-                    drawCheckbox(320.0f - 25.0f, itemY, !charObj->noAntialiasing, selected);
+                    drawText("Antialiasing", 12.0f, itemY + 12.0f, 0.35f, false, CWhite, 0.5f, 0.0f, false, true);
+                    renderCheckbox(320.0f - 25.0f, itemY + 5.0f, !charObj->noAntialiasing, selected);
                 } else if (i == 4) {
-                    drawArrowsVal(0.0f, itemY, 320.0f, "Pos X", std::to_string((int)charObj->x), selected);
+                    renderArrowsVal(0.0f, itemY, 320.0f, "Pos X", std::to_string((int)charObj->x), selected);
                 } else if (i == 5) {
-                    drawArrowsVal(0.0f, itemY, 320.0f, "Pos Y", std::to_string((int)charObj->y), selected);
+                    renderArrowsVal(0.0f, itemY, 320.0f, "Pos Y", std::to_string((int)charObj->y), selected);
                 } else if (i == 6) {
-                    drawArrowsVal(0.0f, itemY, 320.0f, "Cam Off X", std::to_string((int)charObj->camOffsetX), selected);
+                    renderArrowsVal(0.0f, itemY, 320.0f, "Cam Off X", std::to_string((int)charObj->camOffsetX), selected);
                 } else if (i == 7) {
-                    drawArrowsVal(0.0f, itemY, 320.0f, "Cam Off Y", std::to_string((int)charObj->camOffsetY), selected);
+                    renderArrowsVal(0.0f, itemY, 320.0f, "Cam Off Y", std::to_string((int)charObj->camOffsetY), selected);
                 }
             }
         }
         else if (currentTab == 3) {
             if (animList.empty()) {
-                C2D_Text noneT;
-                C2D_TextParse(&noneT, textBuf, "No Animations Loaded");
-                C2D_TextOptimize(&noneT);
-                C2D_DrawText(&noneT, C2D_WithColor, 12.0f, 50.0f, 0.5f, 0.45f, 0.45f, C2D_Color32(255, 100, 100, 255));
+                drawText("No Animations Loaded", 160.0f, 60.0f, 0.45f, true, C2D_Color32(255, 100, 100, 255), 0.5f, 0.0f, false, true);
             } else {
                 float boxX = 10.0f;
-                float boxY = 32.0f;
+                float boxY = 28.0f;
                 float boxW = 300.0f;
-                float boxH = 80.0f;
-                drawListBox(boxX, boxY, boxW, boxH, animList, animSliderIndex, animScrollY, curSelected == 0);
-                drawSectionSep(120.0f);
-                std::string curAnimName = animList[animSliderIndex];
-                float symY = 120.0f;
-                float fpsY = 138.0f;
-                float loopY = 156.0f;
-                float offXY = 174.0f;
-                float offYY = 192.0f;
-                float indY = 210.0f;
-                float textScale = 0.35f;
+                float boxH = 70.0f;
+                renderListBox(boxX, boxY, boxW, boxH, animList, animSliderIndex, animScrollY, curSelected == 0);
+                
+                std::string curAnimName = (animSliderIndex < (int)animList.size()) ? animList[animSliderIndex] : "";
+                if (!curAnimName.empty()) {
+                    float symY = 102.0f;
+                    float fpsY = 122.0f;
+                    float loopY = 144.0f;
+                    float offXY = 166.0f;
+                    float offYY = 188.0f;
+                    float indY = 210.0f;
 
-                std::string prefix = charObj->animations[curAnimName].prefix;
-                if (prefix.length() > 32) prefix = prefix.substr(0, 30) + "...";
-                C2D_Text symT;
-                std::string symHUD = "Symbol: " + prefix;
-                C2D_TextParse(&symT, textBuf, symHUD.c_str());
-                C2D_TextOptimize(&symT);
-                C2D_DrawText(&symT, C2D_WithColor, 8.0f, symY, 0.5f, textScale, textScale, C2D_Color32(200, 200, 220, 255));
+                    std::string prefix = charObj->animations[curAnimName].prefix;
+                    if (prefix.length() > 32) prefix = prefix.substr(0, 30) + "...";
+                    drawText("Symbol: " + prefix, 12.0f, symY + 6.0f, 0.30f, false, C2D_Color32(200, 200, 220, 255), 0.5f, 0.0f, false, true);
 
-                drawArrowsVal(0.0f, fpsY, 320.0f, "FPS", std::to_string(charObj->animations[curAnimName].fps), curSelected == 1);
-                drawSectionSep(152.0f);
-                C2D_Text loopT;
-                C2D_TextParse(&loopT, textBuf, "Loop");
-                C2D_TextOptimize(&loopT);
-                C2D_DrawText(&loopT, C2D_WithColor, 8.0f, loopY, 0.5f, 0.38f, 0.38f, C2D_Color32(255, 255, 255, 255));
-                drawCheckbox(320.0f - 25.0f, loopY, charObj->animations[curAnimName].loop, curSelected == 2);
-                drawSectionSep(168.0f);
-                drawArrowsVal(0.0f, offXY, 320.0f, "Offset X", std::to_string((int)charObj->animations[curAnimName].offsetX), curSelected == 3);
-                drawArrowsVal(0.0f, offYY, 320.0f, "Offset Y", std::to_string((int)charObj->animations[curAnimName].offsetY), curSelected == 4);
+                    renderArrowsVal(0.0f, fpsY, 320.0f, "FPS", std::to_string(charObj->animations[curAnimName].fps), curSelected == 1);
+                    drawText("Loop", 12.0f, loopY + 10.0f, 0.35f, false, CWhite, 0.5f, 0.0f, false, true);
+                    renderCheckbox(320.0f - 25.0f, loopY + 3.0f, charObj->animations[curAnimName].loop, curSelected == 2);
+                    renderArrowsVal(0.0f, offXY, 320.0f, "Offset X", std::to_string((int)charObj->animations[curAnimName].offsetX), curSelected == 3);
+                    renderArrowsVal(0.0f, offYY, 320.0f, "Offset Y", std::to_string((int)charObj->animations[curAnimName].offsetY), curSelected == 4);
 
-                C2D_Text indT;
-                std::string indHUD = "Indices: " + getIndicesString(charObj->animations[curAnimName].indices, pcMode);
-                C2D_TextParse(&indT, textBuf, indHUD.c_str());
-                C2D_TextOptimize(&indT);
-                C2D_DrawText(&indT, C2D_WithColor, 8.0f, indY, 0.5f, 0.32f, 0.32f, C2D_Color32(180, 180, 200, 255));
+                    drawText("Indices: " + getIndicesString(charObj->animations[curAnimName].indices, pcMode), 12.0f, indY + 6.0f, 0.28f, false, C2D_Color32(180, 180, 200, 255), 0.5f, 0.0f, false, true);
+                }
             }
+        }
+        else if (currentTab == 4) {
+            float checkShowY = 40.0f;
+            drawText("Enable Camera Frame", 12.0f, checkShowY + 10.0f, 0.35f, false, CWhite, 0.5f, 0.0f, false, true);
+            renderCheckbox(320.0f - 25.0f, checkShowY + 3.0f, showCamBounds, curSelected == 0);
+
+            float zoomY = 80.0f;
+            renderArrowsVal(0.0f, zoomY, 320.0f, "Camera Zoom", fmtFloat(simCamZoom, 2) + "x", curSelected == 1);
+        }
+        else if (currentTab == 5) {
+            float box1X = 10.0f, box1Y = 27.0f, box1W = 300.0f, box1H = 48.0f;
+            renderListBox(box1X, box1Y, box1W, box1H, characterList, curRefCharIndex, refCharScrollY, curSelected == 0);
+
+            float box2X = 10.0f, box2Y = 78.0f, box2W = 300.0f, box2H = 48.0f;
+            if (refAnimList.empty()) {
+                drawText("No Ref Anims Loaded", 160.0f, 98.0f, 0.35f, true, C2D_Color32(255, 100, 100, 255), 0.5f, 0.0f, false, true);
+            } else {
+                renderListBox(box2X, box2Y, box2W, box2H, refAnimList, refAnimSliderIndex, refAnimScrollY, curSelected == 1);
+            }
+
+            float checkShowY = 126.0f;
+            float alphaY = 148.0f;
+            float sliderX = 15.0f;
+            float sliderY = 166.0f;
+            float sliderW = 290.0f;
+            float posX_Y = 184.0f;
+            float posY_Y = 206.0f;
+
+            drawText("Show Reference", 12.0f, checkShowY + 10.0f, 0.35f, false, CWhite, 0.5f, 0.0f, false, true);
+            renderCheckbox(320.0f - 25.0f, checkShowY + 3.0f, showRefChar, curSelected == 2);
+
+            drawText("Ref Alpha: " + fmtFloat(refAlpha, 2), 12.0f, alphaY + 6.0f, 0.35f, false, CWhite, 0.5f, 0.0f, false, true);
+            renderSlider(sliderX, sliderY, sliderW, refAlpha, curSelected == 3);
+
+            renderArrowsVal(0.0f, posX_Y, 320.0f, "Ref Pos X", std::to_string((int)(refObj ? refObj->x : 0)), curSelected == 4);
+            renderArrowsVal(0.0f, posY_Y, 320.0f, "Ref Pos Y", std::to_string((int)(refObj ? refObj->y : 0)), curSelected == 5);
         }
     }
 
-    // Save message Banner
     if (saveMessageTimer > 0.0f) {
         float alpha = 1.0f;
         if (saveMessageTimer < 0.5f) {
             alpha = saveMessageTimer / 0.5f;
         }
-        u32 bannerColor = C2D_Color32(0, 180, 0, (u8)(200 * alpha));
-        u32 textColor = C2D_Color32(255, 255, 255, (u8)(255 * alpha));
+        u32 bannerColor = C2D_Color32(16, 45, 30, (u8)(230 * alpha));
+        u32 borderColor = C2D_Color32(30, 120, 70, (u8)(255 * alpha));
+        u32 textColor = C2D_Color32(80, 240, 120, (u8)(255 * alpha));
 
-        float bannerW = (panelW > 0.0f) ? (panelW - 20.0f) : 120.0f;
-        float bannerX = (panelW > 0.0f) ? 10.0f : 100.0f;
-        C2D_DrawRectSolid(bannerX, 100.0f, 0.95f, bannerW, 40.0f, bannerColor);
+        float bannerW = 220.0f;
+        float bannerX = (320.0f - bannerW) * 0.5f;
+        float bannerY = 100.0f;
+        float bannerH = 40.0f;
+
+        C2D_DrawRectSolid(bannerX, bannerY, 0.95f, bannerW, bannerH, bannerColor);
+        C2D_DrawLine(bannerX, bannerY, borderColor, bannerX + bannerW, bannerY, borderColor, 1.0f, 0.96f);
+        C2D_DrawLine(bannerX, bannerY, borderColor, bannerX, bannerY + bannerH, borderColor, 1.0f, 0.96f);
+        C2D_DrawLine(bannerX + bannerW, bannerY, borderColor, bannerX + bannerW, bannerY + bannerH, borderColor, 1.0f, 0.96f);
+        C2D_DrawLine(bannerX, bannerY + bannerH, borderColor, bannerX + bannerW, bannerY + bannerH, borderColor, 1.0f, 0.96f);
         
-        C2D_Text msgT;
-        C2D_TextParse(&msgT, textBuf, "CHARACTER SAVED!");
-        C2D_TextOptimize(&msgT);
-        float tw = 0, th = 0;
-        C2D_TextGetDimensions(&msgT, 0.55f, 0.55f, &tw, &th);
-        C2D_DrawText(&msgT, C2D_WithColor, bannerX + (bannerW - tw) * 0.5f, 100.0f + (40.0f - th) * 0.5f, 0.95f, 0.55f, 0.55f, textColor);
+        drawText("CHARACTER SAVED!", bannerX + bannerW * 0.5f, bannerY + bannerH * 0.5f, 0.45f, true, textColor, 0.98f);
     }
 }
 

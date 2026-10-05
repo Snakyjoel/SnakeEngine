@@ -14,6 +14,7 @@ void ShaderManager::drawCRT(const RT& rt, C3D_RenderTarget* dest, float strength
     
     float centerY = (rt.img.subtex->height * scaleY) / 2.0f;
     float centerX = (rt.img.subtex->width * scaleX) / 2.0f;
+    float curveAmount = 0.03f * strength; // 3% curvature
     
     for (int i = 0; i < numStrips; i++) {
         float origDrawY = i * stripH * scaleY;
@@ -22,7 +23,6 @@ void ShaderManager::drawCRT(const RT& rt, C3D_RenderTarget* dest, float strength
         float distY = (origDrawY - centerY) / centerY; 
         
         // Curve equation: narrow the width and height at the top and bottom
-        float curveAmount = 0.03f * strength; // 3% curvature
         float scaleVal = 1.0f - (distY * distY * curveAmount);
         
         float drawW = rt.img.subtex->width * scaleX * scaleVal;
@@ -45,7 +45,9 @@ void ShaderManager::drawCRT(const RT& rt, C3D_RenderTarget* dest, float strength
     C2D_Flush();
     
     // Scanlines
+    u32 scanColor = C2D_Color32(0, 0, 0, (u8)(80 * strength));
+    float scanW = rt.img.subtex->width * scaleX;
     for (int i = 0; i < rt.img.subtex->height; i += 4) {
-        C2D_DrawRectSolid(x, y + i, 0.0f, rt.img.subtex->width * scaleX, 2.0f, C2D_Color32(0, 0, 0, 80 * strength));
+        C2D_DrawRectSolid(x, y + i, 0.0f, scanW, 2.0f, scanColor);
     }
 }

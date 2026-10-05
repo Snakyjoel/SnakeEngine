@@ -1,9 +1,11 @@
 #pragma once
+#include "../backend/SpritesheetCache.hpp"
 #include "../backend/MusicBeatState.hpp"
 #include "../backend/ModHandler.hpp"
 #include <vector>
 #include <citro2d.h>
 #include <unordered_map>
+#include <unordered_set>
 #include <string>
 
 #include "../objects/Alphabet.hpp"
@@ -38,10 +40,12 @@ private:
     std::vector<ModMetadata>& getActiveList();
 
     int curSelected = 0;
+    int lastSelectedCheck = -1;
     int subSelected = 0;
     C2D_Font vcrFont = nullptr;
+    C2D_Font customFont = nullptr;
     C2D_TextBuf vcrFontBuf = nullptr;
-    MenuButton btnArrowUp, btnArrowDown, btnTop, btnPlay, btnOnOff, btnConvertAssets;
+    MenuButton btnArrowUp, btnArrowDown, btnTop, btnPlay, btnOnOff, btnConvertAssets, btnDone;
 
     std::unordered_map<std::string, ModIconEntry> modIconCache;
     int cacheFrameCount = 0;
@@ -51,13 +55,35 @@ private:
 
     C2D_Image getModIcon(int idx);
     C2D_Image getFallbackIcon();
+    void updateIconWindow();
     void enforceLRUCache(std::unordered_map<std::string, ModIconEntry>& cache, size_t maxSize);
-    C2D_Image imgMenuBG, imgMenuBGB;
-    C2D_SpriteSheet sheetMenuBG = nullptr, sheetMenuBGB = nullptr;
+    CachedSpritesheet* modMenuSheet = nullptr;
+    Frame bgFrame;
+    Frame bgwiresFrame;
+    Frame batteryFrame;
+    Frame baseIconFrame;
+    Frame fallbackIconFrame;
+    Frame convertFrame;
+    Frame doneFrame;
+    Frame downFrame;
+    Frame upFrame;
+    Frame topFrame;
+    Frame topTextFrame;
+    Frame toggleFrame;
+    Frame wire4Frame;
+    Frame wire5Frame;
+    Frame wire6Frame;
+    Frame wire7Frame;
+    Frame wire8Frame;
+    Frame wireGFFrame;
 
     float gridOffset = 0;
     float lerpSelected = 0;
     float lerpSubSelected = 0.0f;
+    float textScrollTime = 0.0f;
+    float loadingAngle = 0.0f;
+    int touchedBtnIdx = -1;
+    float btnAnimTimer = 0.0f;
     u32 targetColor = C2D_Color32(20, 20, 25, 255);
     u32 currentColor = C2D_Color32(20, 20, 25, 255);
     float conversionProgress = 0;

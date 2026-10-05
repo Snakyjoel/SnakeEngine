@@ -125,10 +125,15 @@ extern C2D_Font globalVCRFont;
     vcrFont = globalVCRFont; \
     vcrFontBuf = C2D_TextBufNew(4096);
 
-// State
-
-// Input
 extern bool g_inTransition;
+extern bool g_isRightEye;
+extern float g_current3DSlider;
+
+inline float get3DOffset(float depth) {
+    if (g_current3DSlider <= 0.001f || depth == 0.0f) return 0.0f;
+    float offset = (depth * g_current3DSlider * 0.4f);
+    return g_isRightEye ? -offset : offset;
+}
 #undef hidKeysDown
 #undef hidKeysHeld
 #undef hidKeysUp
@@ -164,6 +169,14 @@ extern bool g_inTransition;
 #define drawImageTinted(img, x, y, z, tint) C2D_DrawImageAt(img, x, y, z, tint)
 #define drawImageScaledTinted(img, x, y, z, sx, sy, tint) C2D_DrawImageAt(img, x, y, z, tint, sx, sy)
 
+// 3D-enabled drawing macros (applies stereoscopic 3D offset automatically)
+#define drawImage3D(img, x, y, z, depth3D) C2D_DrawImageAt(img, (x) + get3DOffset(depth3D), y, z)
+#define drawImageScaled3D(img, x, y, z, sx, sy, depth3D) C2D_DrawImageAt(img, (x) + get3DOffset(depth3D), y, z, nullptr, sx, sy)
+#define drawImageTinted3D(img, x, y, z, tint, depth3D) C2D_DrawImageAt(img, (x) + get3DOffset(depth3D), y, z, tint)
+#define drawImageScaledTinted3D(img, x, y, z, sx, sy, tint, depth3D) C2D_DrawImageAt(img, (x) + get3DOffset(depth3D), y, z, tint, sx, sy)
+#define drawFrameAt3D(f, x, y, depth, depth3D, tint, sx, sy) drawFrameAt(f, (x) + get3DOffset(depth3D), y, depth, tint, sx, sy)
+#define drawFrameCentered3D(f, cx, cy, depth, depth3D, tint, sx, sy) drawFrameCentered(f, (cx) + get3DOffset(depth3D), cy, depth, tint, sx, sy)
+
 static inline void drawCenteredBG(C2D_Image img, float targetW, float targetH, float depth, C2D_ImageTint* tint = nullptr) {
     if (!img.tex) return;
     float minScaleX = targetW / img.subtex->width;
@@ -196,12 +209,12 @@ static inline float frameLogicalH(const Frame& f) {
 static inline void drawFrameAt(const Frame& f, float x, float y, float depth, C2D_ImageTint* tint = nullptr, float sx = 1.0f, float sy = 1.0f) {
     if (!f.tex) return;
     C2D_Image img = { f.tex, &f.uv };
-    float drawX = x - (float)f.frameX * sx;
-    float drawY = y - (float)f.frameY * sy;
+    float drawX = x - (float)f.frameX * std::abs(sx);
+    float drawY = y - (float)f.frameY * std::abs(sy);
 
     if (f.rotated) {
-        float cx = drawX + (float)f.h * sx * 0.5f;
-        float cy = drawY + (float)f.w * sy * 0.5f;
+        float cx = drawX + (float)f.h * std::abs(sx) * 0.5f;
+        float cy = drawY + (float)f.w * std::abs(sy) * 0.5f;
         C2D_DrawImageAtRotated(img, cx, cy, depth, -(3.14159265f / 2.0f), tint, sx, sy);
     } else {
         C2D_DrawImageAt(img, drawX, drawY, depth, tint, sx, sy);
@@ -346,17 +359,3 @@ static inline void renderRatingSprite(C3D_Tex* tex, const Tex3DS_SubTexture* sub
         }
     }
 }
-
-
-
-/*
-Hope dies slowly.
-Humanity is fading away...
-
-The end is drawing ever closer, but ignorance makes it imperceptible.
-
-Clear your mind, and follow the man who wears blue and black.
-Where you have all the options, wait until a unknow door appears.
-
-@{3P7 H1S D3@L.....
-*/

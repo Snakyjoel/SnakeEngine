@@ -14,8 +14,8 @@ public:
         if (lowType == "linear") return t;
         
         // SINE
-        if (lowType == "sinein") return 1.0f - cosf(t * (PI / 2.0f));
-        if (lowType == "sineout") return sinf(t * (PI / 2.0f));
+        if (lowType == "sinein") return 1.0f - cosf(t * 1.57079632679f);
+        if (lowType == "sineout") return sinf(t * 1.57079632679f);
         if (lowType == "sineinout") return -0.5f * (cosf(PI * t) - 1.0f);
 
         // QUAD
@@ -51,17 +51,29 @@ public:
         // CIRC
         if (lowType == "circin") return 1.0f - sqrtf(1.0f - t * t);
         if (lowType == "circout") return sqrtf(1.0f - (t - 1.0f) * (t - 1.0f));
-        if (lowType == "circinout") return t < 0.5f ? (1.0f - sqrtf(1.0f - 4.0f * t * t)) / 2.0f : (sqrtf(1.0f - powf(-2.0f * t + 2.0f, 2.0f)) + 1.0f) / 2.0f;
+        if (lowType == "circinout") {
+            if (t < 0.5f) return (1.0f - sqrtf(1.0f - 4.0f * t * t)) * 0.5f;
+            float p = -2.0f * t + 2.0f;
+            return (sqrtf(1.0f - p * p) + 1.0f) * 0.5f;
+        }
 
         // BACK
-        float c1 = 1.70158;
-        float c2 = c1 * 1.525;
-        float c3 = c1 + 1.0;
+        float c1 = 1.70158f;
+        float c2 = c1 * 1.525f;
+        float c3 = c1 + 1.0f;
         if (lowType == "backin") return c3 * t * t * t - c1 * t * t;
-        if (lowType == "backout") return 1.0f + c3 * powf(t - 1.0f, 3.0f) + c1 * powf(t - 1.0f, 2.0f);
+        if (lowType == "backout") {
+            float tm1 = t - 1.0f;
+            return 1.0f + c3 * tm1 * tm1 * tm1 + c1 * tm1 * tm1;
+        }
         if (lowType == "backinout") {
-            return t < 0.5f ? (powf(2.0f * t, 2.0f) * ((c2 + 1.0f) * 2.0f * t - c2)) / 2.0f 
-                            : (powf(2.0f * t - 2.0f, 2.0f) * ((c2 + 1.0f) * (t * 2.0f - 2.0f) + c2) + 2.0f) / 2.0f;
+            if (t < 0.5f) {
+                float t2 = 2.0f * t;
+                return (t2 * t2 * ((c2 + 1.0f) * t2 - c2)) * 0.5f;
+            } else {
+                float tm = 2.0f * t - 2.0f;
+                return (tm * tm * ((c2 + 1.0f) * tm + c2) + 2.0f) * 0.5f;
+            }
         }
 
         // BOUNCE (Simplified)

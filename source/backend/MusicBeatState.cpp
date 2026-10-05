@@ -33,6 +33,7 @@ TransitionPhase  MusicBeatState::transPhase  = TransitionPhase::NONE;
 float            MusicBeatState::transProgress = 0.0f;
 float            MusicBeatState::transTimer  = 0.0f;
 bool             MusicBeatState::skipTransition = false;
+bool             MusicBeatState::requestExit = false;
 bool             MusicBeatState::useStickerTransition = false;
 
 void MusicBeatState::switchState(MusicBeatState* newState) {

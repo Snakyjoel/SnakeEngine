@@ -2,7 +2,7 @@ local limoDancerCopies = 5 -
 	1 -- segun el original hay 5 (EL -1 NO SE TOCA, ES PARA QUE LOS OFFSETS EN EL BUCLE FUNCIONEN BIEN)
 
 function onCreate()
-	makeLuaSprite('back', 'stages/mom/back', -750, -500)
+	makeLuaSprite('back', 'stages/mom/back', -800, -500)
 	scaleObject('back', 2.3, 2.3)
 	setScrollFactor('back', 0.1, 0.1)
 
@@ -47,6 +47,28 @@ function onCreate()
 	addLuaSprite('limoDrive', false)
 	setProperty('limoDrive.depth', 0.38)
 	addLuaSprite('car', true)
+
+	set3dDepth('camGame', -7.0)
+
+	set3dDepth('bgLimo', -5.0)
+	for i = 0, limoDancerCopies do
+		set3dDepth('limoDancer' .. i, -5.0)
+	end
+
+	set3dDepth('gf', -2.0)
+	set3dDepth('back', -9.0)
+
+
+	set3dDepth('camHUD', 5.0)
+
+	set3dDepth('healthBar', 3.0)
+	set3dDepth('healthBarBG', 3.0)
+	set3dDepth('timeBar', 3.0)
+	set3dDepth('timeBarBG', 3.0)
+	set3dDepth('timeTxt', 3.0)
+
+	set3dDepth('iconP1', 5.0)
+	set3dDepth('iconP2', 5.0)
 end
 
 -- I was too lazy to edit the lua (SnakyJoel words 🙏🥀)

@@ -265,6 +265,8 @@ inline float lerp(float a, float b, float t) {
     return a + t * (b - a);
 }
 
+static constexpr float DEG_TO_RAD = 0.017453292519943295f;
+
 PlayState::PlayState(const std::string& songName, const std::string& difficulty)
     : curSong(songName), currentDifficulty(difficulty) {
     isStoryMode = false;
@@ -471,6 +473,7 @@ void PlayState::init() {
     botplayTextBuf = nullptr;
     timeTextBuf = nullptr;
     cachedTimeLeft = -1;
+    cachedTimeBarType = -1;
     printf("\x1b[1;1HPlayState::init start\n");
 
     time_t now = time(nullptr);
@@ -683,10 +686,25 @@ void PlayState::init() {
                             };
 
                             std::string nameInfo = getVal("name");
+
+                            // Check for digit sprites (num0..num9)
+                            bool isDigit = false;
+                            std::string digitId;
+                            for (int d = 0; d <= 9; d++) {
+                                std::string dname = "num" + std::to_string(d);
+                                if (nameInfo.find(dname) != std::string::npos) {
+                                    isDigit = true;
+                                    digitId = dname;
+                                    break;
+                                }
+                            }
+
                             std::string id = "shit";
-                            if (nameInfo.find("sick") != std::string::npos) id = "sick";
-                            else if (nameInfo.find("good") != std::string::npos) id = "good";
-                            else if (nameInfo.find("bad") != std::string::npos) id = "bad";
+                            if (!isDigit) {
+                                if (nameInfo.find("sick") != std::string::npos) id = "sick";
+                                else if (nameInfo.find("good") != std::string::npos) id = "good";
+                                else if (nameInfo.find("bad")  != std::string::npos) id = "bad";
+                            }
 
                             Tex3DS_SubTexture sub;
                             float x = atof(getVal("x").c_str());
@@ -697,13 +715,17 @@ void PlayState::init() {
                             sub.width = (u16)w;
                             sub.height = (u16)h;
                             if (ratingBaseImage.subtex) {
-                                sub.left = ratingBaseImage.subtex->left + (x * rw / (float)ratingBaseImage.subtex->width);
-                                sub.top = ratingBaseImage.subtex->top + (y * rh / (float)ratingBaseImage.subtex->height);
-                                sub.right = ratingBaseImage.subtex->left + ((x + w) * rw / (float)ratingBaseImage.subtex->width);
-                                sub.bottom = ratingBaseImage.subtex->top + ((y + h) * rh / (float)ratingBaseImage.subtex->height);
+                                sub.left   = ratingBaseImage.subtex->left + (x * rw / (float)ratingBaseImage.subtex->width);
+                                sub.top    = ratingBaseImage.subtex->top  + (y * rh / (float)ratingBaseImage.subtex->height);
+                                sub.right  = ratingBaseImage.subtex->left + ((x + w) * rw / (float)ratingBaseImage.subtex->width);
+                                sub.bottom = ratingBaseImage.subtex->top  + ((y + h) * rh / (float)ratingBaseImage.subtex->height);
                             }
 
-                            ratingSubtexs[id] = sub;
+                            if (isDigit) {
+                                if (numSubtexs.find(digitId) == numSubtexs.end()) numSubtexs[digitId] = sub;
+                            } else {
+                                ratingSubtexs[id] = sub;
+                            }
                         }
                     }
                     loadedCustomRating = true;
@@ -748,10 +770,25 @@ void PlayState::init() {
                         };
 
                         std::string nameInfo = getVal("name");
+
+                        // Check for digit sprites (num0..num9)
+                        bool isDigit = false;
+                        std::string digitId;
+                        for (int d = 0; d <= 9; d++) {
+                            std::string dname = "num" + std::to_string(d);
+                            if (nameInfo.find(dname) != std::string::npos) {
+                                isDigit = true;
+                                digitId = dname;
+                                break;
+                            }
+                        }
+
                         std::string id = "shit";
-                        if (nameInfo.find("sick") != std::string::npos) id = "sick";
-                        else if (nameInfo.find("good") != std::string::npos) id = "good";
-                        else if (nameInfo.find("bad") != std::string::npos) id = "bad";
+                        if (!isDigit) {
+                            if (nameInfo.find("sick") != std::string::npos) id = "sick";
+                            else if (nameInfo.find("good") != std::string::npos) id = "good";
+                            else if (nameInfo.find("bad")  != std::string::npos) id = "bad";
+                        }
 
                         Tex3DS_SubTexture sub;
                         float x = atof(getVal("x").c_str());
@@ -762,13 +799,17 @@ void PlayState::init() {
                         sub.width = (u16)w;
                         sub.height = (u16)h;
                         if (ratingBaseImage.subtex) {
-                            sub.left = ratingBaseImage.subtex->left + (x * rw / (float)ratingBaseImage.subtex->width);
-                            sub.top = ratingBaseImage.subtex->top + (y * rh / (float)ratingBaseImage.subtex->height);
-                            sub.right = ratingBaseImage.subtex->left + ((x + w) * rw / (float)ratingBaseImage.subtex->width);
-                            sub.bottom = ratingBaseImage.subtex->top + ((y + h) * rh / (float)ratingBaseImage.subtex->height);
+                            sub.left   = ratingBaseImage.subtex->left + (x * rw / (float)ratingBaseImage.subtex->width);
+                            sub.top    = ratingBaseImage.subtex->top  + (y * rh / (float)ratingBaseImage.subtex->height);
+                            sub.right  = ratingBaseImage.subtex->left + ((x + w) * rw / (float)ratingBaseImage.subtex->width);
+                            sub.bottom = ratingBaseImage.subtex->top  + ((y + h) * rh / (float)ratingBaseImage.subtex->height);
                         }
 
-                        ratingSubtexs[id] = sub;
+                        if (isDigit) {
+                            if (numSubtexs.find(digitId) == numSubtexs.end()) numSubtexs[digitId] = sub;
+                        } else {
+                            ratingSubtexs[id] = sub;
+                        }
                     }
                 }
             }
@@ -871,6 +912,9 @@ void PlayState::init() {
     AsyncAssetManager::get().cacheCharacter(dad->curCharacterName, dad);
 
     currentStage = new Stage(Paths::stageJson(SongParser::stage));
+    if (currentStage) {
+        isPixelStage = currentStage->isPixelStage;
+    }
 
     // Set initial character positions from stage data
     if (bf) { bf->x += currentStage->bfX; bf->y += currentStage->bfY; }
@@ -921,6 +965,11 @@ void PlayState::init() {
     maxCombo = 0;
     totalNoteScore = 0;
     accuracy = 0.0f;
+    cachedTotalNotesHit = -1;
+    for (int r = 0; r < MAX_RATING_POPUPS; r++) ratingPopups[r].active = false;
+    for (int d = 0; d < MAX_COMBO_DIGITS; d++) comboDigits[d].active = false;
+    ratingSpawnCounter = 0;
+    digitSpawnCounter = 0;
     iconBump = 1.0f;
     hudZoom = 1.0f;
     scoreZoom = 1.0f;
@@ -1186,21 +1235,29 @@ void PlayState::init() {
 }
 
 void PlayState::updateCamera(float dt) {
-    gridOffset += dt * 32.0f;
+    gridOffset += dt * 64.0f;
 
     if (!songData.sections.empty()) {
-        for (int i = 0; i < (int)songData.sections.size(); i++) {
-            if (Conductor::songPosition >= songData.sections[i].startTime && Conductor::songPosition < songData.sections[i].endTime) {
-                if (curSection != i) {
-                    curSection = i;
-                    focusCamera(songData.sections[i].mustHitSection);
-                    std::string newFocus = songData.sections[i].mustHitSection ? "boyfriend" : "dad";
-                    if (newFocus != lastCameraFocus) {
-                        lastCameraFocus = newFocus;
-                        LuaManager::get().callFunction("onMoveCamera", {newFocus});
+        int numSections = (int)songData.sections.size();
+        if (curSection >= 0 && curSection < numSections &&
+            Conductor::songPosition >= songData.sections[curSection].startTime &&
+            Conductor::songPosition < songData.sections[curSection].endTime) {
+            // Fast-path: songPosition is still in curSection
+        } else {
+            int startSec = (curSection >= 0 && curSection < numSections) ? curSection : 0;
+            for (int i = startSec; i < numSections; i++) {
+                if (Conductor::songPosition >= songData.sections[i].startTime && Conductor::songPosition < songData.sections[i].endTime) {
+                    if (curSection != i) {
+                        curSection = i;
+                        focusCamera(songData.sections[i].mustHitSection);
+                        std::string newFocus = songData.sections[i].mustHitSection ? "boyfriend" : "dad";
+                        if (newFocus != lastCameraFocus) {
+                            lastCameraFocus = newFocus;
+                            LuaManager::get().callFunction("onMoveCamera", {newFocus});
+                        }
                     }
+                    break;
                 }
-                break;
             }
         }
     }
@@ -1211,34 +1268,45 @@ void PlayState::updateCamera(float dt) {
     scoreZoom = lerp(scoreZoom, 1.0f, dt * 10.0f);
 
     if (autoIconPosition) {
-        float screenScale = 240.0f / 720.0f;
         float healthBarW = 200.0f;
-        float healthBarH = 5.0f;
-        float healthBarX = (ScreenWidthTop - healthBarW) / 2.0f;
+        float healthBarX = 100.0f;
         float healthBarY = ClientPrefs::downscroll ? 20.0f : ScreenHeight - 20.0f;
-        float healthPerc = health / 2.0f;
+        float healthPerc = health * 0.5f;
 
         float unzoomed_divX  = healthBarX + healthBarW * (1.0f - healthPerc);
-        float unzoomed_iconSz = 42.0f;
-        float iconHalf = unzoomed_iconSz * 0.5f;               // 21px
-        float iconCenterY = healthBarY + healthBarH * 0.5f;    // vertical center of the bar
+        float iconHalf = 21.0f;
+        float iconCenterY = healthBarY + 2.5f;
 
         // P2 (enemy, positive scale): C2D_DrawImageAtRotated is centered → store center = divX - iconHalf
         // P1 (player, negative scale): anchor is LEFT EDGE of flipped image → store divX so center lands at divX + iconHalf
-        iconP2X = (unzoomed_divX - iconHalf) / screenScale;
-        iconP2Y = iconCenterY / screenScale;
-        iconP1X = unzoomed_divX / screenScale;   // store visual center of P1 (= divX)
-        iconP1Y = iconCenterY / screenScale;
+        iconP2X = (unzoomed_divX - iconHalf) * 3.0f;
+        iconP2Y = iconCenterY * 3.0f;
+        iconP1X = unzoomed_divX * 3.0f;   // store visual center of P1 (= divX)
+        iconP1Y = iconCenterY * 3.0f;
     }
 
-    if (ratingActive) {
-        ratingVelY += ratingAccelY * dt;
-        ratingY += ratingVelY * dt;
+    // Update rating popups physics
+    for (int r = 0; r < MAX_RATING_POPUPS; r++) {
+        RatingPopup& rp = ratingPopups[r];
+        if (!rp.active) continue;
+        rp.velY += rp.accelY * dt;
+        rp.y    += rp.velY * dt;
+        if (rp.velY > 0) {
+            rp.alpha -= dt * 3.5f;
+            if (rp.alpha <= 0.0f) rp.active = false;
+        }
+    }
 
-        // Start fading when falling
-        if (ratingVelY > 0) {
-            ratingAlpha -= dt * 3.5f; // Fade during fall
-            if (ratingAlpha <= 0.0f) ratingActive = false;
+    // Update combo digit physics
+    for (int d = 0; d < MAX_COMBO_DIGITS; d++) {
+        ComboDigit& cd = comboDigits[d];
+        if (!cd.active) continue;
+        cd.velY += cd.accelY * dt;
+        cd.y    += cd.velY * dt;
+        cd.x    += cd.velX * dt;
+        if (cd.velY > 0) {
+            cd.alpha -= dt * 3.5f;
+            if (cd.alpha <= 0.0f) cd.active = false;
         }
     }
 
@@ -1252,9 +1320,9 @@ void PlayState::updateCamera(float dt) {
 }
 
 void PlayState::updateNotesLogic(float dt) {
-    p3DS = (240.0f/720.0f) * SongParser::songSpeed * 0.45f;
+    p3DS = SongParser::songSpeed * 0.15f;
     if (ClientPrefs::middleScroll) {
-        playerX = (ScreenWidthTop / 2.0f) - (spacing * 1.5f) - (spacing / 2.0f);
+        playerX = 200.0f - (spacing * 2.0f);
     } else {
         playerX = ScreenWidthTop - (spacing * 4.0f) - 16.0f;
     }
@@ -1426,8 +1494,7 @@ void PlayState::updateNotesLogic(float dt) {
 
 void PlayState::update(float dt) {
     if (gameOver) {
-        LuaManager::get().callFunction("onUpdate", {std::to_string(dt)});
-        LuaManager::get().callFunction("onUpdatePost", {std::to_string(dt)});
+        { static char _dtBuf[32]; snprintf(_dtBuf, sizeof(_dtBuf), "%.6f", dt); LuaManager::get().callFunction("onUpdate", {_dtBuf}); LuaManager::get().callFunction("onUpdatePost", {_dtBuf}); }
 
         gameOverTimer += dt;
 
@@ -1455,7 +1522,7 @@ void PlayState::update(float dt) {
 
         // Loop music after first death animation finishes
         if (deadBF && (deadBF->animFinished || deadBF->curAnim != "firstDeath")) {
-            if (!deathLoopPlaying && !deathConfirmActive) {
+            if (!deathLoopPlaying && !deathConfirmActive && !deathStateSwitched) {
                 deathLoopPlaying = true;
                 std::string oggPath = Paths::audio("shared/sounds", "gameOver.ogg");
                 bool ok = false;
@@ -1474,7 +1541,7 @@ void PlayState::update(float dt) {
         // Handle inputs
         u32 kDown = hidKeysDown();
         if (kDown & (KEY_A | KEY_START)) {
-            if (!deathConfirmActive) {
+            if (!deathConfirmActive && !deathStateSwitched) {
                 deathConfirmActive = true;
                 deathConfirmTimer = 0.0f;
                 MusicPlayer::stop();
@@ -1493,10 +1560,9 @@ void PlayState::update(float dt) {
                 LuaManager::get().callFunction("onGameOverConfirm", {"true"});
             }
         } else if (kDown & (KEY_B | KEY_SELECT)) {
-            if (!deathConfirmActive) {
+            if (!deathConfirmActive && !deathStateSwitched) {
+                deathStateSwitched = true;
                 MusicPlayer::stop();
-                // NOTE: Do NOT null PlayState::instance here — exitState() will do it.
-                // Nulling it early would crash Lua callbacks during the fade transition.
 
                 if (isStoryMode) {
                     MusicBeatState::switchState(new StoryMenuState());
@@ -1511,7 +1577,8 @@ void PlayState::update(float dt) {
         // Re-attempt restart timer and fade
         if (deathConfirmActive) {
             deathConfirmTimer += dt;
-            if (deathConfirmTimer >= 2.5f) {
+            if (deathConfirmTimer >= 2.5f && !deathStateSwitched) {
+                deathStateSwitched = true;
                 if (isStoryMode) {
                     MusicBeatState::switchState(new PlayState(weekData, curSongIdx, currentDifficulty));
                 } else {
@@ -1532,7 +1599,7 @@ void PlayState::update(float dt) {
         }
     }
 
-    if (bf && bf->curAnim.find("idle") != std::string::npos) {
+    if (!bfWentIdle && bf && bf->curAnim.find("idle") != std::string::npos) {
         bfWentIdle = true;
     }
 
@@ -1604,7 +1671,7 @@ void PlayState::update(float dt) {
             Character* cachedChar = AsyncAssetManager::get().getCharacter(ev.value2);
             if (cachedChar) {
                 AsyncAssetManager::get().requestHealthIcon(cachedChar->healthIcon);
-                if (AsyncAssetManager::get().isHealthIconReady(cachedChar->healthIcon) && healthIconCache.count(cachedChar->healthIcon) == 0) {
+                if (AsyncAssetManager::get().isHealthIconReady(cachedChar->healthIcon) && healthIconCache.find(cachedChar->healthIcon) == healthIconCache.end()) {
                     HealthIconData dummyIcon;
                     loadHealthIcon(dummyIcon, cachedChar->healthIcon);
                 }
@@ -1646,8 +1713,7 @@ void PlayState::update(float dt) {
         return;
     }
 
-    LuaManager::get().callFunction("onUpdate", {std::to_string(dt)});
-    LuaManager::get().callFunction("onUpdatePost", {std::to_string(dt)});
+    { static char _dtBuf[32]; snprintf(_dtBuf, sizeof(_dtBuf), "%.6f", dt); LuaManager::get().callFunction("onUpdate", {_dtBuf}); LuaManager::get().callFunction("onUpdatePost", {_dtBuf}); }
 
 
 
@@ -1657,6 +1723,7 @@ void PlayState::update(float dt) {
         deathSoundPlayed = false;
         deathLoopPlaying = false;
         deathConfirmActive = false;
+        deathStateSwitched = false;
         deathConfirmTimer = 0.0f;
         deathCamFollowStarted = false;
 
@@ -1697,6 +1764,11 @@ void PlayState::update(float dt) {
         AsyncAssetManager::get().suspend();
         AsyncAssetManager::get().clearAll();
         SpritesheetCache::get().clear();
+        noteSheet = nullptr;
+        fastNoteSheet = nullptr;
+        ratingSheet = nullptr;
+        countdownSheet = nullptr;
+        customNoteSheets.clear();
 
         // Now load the Game Over Boyfriend
         deadBF = new Character();
@@ -1819,20 +1891,20 @@ void PlayState::update(float dt) {
 
     if (camShakeTimer > 0) {
         camShakeTimer -= dt;
-        csX = (float)((rand() % 100) - 50) / 50.0f * camShakeIntensity * 400.0f;
-        csY = (float)((rand() % 100) - 50) / 50.0f * camShakeIntensity * 240.0f;
+        csX = (float)((rand() % 100) - 50) * 8.0f * camShakeIntensity;
+        csY = (float)((rand() % 100) - 50) * 4.8f * camShakeIntensity;
     } else { csX = 0; csY = 0; }
 
     if (hudShakeTimer > 0) {
         hudShakeTimer -= dt;
-        hsX = (float)((rand() % 100) - 50) / 50.0f * hudShakeIntensity * 400.0f;
-        hsY = (float)((rand() % 100) - 50) / 50.0f * hudShakeIntensity * 240.0f;
+        hsX = (float)((rand() % 100) - 50) * 8.0f * hudShakeIntensity;
+        hsY = (float)((rand() % 100) - 50) * 4.8f * hudShakeIntensity;
     } else { hsX = 0; hsY = 0; }
 
     if (otherShakeTimer > 0) {
         otherShakeTimer -= dt;
-        osX = (float)((rand() % 100) - 50) / 50.0f * otherShakeIntensity * 400.0f;
-        osY = (float)((rand() % 100) - 50) / 50.0f * otherShakeIntensity * 240.0f;
+        osX = (float)((rand() % 100) - 50) * 8.0f * otherShakeIntensity;
+        osY = (float)((rand() % 100) - 50) * 4.8f * otherShakeIntensity;
     } else { osX = 0; osY = 0; }
 
 
@@ -1884,7 +1956,7 @@ void PlayState::update(float dt) {
             else if (it->prop == "scale.y") s.scaleY = currentVal;
             else if (it->prop == "angle") s.angle = currentVal;
         }
-        else if (luaTextIndices.count(it->targetTag)) {
+        else if (luaTextIndices.find(it->targetTag) != luaTextIndices.end()) {
             auto& txt = luaTexts[luaTextIndices[it->targetTag]];
             if (it->prop == "x") txt.x = currentVal;
             else if (it->prop == "y") txt.y = currentVal;
@@ -2218,13 +2290,35 @@ void PlayState::handleInput(float dt) {
                     currentRatingStr = "shit";
                 }
 
-                ratingActive = true;
-                ratingVelY = -120.0f; // Jump
-                ratingAlpha = 1.0f;
-                ratingTimer = 0.0f;
-                ratingScale = 0.4f * ClientPrefs::comboScale;
-                ratingX = (ScreenWidthTop - 50.0f) + ClientPrefs::comboOffsetX;
-                ratingY = 35.0f + ClientPrefs::comboOffsetY;
+                // Spawn rating popup
+                if (ClientPrefs::showRatings) {
+                    int ratingIdx = 0;
+                    if (ClientPrefs::comboStacking) {
+                        for (int r = 0; r < MAX_RATING_POPUPS; r++) {
+                            if (!ratingPopups[r].active) {
+                                ratingIdx = r;
+                                break;
+                            }
+                        }
+                    } else {
+                        for (int r = 0; r < MAX_RATING_POPUPS; r++) {
+                            ratingPopups[r].active = false;
+                        }
+                        ratingIdx = 0;
+                    }
+
+                    int thisRatingOrder = ++ratingSpawnCounter;
+                    RatingPopup& rp = ratingPopups[ratingIdx];
+                    rp.key        = currentRatingStr;
+                    rp.active     = true;
+                    rp.scale      = 0.4f * ClientPrefs::comboScale;
+                    rp.velY       = -70.0f * ClientPrefs::comboScale;
+                    rp.accelY     = 350.0f * ClientPrefs::comboScale;
+                    rp.alpha      = 1.0f;
+                    rp.x          = (ScreenWidthTop - 50.0f) + ClientPrefs::comboOffsetX;
+                    rp.y          = 35.0f + ClientPrefs::comboOffsetY;
+                    rp.spawnOrder = thisRatingOrder;
+                }
 
                 accuracy = (totalNoteScore / totalNotesHit) * 100.0f;
 
@@ -2232,6 +2326,63 @@ void PlayState::handleInput(float dt) {
 
                 AudioEngine::setVocalsVolume(1.0f);
                 combo++; hits++; if (combo > maxCombo) maxCombo = combo;
+
+                // Spawn combo number digits
+                if (ClientPrefs::showComboNum && !numSubtexs.empty()) {
+                    int c = combo;
+                    int digits[4];
+                    int numDigits = 0;
+                    if (c >= 1000) digits[numDigits++] = (c / 1000) % 10;
+                    digits[numDigits++] = (c / 100) % 10;
+                    digits[numDigits++] = (c / 10)  % 10;
+                    digits[numDigits++] = c % 10;
+
+                    float numScale = ClientPrefs::comboNumScale;
+                    float baseX = (ScreenWidthTop - 50.0f) + ClientPrefs::comboNumOffsetX;
+                    float baseY = 35.0f + ClientPrefs::comboNumOffsetY;
+
+                    float digitW = 43.0f * 0.5f * numScale;
+                    auto itNum0 = numSubtexs.find("num0");
+                    if (itNum0 != numSubtexs.end()) {
+                        digitW = itNum0->second.width * 0.5f * numScale;
+                    }
+
+                    float startX = baseX - (digitW * numDigits) / 2.0f;
+
+                    if (!ClientPrefs::comboStacking) {
+                        for (int d = 0; d < MAX_COMBO_DIGITS; d++) {
+                            comboDigits[d].active = false;
+                        }
+                    }
+
+                    int thisGroupOrder = ++digitSpawnCounter;
+                    for (int d = 0; d < numDigits; d++) {
+                        int slot = -1;
+                        if (ClientPrefs::comboStacking) {
+                            for (int s = 0; s < MAX_COMBO_DIGITS; s++) {
+                                if (!comboDigits[s].active) {
+                                    slot = s;
+                                    break;
+                                }
+                            }
+                            if (slot == -1) slot = d % MAX_COMBO_DIGITS;
+                        } else {
+                            slot = d;
+                        }
+
+                        ComboDigit& cd = comboDigits[slot];
+                        cd.key        = "num" + std::to_string(digits[d]);
+                        cd.x          = startX + d * digitW;
+                        cd.y          = baseY;
+                        cd.velY       = (-60.0f + ((float)(rand() % 21) - 10.0f)) * numScale;
+                        cd.accelY     = (250.0f + (float)(rand() % 101)) * numScale;
+                        cd.velX       = ((float)(rand() % 11) - 5.0f) * numScale;
+                        cd.alpha      = 1.0f;
+                        cd.scale      = 0.5f * numScale;
+                        cd.active     = true;
+                        cd.spawnOrder = thisGroupOrder;
+                    }
+                }
             } else if (!ClientPrefs::ghostTapping) {
                 misses++;
                 combo = 0;
@@ -2308,7 +2459,7 @@ static void C2D_DrawRectRotated(float cx, float cy, float w, float h, float angl
         C2D_DrawRectSolid(cx - w * 0.5f, cy - h * 0.5f, depth, w, h, color);
         return;
     }
-    float rad = angle_deg * (3.14159265f / 180.0f);
+    float rad = angle_deg * DEG_TO_RAD;
     float hw = w * 0.5f;
     float hh = h * 0.5f;
     float cosA = cosf(rad);
@@ -2326,10 +2477,33 @@ static void C2D_DrawRectRotated(float cx, float cy, float w, float h, float angl
     C2D_DrawTriangle(x0, y0, color, x2, y2, color, x3, y3, color, depth);
 }
 
+static std::string getRatingFC(int misses, int sicks, int goods, int bads, int shits) {
+    if (misses == 0) {
+        if (bads > 0 || shits > 0) return "FC";
+        if (goods > 0) return "GFC";
+        return "SFC";
+    }
+    if (misses < 10) return "SDCB";
+    return "Clear";
+}
+
+static std::string getRatingName(float acc) {
+    if (acc >= 100.0f) return "Perfect!!";
+    if (acc >= 99.0f)  return "Sick!";
+    if (acc >= 95.0f)  return "Great";
+    if (acc >= 90.0f)  return "Good";
+    if (acc >= 80.0f)  return "Nice";
+    if (acc >= 70.0f)  return "Meh";
+    if (acc >= 60.0f)  return "Bruh";
+    if (acc >= 50.0f)  return "Bad";
+    if (acc >= 40.0f)  return "Shit";
+    return "You Suck!";
+}
+
 void PlayState::drawHUD(float shakeX, float shakeY) {
     float br = bf ? bf->healthbarR : 0.4f, bg = bf ? bf->healthbarG : 1.0f, bb = bf ? bf->healthbarB : 0.2f;
 
-    float gridSize = 32.0f;
+    float gridSize = 40.0f;
     float bw = (float)ScreenWidthBot, bh = (float)ScreenHeight;
     float gx = fmodf(gridOffset + shakeX, gridSize);
     float gy = fmodf(gridOffset + shakeY, gridSize);
@@ -2337,16 +2511,16 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
 
     float hudY = 30.0f;
     float hdScale = 0.35f * scoreZoom;
-    float textW = 0.0f, textH = 0.0f;
-    float drawX = 0.0f, drawY = 0.0f;
 
     bool anyExtended = ShaderManager::get().isCameraExtended("camGame") ||
                        ShaderManager::get().isCameraExtended("camHUD") ||
                        ShaderManager::get().isCameraExtended("camOther");
     if (showGrid && !ClientPrefs::lowQuality && !anyExtended) {
-        for (float x = -gridSize; x < bw + gridSize; x += gridSize) {
-            for (float y = -gridSize; y < bh + gridSize; y += gridSize) {
-                if ((int(x / gridSize) + int(y / gridSize)) % 2 == 0) {
+        int ix = -1;
+        for (float x = -gridSize; x < bw + gridSize; x += gridSize, ++ix) {
+            int iy = -1;
+            for (float y = -gridSize; y < bh + gridSize; y += gridSize, ++iy) {
+                if ((ix + iy) % 2 == 0) {
                     C2D_DrawRectSolid(x + gx, y + gy, 0, gridSize, gridSize, gridCol);
                 }
             }
@@ -2354,46 +2528,69 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
     }
 
     if (scoreTxtVisible) {
-        if (scoreTextNeedsUpdate || score != cachedScore || misses != cachedMisses || combo != cachedCombo) {
+        if (scoreTextNeedsUpdate || score != cachedScore || misses != cachedMisses || (int)totalNotesHit != cachedTotalNotesHit) {
             cachedScore = score;
             cachedMisses = misses;
-            cachedCombo = combo;
+            cachedTotalNotesHit = (int)totalNotesHit;
             scoreTextNeedsUpdate = false;
 
-            char scoreStr[256];
-            sprintf(scoreStr, "Score: %d | Misses: %d | Combo: %d", score, misses, combo);
-            C2D_TextFontParse(&scoreTextObj, vcrFont, vcrFontBuf, scoreStr);
-            C2D_TextOptimize(&scoreTextObj);
+            char line1Str[128];
+            char line2Str[128];
+            sprintf(line1Str, "Score: %d | Misses: %d", score, misses);
+            if (totalNotesHit <= 0) {
+                sprintf(line2Str, "Rating: ?");
+            } else {
+                std::string rName = getRatingName(accuracy);
+                std::string rFC = getRatingFC(misses, sicks, goods, bads, shits);
+                sprintf(line2Str, "Rating: %s (%.2f%%) - %s", rName.c_str(), accuracy, rFC.c_str());
+            }
+
+            C2D_TextFontParse(&scoreTextObjLine1, vcrFont, vcrFontBuf, line1Str);
+            C2D_TextOptimize(&scoreTextObjLine1);
+            C2D_TextFontParse(&scoreTextObjLine2, vcrFont, vcrFontBuf, line2Str);
+            C2D_TextOptimize(&scoreTextObjLine2);
         }
-
-        float baseScaleX = hdScale;
-        float baseScaleY = hdScale;
-        float unscaledW = 0, unscaledH = 0;
-        C2D_TextGetDimensions(&scoreTextObj, baseScaleX, baseScaleY, &unscaledW, &unscaledH);
-
-        float sX = (scoreTxtX != -9999.0f) ? scoreTxtX : ((bw/2.0f) - (unscaledW/2.0f));
-        float sY = (scoreTxtY != -9999.0f) ? scoreTxtY : (hudY - (unscaledH/2.0f));
-
-        float centerX = sX + unscaledW / 2.0f;
-        float centerY = sY + unscaledH / 2.0f;
 
         float textScaleX = hdScale * scoreTxtScaleX * hudZoom;
         float textScaleY = hdScale * scoreTxtScaleY * hudZoom;
-        C2D_TextGetDimensions(&scoreTextObj, textScaleX, textScaleY, &textW, &textH);
+
+        float w1 = 0, h1 = 0, w2 = 0, h2 = 0;
+        C2D_TextGetDimensions(&scoreTextObjLine1, textScaleX, textScaleY, &w1, &h1);
+        C2D_TextGetDimensions(&scoreTextObjLine2, textScaleX, textScaleY, &w2, &h2);
+
+        float spacing = 2.0f * hudZoom;
+        float totalH = h1 + h2 + spacing;
 
         float centerXT = ScreenWidthTop / 2.0f;
         float centerYT = ScreenHeight / 2.0f;
-        float drawCenterX = centerXT + (centerX - centerXT) * hudZoom + shakeX;
-        float drawCenterY = centerYT + (centerY - centerYT) * hudZoom + shakeY;
 
-        drawX = drawCenterX - (textW / 2.0f);
-        drawY = drawCenterY - (textH / 2.0f);
+        float sY = (scoreTxtY != -9999.0f) ? scoreTxtY : (hudY - (totalH / 2.0f));
+        float baseCenterY = sY + totalH / 2.0f;
+        float drawCenterY = centerYT + (baseCenterY - centerYT) * hudZoom + shakeY;
+        float startY = drawCenterY - (totalH / 2.0f);
+
+        // Center Line 1
+        float sX1 = (scoreTxtX != -9999.0f) ? scoreTxtX : ((bw / 2.0f) - (w1 / 2.0f));
+        float baseCenterX1 = sX1 + w1 / 2.0f;
+        float drawCenterX1 = centerXT + (baseCenterX1 - centerXT) * hudZoom + shakeX;
+        float drawX1 = drawCenterX1 - (w1 / 2.0f);
+        float drawY1 = startY;
+
+        // Center Line 2
+        float sX2 = (scoreTxtX != -9999.0f) ? scoreTxtX : ((bw / 2.0f) - (w2 / 2.0f));
+        float baseCenterX2 = sX2 + w2 / 2.0f;
+        float drawCenterX2 = centerXT + (baseCenterX2 - centerXT) * hudZoom + shakeX;
+        float drawX2 = drawCenterX2 - (w2 / 2.0f);
+        float drawY2 = startY + h1 + spacing;
 
         u8 sa = (u8)(255 * scoreTxtAlpha * hudAlpha);
         u32 sCol = (scoreTxtColor & 0x00FFFFFF) | ((u32)sa << 24);
 
-        DrawTextBorderCardinal(&scoreTextObj, drawX, drawY, 0.84f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,sa));
-        C2D_DrawText(&scoreTextObj, C2D_WithColor, drawX, drawY, 0.85f, textScaleX, textScaleY, sCol);
+        DrawTextBorderCardinal(&scoreTextObjLine1, drawX1, drawY1, 0.84f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,sa));
+        C2D_DrawText(&scoreTextObjLine1, C2D_WithColor, drawX1, drawY1, 0.85f, textScaleX, textScaleY, sCol);
+
+        DrawTextBorderCardinal(&scoreTextObjLine2, drawX2, drawY2, 0.84f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,sa));
+        C2D_DrawText(&scoreTextObjLine2, C2D_WithColor, drawX2, drawY2, 0.85f, textScaleX, textScaleY, sCol);
     }
 
 
@@ -2416,8 +2613,10 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
     }
 
     // Draw Countdown
-    if (countdownVisible && countdownActive && countdownSheet && countdownSubtexs.count(currentCountdownFrame)) {
-        Tex3DS_SubTexture& sub = countdownSubtexs[currentCountdownFrame];
+    if (countdownVisible && countdownActive && countdownSheet) {
+        auto itCD = countdownSubtexs.find(currentCountdownFrame);
+        if (itCD != countdownSubtexs.end()) {
+            Tex3DS_SubTexture& sub = itCD->second;
         C2D_Image cBaseImage = C2D_SpriteSheetGetImage(countdownSheet, 0);
         C2D_Image img = { cBaseImage.tex, &sub };
 
@@ -2453,7 +2652,8 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
 
         float cx = drawX + sub.width * finalScaleX * 0.5f;
         float cy = drawY + sub.height * finalScaleY * 0.5f;
-        C2D_DrawImageAtRotated(img, cx, cy, 0.95f, countdownAngle * (3.14159265f / 180.0f), tintPtr, finalScaleX, finalScaleY);
+        C2D_DrawImageAtRotated(img, cx, cy, 0.95f, countdownAngle * DEG_TO_RAD, tintPtr, finalScaleX, finalScaleY);
+        }
     }
 }
 
@@ -2535,12 +2735,15 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         float timeBarBGW = 150.0f * timeBarBGScaleX;
         float timeBarBGH = 5.0f * timeBarBGScaleY;
 
-        tbX = centerXT + (tbX - centerXT) * hudZoom + shakeX;
+        float offset3D_timeBar = get3DOffset(timeBar3DDepth + camHUD3DDepth);
+        float offset3D_timeBarBG = get3DOffset(timeBarBG3DDepth + camHUD3DDepth);
+
+        tbX = centerXT + (tbX - centerXT) * hudZoom + shakeX + offset3D_timeBar;
         tbY = centerYT + (tbY - centerYT) * hudZoom + shakeY;
         timeBarW *= hudZoom;
         timeBarH *= hudZoom;
 
-        tbBGX = centerXT + (tbBGX - centerXT) * hudZoom + shakeX;
+        tbBGX = centerXT + (tbBGX - centerXT) * hudZoom + shakeX + offset3D_timeBarBG;
         tbBGY = centerYT + (tbBGY - centerYT) * hudZoom + shakeY;
         timeBarBGW *= hudZoom;
         timeBarBGH *= hudZoom;
@@ -2553,30 +2756,41 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
                 float bg_w = timeBarBGW + 4.0f * hudZoom * timeBarBGScaleX;
                 float bg_h = timeBarBGH + 4.0f * hudZoom * timeBarBGScaleY;
                 if (timeBarBGVisible) {
-                    C2D_DrawRectRotated(bg_cx, bg_cy, bg_w, bg_h, timeBarBGAngle, C2D_Color32(0, 0, 0, bg_a), 0.70f);
+                    C2D_DrawRectRotated(bg_cx, bg_cy, bg_w, bg_h, timeBarBGAngle, C2D_Color32(0, 0, 0, bg_a), 0.91f);
                 }
 
                 u8 bar_a = (u8)(255 * timeBarAlpha * hudAlpha);
                 u32 barCol = (timeBarColor & 0x00FFFFFF) | ((u32)bar_a << 24);
                 float bar_cx = tbX + timeBarW * 0.5f;
                 float bar_cy = tbY + timeBarH * 0.5f;
-                float rad = timeBarAngle * (3.14159265f / 180.0f);
+                float rad = timeBarAngle * DEG_TO_RAD;
                 float dx = -timeBarW * 0.5f * (1.0f - progress);
                 float rx = dx * cosf(rad);
                 float ry = dx * sinf(rad);
-                C2D_DrawRectRotated(bar_cx + rx, bar_cy + ry, timeBarW * progress, timeBarH, timeBarAngle, barCol, 0.72f);
+                C2D_DrawRectRotated(bar_cx + rx, bar_cy + ry, timeBarW * progress, timeBarH, timeBarAngle, barCol, 0.92f);
             }
 
             if (timeTxtVisible) {
-                int timeLeft = (songLength > Conductor::songPosition) ? (int)((songLength - Conductor::songPosition) / 1000) : 0;
-                if (timeLeft != cachedTimeLeft) {
-                    cachedTimeLeft = timeLeft;
+                int timeVal = 0;
+                if (ClientPrefs::timeBarType == 1) { // Time Elapsed
+                    timeVal = (Conductor::songPosition > 0) ? (int)(Conductor::songPosition / 1000) : 0;
+                } else if (ClientPrefs::timeBarType == 0) { // Time Left
+                    timeVal = (songLength > Conductor::songPosition) ? (int)((songLength - Conductor::songPosition) / 1000) : 0;
+                }
+
+                if (timeVal != cachedTimeLeft || ClientPrefs::timeBarType != cachedTimeBarType) {
+                    cachedTimeLeft = timeVal;
+                    cachedTimeBarType = ClientPrefs::timeBarType;
                     if (!timeTextBuf) {
-                        timeTextBuf = C2D_TextBufNew(32);
+                        timeTextBuf = C2D_TextBufNew(64);
                     }
                     C2D_TextBufClear(timeTextBuf);
-                    char timeStr[16];
-                    sprintf(timeStr, "%d:%02d", timeLeft / 60, timeLeft % 60);
+                    char timeStr[64];
+                    if (ClientPrefs::timeBarType == 2) { // Song Name
+                        snprintf(timeStr, sizeof(timeStr), "%s", curSong.c_str());
+                    } else {
+                        snprintf(timeStr, sizeof(timeStr), "%d:%02d", timeVal / 60, timeVal % 60);
+                    }
                     C2D_TextFontParse(&timeTextObj, vcrFont, timeTextBuf, timeStr);
                     C2D_TextOptimize(&timeTextObj);
                 }
@@ -2587,11 +2801,12 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
                 float tw, th;
                 C2D_TextGetDimensions(&timeTextObj, textScaleX, textScaleY, &tw, &th);
 
+                float offset3D_timeTxt = get3DOffset(timeTxt3DDepth + camHUD3DDepth);
                 float dx, dy;
                 if (timeTxtX != -9999.0f) {
-                    dx = centerXT + (timeTxtX - centerXT) * hudZoom + shakeX;
+                    dx = centerXT + (timeTxtX - centerXT) * hudZoom + shakeX + offset3D_timeTxt;
                 } else {
-                    dx = tbX + (timeBarW / 2.0f) - (tw / 2.0f);
+                    dx = tbX + (timeBarW / 2.0f) - (tw / 2.0f) + offset3D_timeTxt;
                 }
                 if (timeTxtY != -9999.0f) {
                     dy = centerYT + (timeTxtY - centerYT) * hudZoom + shakeY;
@@ -2601,8 +2816,8 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
                 u8 ta = (u8)(255 * timeTxtAlpha * hudAlpha);
                 u32 tCol = (timeTxtColor & 0x00FFFFFF) | ((u32)ta << 24);
 
-                DrawTextBorderCardinal(&timeTextObj, dx, dy, 0.72f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,ta));
-                C2D_DrawText(&timeTextObj, C2D_WithColor, dx, dy, 0.73f, textScaleX, textScaleY, tCol);
+                DrawTextBorderCardinal(&timeTextObj, dx, dy, 0.93f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,ta));
+                C2D_DrawText(&timeTextObj, C2D_WithColor, dx, dy, 0.935f, textScaleX, textScaleY, tCol);
             }
         }
     }
@@ -2622,12 +2837,15 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
     float hbBGW = healthBarW * healthBarBGScaleX;
     float hbBGH = healthBarH * healthBarBGScaleY;
 
-    hbX = centerXT + (hbX - centerXT) * hudZoom + shakeX;
+    float offset3D_hb = get3DOffset(healthBar3DDepth + camHUD3DDepth);
+    float offset3D_hbBG = get3DOffset(healthBarBG3DDepth + camHUD3DDepth);
+
+    hbX = centerXT + (hbX - centerXT) * hudZoom + shakeX + offset3D_hb;
     hbY = centerYT + (hbY - centerYT) * hudZoom + shakeY;
     hbW *= hudZoom;
     hbH *= hudZoom;
 
-    hbBGX = centerXT + (hbBGX - centerXT) * hudZoom + shakeX;
+    hbBGX = centerXT + (hbBGX - centerXT) * hudZoom + shakeX + offset3D_hbBG;
     hbBGY = centerYT + (hbBGY - centerYT) * hudZoom + shakeY;
     hbBGW *= hudZoom;
     hbBGH *= hudZoom;
@@ -2642,7 +2860,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
 
         if (healthBarBGVisible) {
             u8 bg_a = (u8)(255 * healthBarBGAlpha * hudAlpha);
-            C2D_DrawRectRotated(bg_cx, bg_cy, bg_w, bg_h, healthBarBGAngle, C2D_Color32(0, 0, 0, bg_a), 0.70f);
+            C2D_DrawRectRotated(bg_cx, bg_cy, bg_w, bg_h, healthBarBGAngle, C2D_Color32(0, 0, 0, bg_a), 0.91f);
         }
 
         float dadR = 1.0f, dadG = 0.0f, dadB = 0.0f; // Red
@@ -2657,15 +2875,15 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         if (healthBarVisible) {
             u8 dad_a = (u8)(255 * healthBarAlpha * hudAlpha);
             u32 dadCol = C2D_Color32f(dadR, dadG, dadB, dad_a / 255.0f);
-            C2D_DrawRectRotated(dad_cx, dad_cy, hbW, hbH, healthBarAngle, dadCol, 0.71f);
+            C2D_DrawRectRotated(dad_cx, dad_cy, hbW, hbH, healthBarAngle, dadCol, 0.92f);
 
-            float rad = healthBarAngle * (3.14159265f / 180.0f);
+            float rad = healthBarAngle * DEG_TO_RAD;
             float dx = hbW * 0.5f * (1.0f - healthPerc);
             float rx = dx * cosf(rad);
             float ry = dx * sinf(rad);
             u8 bf_a = (u8)(255 * healthBarAlpha * hudAlpha);
             u32 bfCol = C2D_Color32f(bfR, bfG, bfB, bf_a / 255.0f);
-            C2D_DrawRectRotated(dad_cx + rx, dad_cy + ry, hbW * healthPerc, hbH, healthBarAngle, bfCol, 0.72f);
+            C2D_DrawRectRotated(dad_cx + rx, dad_cy + ry, hbW * healthPerc, hbH, healthBarAngle, bfCol, 0.93f);
         }
 
         float screenScale = 240.0f / 720.0f;
@@ -2685,14 +2903,17 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         if (p1_x == -9999.0f) p1_x = unzoomed_divX / screenScale;   // store visual center of P1 (= divX)
         if (p1_y == -9999.0f) p1_y = iconCenterY / screenScale;
 
+        float offset3D_p1 = get3DOffset(iconP13DDepth + camHUD3DDepth);
+        float offset3D_p2 = get3DOffset(iconP23DDepth + camHUD3DDepth);
+
         float p1_3ds_x = p1_x * screenScale;
         float p1_3ds_y = p1_y * screenScale;
-        float drawX1 = centerXT + (p1_3ds_x - centerXT) * hudZoom + shakeX;
+        float drawX1 = centerXT + (p1_3ds_x - centerXT) * hudZoom + shakeX + offset3D_p1;
         float drawY1 = centerYT + (p1_3ds_y - centerYT) * hudZoom + shakeY;
 
         float p2_3ds_x = p2_x * screenScale;
         float p2_3ds_y = p2_y * screenScale;
-        float drawX2 = centerXT + (p2_3ds_x - centerXT) * hudZoom + shakeX;
+        float drawX2 = centerXT + (p2_3ds_x - centerXT) * hudZoom + shakeX + offset3D_p2;
         float drawY2 = centerYT + (p2_3ds_y - centerYT) * hudZoom + shakeY;
 
         bool bfLosing  = health < 0.4f;
@@ -2734,7 +2955,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float scY = baseSc * iconP2ScaleY * (iconP2FlipY ? -1.0f : 1.0f);
             GPU_TEXTURE_FILTER_PARAM f = iconP2Antialiasing ? GPU_LINEAR : GPU_NEAREST;
             if (iconDad.loaded) C3D_TexSetFilter(&iconDad.tex, f, f);
-            C2D_DrawImageAtRotated(iconImg, drawX2, drawY2, 0.73f, iconP2Angle * (3.14159265f / 180.0f), tint2Ptr, scX, scY);
+            C2D_DrawImageAtRotated(iconImg, drawX2, drawY2, 0.94f, iconP2Angle * DEG_TO_RAD, tint2Ptr, scX, scY);
         }
         if (iconBf.loaded && iconP1Visible) {
             Tex3DS_SubTexture* sub = bfLosing ? &iconBf.losingSub : &iconBf.normalSub;
@@ -2745,7 +2966,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float drawnW = 64.0f * fabsf(scX);
             GPU_TEXTURE_FILTER_PARAM f = iconP1Antialiasing ? GPU_LINEAR : GPU_NEAREST;
             if (iconBf.loaded) C3D_TexSetFilter(&iconBf.tex, f, f);
-            C2D_DrawImageAtRotated(iconImg, drawX1 - drawnW * 0.5f, drawY1, 0.73f, iconP1Angle * (3.14159265f / 180.0f), tint1Ptr, scX, scY);
+            C2D_DrawImageAtRotated(iconImg, drawX1 - drawnW * 0.5f, drawY1, 0.94f, iconP1Angle * DEG_TO_RAD, tint1Ptr, scX, scY);
         }
     }
 
@@ -2758,11 +2979,12 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float lx = getLaneX(i, false);
             float ly = getLaneY(i, false);
             float oppAlpha = getLaneAlpha(i, false);
-            float oppAngle = getLaneAngle(i, false) * (3.14159265f / 180.0f);
+            float oppAngle = getLaneAngle(i, false) * DEG_TO_RAD;
             float sx = noteScale * customOpponentStrumScaleX[i];
             float sy = noteScale * customOpponentStrumScaleY[i];
 
-            lx = centerXT + (lx - centerXT) * hudZoom + shakeX;
+            float offset3D_oppStrum = get3DOffset(customOpponentStrum3DDepth[i] + strumLineNotes3DDepth + camHUD3DDepth);
+            lx = centerXT + (lx - centerXT) * hudZoom + shakeX + offset3D_oppStrum;
             ly = centerYT + (ly - centerYT) * hudZoom + shakeY;
             sx *= hudZoom; sy *= hudZoom;
 
@@ -2857,11 +3079,12 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         float lx = getLaneX(i, true);
         float ly = getLaneY(i, true);
         float playerAlpha = getLaneAlpha(i, true);
-        float playerAngle = getLaneAngle(i, true) * (3.14159265f / 180.0f);
+        float playerAngle = getLaneAngle(i, true) * DEG_TO_RAD;
         float sx = noteScale * customPlayerStrumScaleX[i];
         float sy = noteScale * customPlayerStrumScaleY[i];
 
-        lx = centerXT + (lx - centerXT) * hudZoom + shakeX;
+        float offset3D_plrStrum = get3DOffset(customPlayerStrum3DDepth[i] + strumLineNotes3DDepth + camHUD3DDepth);
+        lx = centerXT + (lx - centerXT) * hudZoom + shakeX + offset3D_plrStrum;
         ly = centerYT + (ly - centerYT) * hudZoom + shakeY;
         sx *= hudZoom; sy *= hudZoom;
 
@@ -2960,6 +3183,8 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
     // Cap note iterations for performance
     size_t noteLimit = nextNoteIndex + 80;
     if (noteLimit > songNotes.size()) noteLimit = songNotes.size();
+    // Cache 3D offset once — constant for the entire note loop
+    const float offset3D_notes = get3DOffset(notes3DDepth + camHUD3DDepth);
 
     for (size_t i = nextNoteIndex; i < noteLimit; i++) {
         Note& n = songNotes[i];
@@ -2981,14 +3206,14 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         if (ClientPrefs::downscroll && strumDir == 90.0f) {
             strumDir = 270.0f;
         }
-        float dirRad = strumDir * (3.14159265f / 180.0f);
+        float dirRad = strumDir * DEG_TO_RAD;
 
         // Head position (start of sustain)
         float headDiff = diff;
         if (n.sustainActive && endDiff > 0 && diff <= 0) {
             headDiff = 0.0f; // Locked to receptor during active hold
         }
-
+      
         float laneCenterX = recX + spacing * 0.5f; // we do miltiplication here cuz its faster for per-frame stuff
         float laneCenterY = recY + spacing * 0.5f;
 
@@ -2996,11 +3221,11 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         float tailDistance = endDiff * p3DS;
 
         // Head pos
-        float headX = laneCenterX - cosf(dirRad) * headDistance;
+        float headX = laneCenterX - cosf(dirRad) * headDistance + offset3D_notes;
         float headY = laneCenterY + sinf(dirRad) * headDistance;
         
         // Tail end position
-        float tailX = laneCenterX - cosf(dirRad) * tailDistance;
+        float tailX = laneCenterX - cosf(dirRad) * tailDistance + offset3D_notes;
         float tailY = laneCenterY + sinf(dirRad) * tailDistance;
 
         float screenHeadX = centerXT + (headX - centerXT) * hudZoom;
@@ -3069,7 +3294,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
 
         C2D_ImageTint tint;
         C2D_ImageTint* tintPtr = nullptr;
-        float baseAlpha =getLaneAlpha(n.noteData, n.isPlayer) * n.multAlpha;
+        float baseAlpha = getLaneAlpha(n.noteData, n.isPlayer) * n.multAlpha;
 
         static const unsigned char FAST_COLORS[4][3] = {
             {0xC2,0x4B,0x99}, {0x00,0xFF,0xFF}, {0x12,0xFA,0x05}, {0xF9,0x39,0x3F}
@@ -3118,7 +3343,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         }
 
         float endTipH = 0.0f;
-
         if (hasHoldEnd && holdEnd.tex) {
             endTipH = holdEnd.h * noteScale * n.scaleY * hudZoom;
         }
@@ -3128,9 +3352,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float pieceH_screen = sustainLengthScreen;
             float bodyCx = screenHeadX + cosf(angleLine) * (pieceH_screen * 0.5f);
             float bodyCy = screenHeadY + sinf(angleLine) * (pieceH_screen * 0.5f);
-
-            bodyCx += n.offsetX * hudZoom;
-            bodyCy += n.offsetY * hudZoom;
 
             float dsX, dsY;
             float drawAngle;
@@ -3160,7 +3381,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
 
             float finalCx = bodyCx + offsetXS;
             float finalCy = bodyCy + offsetYS;
-            C2D_Image img = { holdPiece.tex, &holdPiece.sub};
+            C2D_Image img = { holdPiece.tex, &holdPiece.sub };
             if (useFastTint) C2D_SetTintMode(C2D_TintMult);
             GPU_TEXTURE_FILTER_PARAM f = n.antialiasing ? GPU_LINEAR : GPU_NEAREST;
             if (holdPiece.tex) C3D_TexSetFilter(holdPiece.tex, f, f);
@@ -3196,7 +3417,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float endOffsetX, endOffsetY;
             if (holdEnd.rotated) {
                 endOffsetX = 0.0f;
-                endOffsetY = (origH_end / 2.0f - holdEnd.h / 2.0f + holdEnd.frameY) *endDsY;
+                endOffsetY = (origH_end / 2.0f - holdEnd.h / 2.0f + holdEnd.frameY) * endDsY;
             } else {
                 endOffsetX = (origW_end / 2.0f - holdEnd.w / 2.0f + holdEnd.frameX) * endDsX;
                 endOffsetY = 0.0f;
@@ -3241,7 +3462,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         if (ClientPrefs::downscroll && strumDir == 90.0f) {
             strumDir = 270.0f;
         }
-        float dirRad = strumDir * (3.14159265f / 180.0f);
+        float dirRad = strumDir * DEG_TO_RAD;
         float dist = diff * p3DS;
 
         float lx = targetRecX - cosf(dirRad) * dist;
@@ -3254,7 +3475,8 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
 
         float sx = noteScale, sy = noteScale;
 
-        lx = centerXT + (lx - centerXT) * hudZoom;
+        float offset3D_noteHead = offset3D_notes;
+        lx = centerXT + (lx - centerXT) * hudZoom + offset3D_noteHead;
         ly = centerYT + (ly - centerYT) * hudZoom;
         sx *= hudZoom; sy *= hudZoom;
 
@@ -3311,7 +3533,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         C2D_ImageTint alphaTint;
         C2D_ImageTint* passTint = nullptr;
         float baseAlpha = getLaneAlpha(n.noteData, n.isPlayer) * n.multAlpha;
-        float noteAngle = (getLaneAngle(n.noteData, n.isPlayer) + n.angle) * (3.14159265f / 180.0f);
+        float noteAngle = (getLaneAngle(n.noteData, n.isPlayer) + n.angle) * DEG_TO_RAD;
 
         bool useFastTintHead = ClientPrefs::fastNotes && fastNoteSheet && fastNoteSubtexs.size() >= 2
                                && n.texture.empty();
@@ -3442,6 +3664,10 @@ static void DrawAlignedC2DTextWithBorder(C2D_Text* textObj, u32 flags, float x, 
 }
 
 void PlayState::drawLuaTextsForCamera(const std::string& camera, bool front, float shakeX, float shakeY) {
+    int camType = 2; // default camOther / static
+    if (camera == "camGame" || camera == "game") camType = 0;
+    else if (camera == "camHUD" || camera == "hud") camType = 1;
+
     for (auto& t : luaTexts) {
         if (!t.active || !t.visible || t.camera != camera || t.front != front) continue;
 
@@ -3453,7 +3679,7 @@ void PlayState::drawLuaTextsForCamera(const std::string& camera, bool front, flo
 
         // Scale by camera zoom if it's camGame
         float drawScale = t.size;
-        if (camera == "camGame") {
+        if (camType == 0) {
              // Treat t.x and t.y as 3DS-scaled world coords, but apply camera offset
              float screenScale = 240.0f / 720.0f;
              float centerXT = 400.0f / 2.0f;
@@ -3467,10 +3693,11 @@ void PlayState::drawLuaTextsForCamera(const std::string& camera, bool front, flo
              finalY = (t.y - (camY * scrollY * screenScale)) * camZoom + centerYT;
              drawScale *= camZoom;
              finalDepth = front ? 0.50f : 0.30f; // Game depth (BF is 0.45, Dad 0.4, GF 0.35)
-        } else if (camera == "camHUD" || camera == "hud") {
+        } else if (camType == 1) {
              float centerXT = ScreenWidthTop / 2.0f;
              float centerYT = ScreenHeight / 2.0f;
-             finalX = centerXT + (t.x - centerXT) * hudZoom + shakeX;
+             float offset3D = get3DOffset(t.depth3D + camHUD3DDepth);
+             finalX = centerXT + (t.x - centerXT) * hudZoom + shakeX + offset3D;
              finalY = centerYT + (t.y - centerYT) * hudZoom + shakeY;
              drawScale *= hudZoom;
         }
@@ -3550,17 +3777,85 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         drawLuaTextsForCamera("camHUD", true, hsX, hsY);
 
         // Draw Rating inside HUD camera so it gets affected by HUD shaders and zoom
-        if (ClientPrefs::showRatings && ratingActive && ratingSheet && ratingSubtexs.count(currentRatingStr)) {
-            Tex3DS_SubTexture& sub = ratingSubtexs[currentRatingStr];
-            C2D_Image img = { ratingBaseImage.tex, &sub };
+        if (ClientPrefs::showRatings && ratingSheet) {
+            float offset3D_rating = get3DOffset(rating3DDepth + camHUD3DDepth);
 
-            C2D_ImageTint tint;
-            C2D_AlphaImageTint(&tint, ratingAlpha * ClientPrefs::comboAlpha); // Transparency
+            // Build a sorted draw order: oldest spawnOrder first (drawn behind), newest last (drawn in front)
+            int drawOrder[MAX_RATING_POPUPS];
+            int drawCount = 0;
+            for (int r = 0; r < MAX_RATING_POPUPS; r++) {
+                if (ratingPopups[r].active) drawOrder[drawCount++] = r;
+            }
+            // Simple insertion sort by spawnOrder ascending
+            for (int i = 1; i < drawCount; i++) {
+                int tmp = drawOrder[i];
+                int j = i - 1;
+                while (j >= 0 && ratingPopups[drawOrder[j]].spawnOrder > ratingPopups[tmp].spawnOrder) {
+                    drawOrder[j + 1] = drawOrder[j];
+                    j--;
+                }
+                drawOrder[j + 1] = tmp;
+            }
 
-            float drawX = ratingX - (sub.width * ratingScale / 2.0f) + hsX;
-            float drawY = ratingY - (sub.height * ratingScale / 2.0f) + hsY;
+            for (int i = 0; i < drawCount; i++) {
+                const RatingPopup& rp = ratingPopups[drawOrder[i]];
+                auto itRating = ratingSubtexs.find(rp.key);
+                if (itRating == ratingSubtexs.end()) continue;
 
-            drawImageScaledTinted(img, drawX, drawY, 0.95f, ratingScale, ratingScale, &tint);
+                Tex3DS_SubTexture& sub = itRating->second;
+                C2D_Image img = { ratingBaseImage.tex, &sub };
+
+                C2D_ImageTint tint;
+                C2D_AlphaImageTint(&tint, rp.alpha * ClientPrefs::comboAlpha);
+
+                float drawX = rp.x - (sub.width * rp.scale / 2.0f) + hsX + offset3D_rating;
+                float drawY = rp.y - (sub.height * rp.scale / 2.0f) + hsY;
+
+                // z in [0.95, 0.96]: older popups slightly behind, newest popup in front
+                float z = 0.95f + 0.01f * (float)i / (float)(drawCount > 1 ? drawCount - 1 : 1);
+                drawImageScaledTinted(img, drawX, drawY, z, rp.scale, rp.scale, &tint);
+            }
+        }
+
+        // Draw combo number digits
+        if (ClientPrefs::showComboNum && ratingSheet) {
+            float offset3D_num = get3DOffset(rating3DDepth + camHUD3DDepth);
+
+            // Build a sorted draw order: oldest spawnOrder first (drawn behind), newest last (drawn in front)
+            int drawOrder[MAX_COMBO_DIGITS];
+            int drawCount = 0;
+            for (int d = 0; d < MAX_COMBO_DIGITS; d++) {
+                if (comboDigits[d].active) drawOrder[drawCount++] = d;
+            }
+            // Simple insertion sort by spawnOrder ascending
+            for (int i = 1; i < drawCount; i++) {
+                int tmp = drawOrder[i];
+                int j = i - 1;
+                while (j >= 0 && comboDigits[drawOrder[j]].spawnOrder > comboDigits[tmp].spawnOrder) {
+                    drawOrder[j + 1] = drawOrder[j];
+                    j--;
+                }
+                drawOrder[j + 1] = tmp;
+            }
+
+            for (int i = 0; i < drawCount; i++) {
+                const ComboDigit& cd = comboDigits[drawOrder[i]];
+                auto itNum = numSubtexs.find(cd.key);
+                if (itNum == numSubtexs.end()) continue;
+
+                const Tex3DS_SubTexture& sub = itNum->second;
+                C2D_Image img = { ratingBaseImage.tex, const_cast<Tex3DS_SubTexture*>(&sub) };
+
+                C2D_ImageTint tint;
+                C2D_AlphaImageTint(&tint, cd.alpha * ClientPrefs::comboNumAlpha);
+
+                float drawX = cd.x - (sub.width  * cd.scale / 2.0f) + hsX + offset3D_num;
+                float drawY = cd.y - (sub.height * cd.scale / 2.0f) + hsY;
+
+                // z in [0.93, 0.94]: older groups slightly behind, newest group at 0.94
+                float z = 0.93f + 0.01f * (float)i / (float)(drawCount > 1 ? drawCount - 1 : 1);
+                drawImageScaledTinted(img, drawX, drawY, z, cd.scale, cd.scale, &tint);
+            }
         }
 
         ShaderManager::get().endCamera("camHUD", top, bottom);
@@ -3964,7 +4259,15 @@ void PlayState::drawText(C2D_Text* textObj, float x, float y, float scale, bool 
 void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, float shakeX, float shakeY) {
     float screenScale = 240.0f / 720.0f;
 
-    // We expect camera parameter to be exactly "camGame", "camHUD" or "camOther"
+    int camType = 2; // default camOther / other
+    float camDepth3D = camOther3DDepth;
+    if (camera == "camGame" || camera == "game") {
+        camType = 0;
+        camDepth3D = camGame3DDepth;
+    } else if (camera == "camHUD" || camera == "hud") {
+        camType = 1;
+        camDepth3D = camHUD3DDepth;
+    }
 
     std::vector<StageSprite*> sortedSprites;
     for (auto& ls : luaSprites) {
@@ -4006,11 +4309,13 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
         float currentZoom = 1.0f;
         float finalX = 0, finalY = 0;
 
-        if (camera == "camGame" || camera == "game") {
+        float offset3D = get3DOffset(ls.depth3D + camDepth3D);
+
+        if (camType == 0) {
             currentZoom = camZoom;
             finalX = (ls.x - (camX * ls.scrollX)) * currentZoom * screenScale + (ScreenWidthTop / 2.0f);
             finalY = (ls.y - (camY * ls.scrollY)) * currentZoom * screenScale + (ScreenHeight / 2.0f);
-        } else if (camera == "camHUD" || camera == "hud") {
+        } else if (camType == 1) {
             currentZoom = hudZoom;
             float centerXT = ScreenWidthTop / 2.0f;
             float centerYT = ScreenHeight / 2.0f;
@@ -4021,12 +4326,12 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
             finalY = ls.y;
         }
 
-        finalX += shakeX;
+        finalX += shakeX + offset3D;
         finalY += shakeY;
 
         float absScaleX = fabsf(ls.scaleX * currentZoom);
         float absScaleY = fabsf(ls.scaleY * currentZoom);
-        if (camera == "camGame" || camera == "game") {
+        if (camType == 0) {
             absScaleX *= screenScale;
             absScaleY *= screenScale;
         }
@@ -4036,16 +4341,15 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
         float depth = 0.11f; // Default back
         if (front) depth = 0.52f; // Default front
         if (ls.depth >= 0.0f) depth = ls.depth;
-        if (camera == "camHUD" || camera == "hud") {
+        if (camType == 1) {
             if (ls.depth < 0.0f) depth += 0.4f;
-        }
-        if (camera == "camOther" || camera == "other") {
+        } else if (camType == 2) {
             if (ls.depth < 0.0f) depth += 0.47f;
         }
 
         float finalAlpha = ls.alpha;
-        if (camera == "camGame" || camera == "game") finalAlpha *= camAlpha;
-        else if (camera == "camHUD" || camera == "hud") finalAlpha *= hudAlpha;
+        if (camType == 0) finalAlpha *= camAlpha;
+        else if (camType == 1) finalAlpha *= hudAlpha;
 
         if (ls.isGraphic) {
             float w = ls.graphicWidth * drawScaleX;
@@ -4079,11 +4383,12 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
         float drawX = finalX;
         float drawY = finalY;
 
+        float baseScaleUnit = (camera == "camGame" || camera == "game") ? (screenScale * currentZoom) : currentZoom;
+
         // Step 1: HaxeFlixel origin pivot compensation (same as Character::draw).
         // When scale != 1, HaxeFlixel scales from the center of the LOGICAL (untrimmed) frame,
         // not from the top-left corner. We must shift drawX/drawY to compensate.
         if (curFrame) {
-            float baseScaleUnit = (camera == "camGame" || camera == "game") ? (screenScale * currentZoom) : currentZoom;
             float originX = curFrame->frameW / 2.0f;
             float originY = curFrame->frameH / 2.0f;
             drawX += originX * (1.0f - ls.scaleX) * baseScaleUnit;
@@ -4096,16 +4401,21 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
             float frameY = curFrame->frameY;
             float animOffX = ls.currentAnim->offsetX;
             float animOffY = ls.currentAnim->offsetY;
+            // [FIX-4] Same separation: frameX scales, animOff does NOT scale with charScale
+            // frameX/frameY: trim offset — scales with sprite.
+            // animOffX/animOffY: animation offset in screen pixels — does NOT scale with charScale.
             if (ls.flipX) {
-                drawX += (curFrame->frameW + frameX - animOffX) * absScaleX;
+                drawX += (curFrame->frameW + frameX) * absScaleX;
             } else {
-                drawX -= (frameX + animOffX) * absScaleX;
+                drawX -= frameX * absScaleX;
             }
+            drawX -= animOffX * baseScaleUnit;
             if (ls.flipY) {
-                drawY += (curFrame->frameH + frameY - animOffY) * absScaleY;
+                drawY += (curFrame->frameH + frameY) * absScaleY;
             } else {
-                drawY -= (frameY + animOffY) * absScaleY;
+                drawY -= frameY * absScaleY;
             }
+            drawY -= animOffY * baseScaleUnit;
         }
 
         static Tex3DS_SubTexture defaultSubtex;
@@ -4135,7 +4445,7 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
         float centerX = drawX + (imgW * (ls.flipX ? -absScaleX : absScaleX)) / 2.0f;
         float centerY = drawY + (imgH * (ls.flipY ? -absScaleY : absScaleY)) / 2.0f;
 
-        float angleRad = ls.angle * (3.14159265f / 180.0f);
+        float angleRad = ls.angle * DEG_TO_RAD;
         if (frameRotated) {
             angleRad -= (3.14159265f / 2.0f);
         }
@@ -4458,8 +4768,9 @@ void PlayState::loadHealthIcon(HealthIconData& icon, const std::string& name) {
     }
 
     if (icon.loaded && icon.iconName == name) return;
-    if (healthIconCache.count(name) > 0 && healthIconCache[name].loaded) {
-        icon = healthIconCache[name];
+    auto itCache = healthIconCache.find(name);
+    if (itCache != healthIconCache.end() && itCache->second.loaded) {
+        icon = itCache->second;
         return;
     }
 

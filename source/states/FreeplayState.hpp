@@ -27,6 +27,8 @@ public:
     void update(float dt) override;
     void draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) override;
     void exitState() override;
+    
+    static std::string currentChar;
 
 private:
     int curSelected = 0;
@@ -46,8 +48,11 @@ private:
     float curColor[3] = {100, 100, 100};
     float targetColor[3] = {100, 100, 100};
     
-    // Background sprite
-    C2D_SpriteSheet bfBgSheet = nullptr;
+    // Background and unified Freeplay BF sprite sheet
+    C2D_SpriteSheet freeplayBFSheet = nullptr;
+    Frame bfBgFrame;
+    Frame capsuleFrame;
+    Frame arrowFrame;
     C2D_Image getBfBackgroundImage();
     
     // UI and difficulty sprites
@@ -57,7 +62,6 @@ private:
     C2D_Image getIconImage(const std::string& name);
     
     // Song capsule sprite with scrolling text
-    C2D_SpriteSheet capsuleSheet = nullptr;
     C2D_Image getCapsuleImage();
     
     // Text scrolling parameters
@@ -94,9 +98,10 @@ private:
     std::vector<Frame> highscoreFrames;
     float highscoreAnimTime = 0.0f;
 
-    C2D_SpriteSheet numbersSheet = nullptr;
     std::vector<Frame> numberFrames[10];
     float numbersAnimTime = 0.0f;
+    int lastDigit[7] = {-1, -1, -1, -1, -1, -1, -1};
+    float digitAnimTimer[7] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
     float lerpScore = 0.0f;
     int targetScore = 0;
@@ -106,7 +111,7 @@ private:
     std::string currentAlbumName;
     C2D_Image getAlbumImage(const std::string& name);
     C2D_Image getAlbumTextImage(const std::string& name);
-    std::string getAlbumNameForSelected();
+    std::string getAlbumNameForSelected(int songIdx = -1);
 
     // Selected icon bounce animation
     float iconBounceY = 0.0f;
@@ -126,14 +131,12 @@ private:
     float albumTextFlashTime = 0.0f;
 
     // Cleared accuracy display details
-    C2D_SpriteSheet clearedSheet = nullptr;
     std::vector<Frame> clearedNumberFrames[10];
     Frame clearedBoxFrame;
     float lerpAccuracy = 0.0f;
     float targetAccuracy = 0.0f;
 
     // Difficulty selection arrow and animation offset details
-    C2D_SpriteSheet arrowSheet = nullptr;
     float leftArrowVisibleTime = 0.0f;
     float rightArrowVisibleTime = 0.0f;
     float diffOffsetX = 0.0f;
@@ -175,67 +178,66 @@ private:
     std::set<std::string> favorites;
     std::map<std::string, float> heartBounceAnim;
 
-    C2D_SpriteSheet letterStuffSheet = nullptr;
     std::vector<Frame> letterStuffFrames;
+
+    // LRU Asset Cache Structures
+    struct CacheEntry {
+        C2D_SpriteSheet sheet = nullptr;
+        u64 lastAccessFrame = 0;
+        bool isCharIcon = false;
+    };
+
+    std::unordered_map<std::string, CacheEntry> iconCache;
+    std::unordered_map<std::string, CacheEntry> albumCache;
+    std::unordered_map<std::string, CacheEntry> albumTextCache;
+    std::unordered_map<std::string, CacheEntry> diffCache;
+
+    static constexpr size_t MAX_ICON_CACHE = 12;
+    static constexpr size_t MAX_ALBUM_CACHE = 6;
+    static constexpr size_t MAX_ALBUM_TEXT_CACHE = 6;
+    static constexpr size_t MAX_DIFF_CACHE = 4;
 
     // Background loading structures and thread state
     struct AsyncLoadRequest {
-        std::string difficultyName;
-        std::string iconName;
-        std::string albumName;
+        enum class AssetType { DIFFICULTY, ICON, ALBUM, ALBUM_TEXT } type;
+        std::string key;
         std::string songName;
         std::string week;
-        int songIndex;
-        // Pre-resolved absolute paths (resolved on the main thread to avoid
-        // sdmc opendir() races from the worker thread)
-        std::string resolvedDiffPath;
-        std::string resolvedIconPath;
-        std::string resolvedAlbumPath;
-        std::string resolvedAlbumTextPath;
+        std::string iconName;
+        std::string albumName;
+        std::string difficultyName;
+        int songIndex = -1;
+        int priority = 0;
+        
+        // Resolved by background thread
+        std::string resolvedPath;
         bool iconIsChar = false;
     };
 
     struct LoadedRawData {
         void* buffer = nullptr;
         size_t size = 0;
-        std::string path;
+        AsyncLoadRequest req;
     };
 
     Thread loadThread = nullptr;
     LightLock loadLock;
     LightEvent loadEvent;
     volatile bool threadRunning = false;
-    volatile bool requestPending = false;
 
-    AsyncLoadRequest currentRequest;
-
-    // Loaded buffers to be consumed by the main thread:
-    volatile bool loadCompleted = false;
-    std::string loadedDiffName;
-    std::string loadedIconName;
-    std::string loadedAlbumName;
-    int loadedSongIndex = -1;
-    bool loadedIconIsChar = false;
-
-    LoadedRawData loadedDiffData;
-    LoadedRawData loadedIconData;
-    LoadedRawData loadedAlbumData;
-    LoadedRawData loadedAlbumTextData;
-
-    // Active assets currently used for drawing
-    C2D_SpriteSheet activeDiffSheet = nullptr;
-    C2D_SpriteSheet activeIconSheet = nullptr;
-    C2D_SpriteSheet activeAlbumSheet = nullptr;
-    C2D_SpriteSheet activeAlbumTextSheet = nullptr;
-    bool activeIconIsChar = false;
-    int activeSongIndex = -1;
+    std::vector<AsyncLoadRequest> pendingRequests;
+    std::vector<LoadedRawData> completedDataQueue;
 
     int lastSelectedCheck = -1;
     int lastDifficultyCheck = -1;
 
     void triggerAsyncLoad();
-    LoadedRawData loadRawFile(const std::string& path);
+    void queueAssetLoad(AsyncLoadRequest::AssetType type, const std::string& key, const AsyncLoadRequest& baseReq, int priority);
+    void prunePendingRequests();
+    LoadedRawData loadRawFile(AsyncLoadRequest& req);
     static void threadMain(void* arg);
+    void evictLruCacheIfNeeded();
+    void clearAssetCache();
 
     void rebuildCategories();
     void applyCategoryFilter(bool keepSelection = false);

@@ -972,10 +972,10 @@ void OptionsMenuState::update(float dt) {
             
             float dx = touch.px - cx;
             float dy = touch.py - cy;
-            float dist = sqrt(dx*dx + dy*dy);
+            float dist = sqrtf(dx*dx + dy*dy);
             
             if (dist <= radius) {
-                float angle = atan2(dy, dx) * 180.0f / M_PI;
+                float angle = atan2f(dy, dx) * 180.0f / (float)M_PI;
                 float hue = angle - 270.0f;
                 while (hue < 0.0f) hue += 360.0f;
                 while (hue >= 360.0f) hue -= 360.0f;
@@ -1016,11 +1016,11 @@ void OptionsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     if (menuState == STATE_CONTROLS || menuState == STATE_NOTE_COLORS) {
         float gsize = 40.0f;
         float goff = gridOffset;
-        for (float gx = -gsize * 2.0f + goff; gx < 400.0f + gsize; gx += gsize) {
-            for (float gy = -gsize * 2.0f + goff; gy < 240.0f + gsize; gy += gsize) {
-                int xi = (int)std::round((gx - goff) / gsize);
-                int yi = (int)std::round((gy - goff) / gsize);
-                if ((xi + yi) % 2 == 0) {
+        int col = 0;
+        for (float gx = -gsize * 2.0f + goff; gx < 400.0f + gsize; gx += gsize, col++) {
+            int row = 0;
+            for (float gy = -gsize * 2.0f + goff; gy < 240.0f + gsize; gy += gsize, row++) {
+                if ((col + row) % 2 == 0) {
                     C2D_DrawRectSolid(gx, gy, 0.15f, gsize, gsize, C2D_Color32(255, 255, 255, 45));
                 }
             }
@@ -1229,11 +1229,11 @@ void OptionsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     else if (menuState == STATE_CONTROLS) {
         float size = 40.0f;
         float offset = gridOffset;
-        for (float x = -size * 2.0f + offset; x < 320.0f + size; x += size) {
-            for (float y = -size * 2.0f + offset; y < 240.0f + size; y += size) {
-                int xi = (int)std::round((x - offset) / size);
-                int yi = (int)std::round((y - offset) / size);
-                if ((xi + yi) % 2 == 0) {
+        int col = 0;
+        for (float x = -size * 2.0f + offset; x < 320.0f + size; x += size, col++) {
+            int row = 0;
+            for (float y = -size * 2.0f + offset; y < 240.0f + size; y += size, row++) {
+                if ((col + row) % 2 == 0) {
                     C2D_DrawRectSolid(x, y, 0.15f, size, size, C2D_Color32(255, 255, 255, 45));
                 }
             }
@@ -1303,11 +1303,11 @@ void OptionsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         // Draw grid overlay (bottom screen)
         float size = 40.0f;
         float offset = gridOffset;
-        for (float x = -size * 2.0f + offset; x < 320.0f + size; x += size) {
-            for (float y = -size * 2.0f + offset; y < 240.0f + size; y += size) {
-                int xi = (int)std::round((x - offset) / size);
-                int yi = (int)std::round((y - offset) / size);
-                if ((xi + yi) % 2 == 0) {
+        int col = 0;
+        for (float x = -size * 2.0f + offset; x < 320.0f + size; x += size, col++) {
+            int row = 0;
+            for (float y = -size * 2.0f + offset; y < 240.0f + size; y += size, row++) {
+                if ((col + row) % 2 == 0) {
                     C2D_DrawRectSolid(x, y, 0.15f, size, size, C2D_Color32(255, 255, 255, 45));
                 }
             }
@@ -1323,15 +1323,18 @@ void OptionsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         // Wheel at scale 0.55: approx radius 55 → cx=150, cy=120
         // Buttons: copyH=50.4, pasteH=50.4, gap=10 → total=110.8 → startY = 120 - 55.4 = 64.6
 
-        // --- Brightness bar ---
-        for (int y = 0; y < 180; y++) {
-            float val = 1.0f - (y / 180.0f);
-            unsigned char rr, gg, bb;
-            hsvToRgb(currentHue, currentSat, val, rr, gg, bb);
-            C2D_DrawRectSolid(18, 30 + y, 0.5f, 20, 1, C2D_Color32(rr, gg, bb, 255));
-        }
-        float sliderSelY = 30 + (1.0f - currentVal) * 180.0f;
-        C2D_DrawRectSolid(16, sliderSelY - 2, 0.6f, 24, 4, C2D_Color32(255, 255, 255, 255));
+        // --- Brightness bar (Hardware-accelerated vertical linear gradient) ---
+        unsigned char rTop = 0, gTop = 0, bTop = 0;
+        hsvToRgb(currentHue, currentSat, 1.0f, rTop, gTop, bTop);
+        u32 colorTop = C2D_Color32(rTop, gTop, bTop, 255);
+        u32 colorBot = C2D_Color32(0, 0, 0, 255);
+        
+        // Single 2-triangle draw replaces 180 individual draw calls per frame
+        C2D_DrawTriangle(18.0f, 30.0f, colorTop, 38.0f, 30.0f, colorTop, 18.0f, 210.0f, colorBot, 0.5f);
+        C2D_DrawTriangle(38.0f, 30.0f, colorTop, 38.0f, 210.0f, colorBot, 18.0f, 210.0f, colorBot, 0.5f);
+        
+        float sliderSelY = 30.0f + (1.0f - currentVal) * 180.0f;
+        C2D_DrawRectSolid(16.0f, sliderSelY - 2.0f, 0.6f, 24.0f, 4.0f, C2D_Color32(255, 255, 255, 255));
 
         // --- Color wheel (centered between bar right=38 and btn left=262) ---
         float cx = 150.0f;

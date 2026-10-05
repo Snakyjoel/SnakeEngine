@@ -46,8 +46,7 @@ void ShaderManager::cleanup() {
 
 void ShaderManager::setCameraExtended(const std::string& camera, bool extended) {
     if (extended) {
-        if (extendedCameras.count(camera) == 0) {
-            extendedCameras.insert(camera);
+        if (extendedCameras.insert(camera).second) {
             auto& rt = targets[camera];
             if (rt.active) {
                 rt.cleanup();
@@ -63,8 +62,7 @@ void ShaderManager::setCameraExtended(const std::string& camera, bool extended) 
             }
         }
     } else {
-        if (extendedCameras.count(camera) > 0) {
-            extendedCameras.erase(camera);
+        if (extendedCameras.erase(camera) > 0) {
             auto& rt = targets[camera];
             if (rt.active) {
                 rt.cleanup();
@@ -75,7 +73,7 @@ void ShaderManager::setCameraExtended(const std::string& camera, bool extended) 
 }
 
 bool ShaderManager::isCameraExtended(const std::string& camera) const {
-    return extendedCameras.count(camera) > 0;
+    return extendedCameras.find(camera) != extendedCameras.end();
 }
 
 void ShaderManager::RT::init(int w, int h) {

@@ -51,8 +51,14 @@ private:
     std::vector<Frame> iconFrames;
     
     // Font details
-    C2D_Font vcrFont;
-    C2D_TextBuf vcrFontBuf;
+    C2D_Font vcrFont = nullptr;
+    C2D_TextBuf vcrFontBuf = nullptr;
+    C2D_Font quanticoFont = nullptr;
+    C2D_TextBuf quanticoFontBuf = nullptr;
+    C2D_Font inconsolataFont = nullptr;
+    C2D_TextBuf inconsolataFontBuf = nullptr;
+
+    float textScrollTime = 0.0f;
 
     C2D_SpriteSheet bgSheet = nullptr;
     C2D_SpriteSheet bottomBGSheet = nullptr;

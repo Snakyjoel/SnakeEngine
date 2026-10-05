@@ -23,14 +23,14 @@ function onCreate()
 	setScrollFactor('window', cityScrollFactor[1], cityScrollFactor[2])
 	setProperty('window.alpha', 0)
 
+	setProperty('dad.scaleX', 4)
+
 
 	addLuaSprite('sky', false)
 	addLuaSprite('city', false)
 	addLuaSprite('window', false)
 	addLuaSprite('behindTrain', false)
 	addLuaSprite('floor', false)
-
-	setProperty('dad.scale.x', 5.0);
 end
 
 -- I was too lazy to edit the lua (SnakyJoel words 🙏🥀)

@@ -1,11 +1,27 @@
 {
 	"animations": [
 		{
+			"anim": "cheer",
+			"name": "GF Cheer",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				0,
+				0
+			],
+			"indices": []
+		},
+		{
+			"anim": "danceLeft",
+			"name": "GF Dancing Beat",
+			"fps": 24,
+			"loop": false,
 			"offsets": [
 				0,
 				0
 			],
 			"indices": [
+				30,
 				0,
 				1,
 				2,
@@ -21,13 +37,13 @@
 				12,
 				13,
 				14
-			],
-			"fps": 24,
-			"anim": "danceLeft",
-			"loop": true,
-			"name": "GF Dancing Beat"
+			]
 		},
 		{
+			"anim": "danceRight",
+			"name": "GF Dancing Beat",
+			"fps": 24,
+			"loop": false,
 			"offsets": [
 				0,
 				0
@@ -48,11 +64,95 @@
 				27,
 				28,
 				29
-			],
+			]
+		},
+		{
+			"anim": "hairBlow",
+			"name": "GF Dancing Beat Hair blowing",
 			"fps": 24,
-			"anim": "danceRight",
 			"loop": true,
-			"name": "GF Dancing Beat"
+			"offsets": [
+				0,
+				0
+			],
+			"indices": []
+		},
+		{
+			"anim": "hairFall",
+			"name": "GF Dancing Beat Hair Landing",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				0,
+				0
+			],
+			"indices": []
+		},
+		{
+			"anim": "sad",
+			"name": "gf sad",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				-21,
+				140
+			],
+			"indices": []
+		},
+		{
+			"anim": "scared",
+			"name": "GF FEAR ",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				0,
+				0
+			],
+			"indices": []
+		},
+		{
+			"anim": "singDOWN",
+			"name": "GF Down Note",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				0,
+				0
+			],
+			"indices": []
+		},
+		{
+			"anim": "singLEFT",
+			"name": "GF left note",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				0,
+				0
+			],
+			"indices": []
+		},
+		{
+			"anim": "singRIGHT",
+			"name": "GF Right Note",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				0,
+				0
+			],
+			"indices": []
+		},
+		{
+			"anim": "singUP",
+			"name": "GF Up Note",
+			"fps": 24,
+			"loop": false,
+			"offsets": [
+				0,
+				0
+			],
+			"indices": []
 		}
 	],
 	"vocals_file": "",
@@ -70,10 +170,10 @@
 		77
 	],
 	"camera_position": [
-		0,
-		0
+		-1485,
+		-1200
 	],
 	"sing_duration": 4,
-	"scale": 4,
+	"scale": 2.95,
 	"_editor_isPlayer": false
 }

@@ -150,6 +150,20 @@
           "description": "Show Sick!, Good!, Bad!, Shit!\npopups when hitting a note."
         },
         {
+          "id": "showComboNum",
+          "name": "Number Popups",
+          "type": "bool",
+          "default": true,
+          "description": "Show combo number\npopups when hitting a note."
+        },
+        {
+          "id": "comboStacking",
+          "name": "Combo Stacking",
+          "type": "bool",
+          "default": true,
+          "description": "If unchecked, ratings and combo won't stack,\nsaving memory and making them easier to read."
+        },
+        {
           "id": "camZooms",
           "name": "Camera Zooms",
           "type": "bool",
@@ -172,7 +186,7 @@
         },
         {
           "id": "alphabetPause",
-          "name": "Alphabet Pause",
+          "name": "Enhanced Pause",
           "type": "bool",
           "default": true,
           "description": "If checked, uses Alphabet font in\nthe Pause Menu instead of VCR."
@@ -211,6 +225,13 @@
           "type": "bool",
           "default": true,
           "description": "If unchecked, disables anti-aliasing globally,\nimproving performance at the cost of jagged visuals."
+        },
+        {
+          "id": "enable3DEffect",
+          "name": "3D Screen Effect",
+          "type": "bool",
+          "default": true,
+          "description": "If unchecked, disables stereoscopic 3D rendering\non the top screen."
         },
         {
           "id": "fastNotes",
