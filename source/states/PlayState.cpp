@@ -3213,7 +3213,8 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         if (n.sustainActive && endDiff > 0 && diff <= 0) {
             headDiff = 0.0f; // Locked to receptor during active hold
         }
-        float laneCenterX = recX + spacing * 0.5f;
+      
+        float laneCenterX = recX + spacing * 0.5f; // we do miltiplication here cuz its faster for per-frame stuff
         float laneCenterY = recY + spacing * 0.5f;
 
         float headDistance = headDiff * p3DS;
@@ -3222,13 +3223,10 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         // Head pos
         float headX = laneCenterX - cosf(dirRad) * headDistance + offset3D_notes;
         float headY = laneCenterY + sinf(dirRad) * headDistance;
-
+        
         // Tail end position
         float tailX = laneCenterX - cosf(dirRad) * tailDistance + offset3D_notes;
         float tailY = laneCenterY + sinf(dirRad) * tailDistance;
-
-        if (headY < -300.0f && tailY < -300.0f) continue;
-        if (headY > ScreenHeight + 300.0f && tailY > ScreenHeight + 300.0f) continue;
 
         float screenHeadX = centerXT + (headX - centerXT) * hudZoom;
         float screenHeadY = centerYT + (headY - centerYT) * hudZoom;
@@ -3390,7 +3388,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float finalScaleX = dsX * (n.flipX ? -1.0f : 1.0f);
             float finalScaleY = dsY * (n.flipY ? -1.0f : 1.0f);
             if (holdPiece.rotated) {
-                C2D_DrawImageAtRotated(img, finalCx, finalCy, 0.80f, drawAngle, tintPtr, finalScaleY, finalScaleX);
+                C2D_DrawImageAtRotated(img, finalCx, finalCy, 0.80f, drawAngle, tintPtr, finalScaleY,finalScaleX);
             } else {
                 C2D_DrawImageAtRotated(img, finalCx, finalCy, 0.80f, drawAngle, tintPtr, finalScaleX, finalScaleY);
             }
@@ -3399,21 +3397,22 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
 
         // Draw hold end tip (anchored directly where hold piece ends)
         if (hasHoldEnd && holdEnd.tex && endTipH > 0.0f) {
-            float endCx = screenTailX;
-            float endCy = screenTailY;
+            float endCx = screenTailX + n.offsetX * hudZoom;
+            float endCy = screenTailY + n.offsetY * hudZoom;
 
             float endDsX = noteScale * n.scaleX * hudZoom;
             float endDsY;
             float endDrawAngle;
             if (holdEnd.rotated) {
-                endDrawAngle = angleLine + n.angle * DEG_TO_RAD;
+                endDrawAngle = angleLine + n.angle * (M_PI / 180.0f);
                 endDsY = endTipH / holdEnd.sub.width;
             } else {
-                endDrawAngle = angleLine - (3.14159265f / 2.0f) + n.angle * DEG_TO_RAD;
+                endDrawAngle = angleLine - (M_PI / 2.0f) + n.angle * (M_PI / 180.0f);
                 endDsY = endTipH / holdEnd.sub.height;
             }
 
             float origW_end = holdEnd.frameWidth ? holdEnd.frameWidth : holdEnd.w;
+
             float origH_end = holdEnd.frameHeight ? holdEnd.frameHeight : holdEnd.h;
             float endOffsetX, endOffsetY;
             if (holdEnd.rotated) {
