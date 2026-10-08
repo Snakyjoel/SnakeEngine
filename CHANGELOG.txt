@@ -56,7 +56,6 @@ v3.7.8
 - He is gone, for now
 - Titlestate now releases its sprites from L-RAM upon exiting
 - Character Select was added
-- A blacklist was added for some specefic mods (Any attempt to run them will result in a ban from the engine in your console, please refer to point 4 of the Snake Engine license for more information)
 - Results screens now shows the result of the entire week on story mode instead of the last song
 - A missaligning with the number "1" in the complete percentage was fixed
 - Added the complete percentage in story menu
