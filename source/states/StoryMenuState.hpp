@@ -2,6 +2,7 @@
 #include "../backend/MusicBeatState.hpp"
 #include "../backend/WeekData.hpp"
 #include "SparrowParser.hpp"
+#include "../objects/AccuracyDisplay.hpp"
 #include <vector>
 #include <string>
 #include <map>
@@ -73,6 +74,7 @@ private:
     float loadingAngle      = 0.0f;
     int   lastSelectedCheck = -1;
     int   lastDiffCheck     = -1;
+    bool  isFirstDiffLoad   = true;
     // ──────────────────────────────────────────────────────────────────────
 
     // Touch
@@ -94,6 +96,8 @@ private:
     Frame* arrowRightFrame    = nullptr;
     Frame* arrowPushRightFrame= nullptr;
     Frame* lockFrame          = nullptr;
+
+    AccuracyDisplay accuracyDisplay;
 
     C2D_Font vcrFont = nullptr;
     C2D_TextBuf vcrFontBuf = nullptr;

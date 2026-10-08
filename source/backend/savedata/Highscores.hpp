@@ -7,7 +7,9 @@ public:
     static std::map<std::string, int> songScores;
     static std::map<std::string, float> songAccuracies;
     static std::map<std::string, int> weekScores;
+    static std::map<std::string, float> weekAccuracies;
     static std::map<std::string, std::string> songRatings;
+    static std::map<std::string, std::string> weekRatings;
 
     static void load();
     static void reset();
@@ -16,9 +18,13 @@ public:
     static void saveAccuracy(const std::string& song, float accuracy, const std::string& diff);
     static void saveRating(const std::string& song, const std::string& rating, const std::string& diff, float newAccuracy);
     static void saveWeekScore(const std::string& week, int score, const std::string& diff);
+    static void saveWeekAccuracy(const std::string& week, float accuracy, const std::string& diff);
+    static void saveWeekRating(const std::string& week, const std::string& rating, const std::string& diff, float newAccuracy);
     static int getScore(const std::string& song, const std::string& diff);
     static float getAccuracy(const std::string& song, const std::string& diff);
     static std::string getRating(const std::string& song, const std::string& diff);
     static int getWeekScore(const std::string& week, const std::string& diff);
+    static float getWeekAccuracy(const std::string& week, const std::string& diff);
+    static std::string getWeekRating(const std::string& week, const std::string& diff);
     static std::string formatKey(const std::string& name, const std::string& diff);
 };

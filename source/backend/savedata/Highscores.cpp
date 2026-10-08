@@ -7,7 +7,9 @@
 std::map<std::string, int> Highscores::songScores;
 std::map<std::string, float> Highscores::songAccuracies;
 std::map<std::string, int> Highscores::weekScores;
+std::map<std::string, float> Highscores::weekAccuracies;
 std::map<std::string, std::string> Highscores::songRatings;
+std::map<std::string, std::string> Highscores::weekRatings;
 
 std::string Highscores::formatKey(const std::string& name, const std::string& diff) {
     std::string key = name;
@@ -21,7 +23,9 @@ void Highscores::load() {
     songScores.clear();
     songAccuracies.clear();
     weekScores.clear();
+    weekAccuracies.clear();
     songRatings.clear();
+    weekRatings.clear();
 
     std::string path = ModHandler::getWorkingBase() + "highscores.json";
     json_error_t error;
@@ -61,6 +65,17 @@ void Highscores::load() {
         }
     }
 
+    json_t *wAccs = json_object_get(root, "weekAccuracies");
+    if (wAccs && json_is_object(wAccs)) {
+        const char *key;
+        json_t *value;
+        json_object_foreach(wAccs, key, value) {
+            if (json_is_number(value)) {
+                weekAccuracies[key] = (float)json_number_value(value);
+            }
+        }
+    }
+
     json_t *sRatings = json_object_get(root, "songRatings");
     if (sRatings && json_is_object(sRatings)) {
         const char *key;
@@ -72,6 +87,17 @@ void Highscores::load() {
         }
     }
 
+    json_t *wRatings = json_object_get(root, "weekRatings");
+    if (wRatings && json_is_object(wRatings)) {
+        const char *key;
+        json_t *value;
+        json_object_foreach(wRatings, key, value) {
+            if (json_is_string(value)) {
+                weekRatings[key] = json_string_value(value);
+            }
+        }
+    }
+
     json_decref(root);
 }
 
@@ -79,7 +105,9 @@ void Highscores::reset() {
     songScores.clear();
     songAccuracies.clear();
     weekScores.clear();
+    weekAccuracies.clear();
     songRatings.clear();
+    weekRatings.clear();
     std::string path = ModHandler::getWorkingBase() + "highscores.json";
     remove(path.c_str());
     save();
@@ -109,11 +137,23 @@ void Highscores::save() {
     }
     json_object_set_new(root, "weekScores", wScores);
 
+    json_t *wAccs = json_object();
+    for (auto const& pair : weekAccuracies) {
+        json_object_set_new(wAccs, pair.first.c_str(), json_real(pair.second));
+    }
+    json_object_set_new(root, "weekAccuracies", wAccs);
+
     json_t *sRatings = json_object();
     for (auto const& pair : songRatings) {
         json_object_set_new(sRatings, pair.first.c_str(), json_string(pair.second.c_str()));
     }
     json_object_set_new(root, "songRatings", sRatings);
+
+    json_t *wRatings = json_object();
+    for (auto const& pair : weekRatings) {
+        json_object_set_new(wRatings, pair.first.c_str(), json_string(pair.second.c_str()));
+    }
+    json_object_set_new(root, "weekRatings", wRatings);
 
     std::string path = basePath + "highscores.json";
     json_dump_file(root, path.c_str(), 0);
@@ -178,6 +218,43 @@ void Highscores::saveRating(const std::string& song, const std::string& rating, 
 
 std::string Highscores::getRating(const std::string& song, const std::string& diff) {
     std::string key = formatKey(song, diff);
+    if (songRatings.find(key) != songRatings.end()) {
+        return songRatings[key];
+    }
+    return "";
+}
+void Highscores::saveWeekAccuracy(const std::string& week, float accuracy, const std::string& diff) {
+    std::string key = formatKey(week, diff);
+    if (weekAccuracies.find(key) == weekAccuracies.end() || accuracy > weekAccuracies[key]) {
+        weekAccuracies[key] = accuracy;
+        save();
+    }
+}
+
+float Highscores::getWeekAccuracy(const std::string& week, const std::string& diff) {
+    std::string key = formatKey(week, diff);
+    if (weekAccuracies.find(key) != weekAccuracies.end()) {
+        return weekAccuracies[key];
+    }
+    if (songAccuracies.find(key) != songAccuracies.end()) {
+        return songAccuracies[key];
+    }
+    return 0.0f;
+}
+
+void Highscores::saveWeekRating(const std::string& week, const std::string& rating, const std::string& diff, float newAccuracy) {
+    std::string key = formatKey(week, diff);
+    if (weekRatings.find(key) == weekRatings.end() || newAccuracy >= getWeekAccuracy(week, diff)) {
+        weekRatings[key] = rating;
+        save();
+    }
+}
+
+std::string Highscores::getWeekRating(const std::string& week, const std::string& diff) {
+    std::string key = formatKey(week, diff);
+    if (weekRatings.find(key) != weekRatings.end()) {
+        return weekRatings[key];
+    }
     if (songRatings.find(key) != songRatings.end()) {
         return songRatings[key];
     }

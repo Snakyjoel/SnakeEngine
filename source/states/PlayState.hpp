@@ -168,6 +168,15 @@ public:
     int goods = 0;
     int bads = 0;
     int shits = 0;
+
+    static int campaignScore;
+    static int campaignSicks;
+    static int campaignGoods;
+    static int campaignBads;
+    static int campaignShits;
+    static int campaignMisses;
+    static int campaignTotalNotes;
+    static int campaignMaxCombo;
     
     std::vector<int> keysUsed;
     bool bfWentIdle = false;

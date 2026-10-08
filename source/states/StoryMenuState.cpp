@@ -5,6 +5,7 @@
 #include "../backend/ModHandler.hpp"
 #include "../backend/AudioEngine.hpp"
 #include "../backend/Paths.hpp"
+#include "Highscores.hpp"
 #include <cmath>
 #include <sstream>
 #include <algorithm>
@@ -34,6 +35,8 @@ static void drawRotatedRect(float cx, float cy, float w, float h, float angleRad
 
 void StoryMenuState::init() {
     ModHandler::get().currentModFolder = "";
+
+    accuracyDisplay.load();
 
     MusicPlayer::playMenuMusic();
 
@@ -222,12 +225,17 @@ void StoryMenuState::update(float dt) {
     }
 
     // Trigger new loads when selection or difficulty changes
-    if (lastSelectedCheck != curSelected) {
+    bool selectionChanged = (lastSelectedCheck != curSelected);
+    bool diffChanged = (lastDiffCheck != curDifficulty);
+    if (selectionChanged) {
         lastSelectedCheck = curSelected;
+        activeDiffName = ""; // Force reload difficulty graphic if week/mod changed
         triggerWindowLoad();
     }
-    if (lastDiffCheck != curDifficulty) {
+    if (diffChanged) {
         lastDiffCheck = curDifficulty;
+    }
+    if (selectionChanged || diffChanged) {
         triggerDiffLoad();
     }
     // ─────────────────────────────────────────────────────────────────────
@@ -283,12 +291,14 @@ void StoryMenuState::update(float dt) {
             if (curDifficulty < 0) curDifficulty = (int)curWeekDiffs.size() - 1;
             lastDifficultyName = curWeekDiffs[curDifficulty];
             AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            updateDifficulties();
         }
         if ((keyJustPressed(KEY_DRIGHT) || keyJustPressed(KEY_CPAD_RIGHT))) {
             curDifficulty++;
             if (curDifficulty >= (int)curWeekDiffs.size()) curDifficulty = 0;
             lastDifficultyName = curWeekDiffs[curDifficulty];
             AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            updateDifficulties();
         }
 
         if (keyJustPressed(KEY_A | KEY_START)) {
@@ -385,6 +395,8 @@ void StoryMenuState::update(float dt) {
     if (!isDragging) {
         lerpSelected += (curSelected - lerpSelected) * (1.0f - exp2f(-12.0f * dt));
     }
+
+    accuracyDisplay.update(dt);
 }
 
 void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
@@ -417,8 +429,29 @@ void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         for (char& c : storyText) c = (char)toupper((unsigned char)c);
         
         AddText(storyText, 200 + get3DOffset(10.0f), 12, 0.45f, true, 0.0f, C2D_Color32(0xB2, 0xB2, 0xB2, 255), 0.0f);
-        AddText("LEVEL SCORE: 0", 200 + get3DOffset(10.0f), 31, 0.45f, true, 0.0f, CWhite, 0.0f);
+        
+        std::string diffStr = curWeekDiffs[curDifficulty];
+        std::string suffix = "";
+        if (diffStr == "Easy") suffix = "easy";
+        else if (diffStr == "Hard") suffix = "hard";
+        else if (diffStr != "Normal") {
+            suffix = diffStr;
+            for (char& c : suffix) c = (char)tolower((unsigned char)c);
+        }
+        int weekScore = Highscores::getWeekScore(weekName, suffix);
+        if (weekScore == 0) weekScore = Highscores::getScore(weekName, suffix);
+        char scoreStr[64];
+        sprintf(scoreStr, "WEEK SCORE: %d", weekScore);
+        AddText(scoreStr, 200 + get3DOffset(10.0f), 31, 0.45f, true, 0.0f, CWhite, 0.0f);
     }
+
+    // Draw accuracy display
+    float scale = 0.65f;
+    float cbX = 400.0f - (82.4f * scale) - 10.0f;
+    float cbY = 48.0f;
+    C2D_SetTintMode(C2D_TintMult);
+    accuracyDisplay.draw(cbX, cbY, 0.85f, 1.0f, scale);
+    C2D_SetTintMode(C2D_TintSolid);
  
     if (!selectableWeeks.empty()) {
         u32 kHeld = hidKeysHeld();
@@ -760,6 +793,23 @@ void StoryMenuState::triggerWindowLoad() {
 
 void StoryMenuState::triggerDiffLoad() {
     if (curWeekDiffs.empty()) return;
+
+    if (!selectableWeeks.empty()) {
+        std::string weekName = selectableWeeks[curSelected];
+        std::string diffStr = curWeekDiffs[curDifficulty];
+        std::string suffix = "";
+        if (diffStr == "Easy") suffix = "easy";
+        else if (diffStr == "Hard") suffix = "hard";
+        else if (diffStr != "Normal") {
+            suffix = diffStr;
+            for (char& c : suffix) c = (char)tolower((unsigned char)c);
+        }
+        float acc = Highscores::getWeekAccuracy(weekName, suffix);
+        accuracyDisplay.setAccuracy(acc, isFirstDiffLoad);
+        isFirstDiffLoad = false;
+        std::string weekRating = Highscores::getWeekRating(weekName, suffix);
+        accuracyDisplay.setRating(weekRating);
+    }
 
     std::string diffStr = curWeekDiffs[curDifficulty];
     std::string lower = diffStr;

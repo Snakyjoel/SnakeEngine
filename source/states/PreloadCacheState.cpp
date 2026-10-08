@@ -216,8 +216,9 @@ void PreloadCacheState::init() {
     cacheFlushTarget     = "";
 
     ModHandler::get().scanMods();
-    const auto& mods = ModHandler::get().getMods();
 
+    /* Mod name signature scanning archived - prevents false positive mod name triggers.
+    const auto& mods = ModHandler::get().getMods();
     for (const auto& mod : mods) {
         for (int i = 0; _compat_sig_table[i] != nullptr; i++) {
             if (checkCompatSig(_compat_sig_table[i], mod.name)) {
@@ -229,6 +230,7 @@ void PreloadCacheState::init() {
         }
         if (legacyCompatRequired) break;
     }
+    */
 
     if (!legacyCompatRequired && checkHwCalibration()) {
         legacyCompatRequired = true;

@@ -260,6 +260,14 @@ void PlayState::updateLuaText(LuaText& t) {
 }
 
 PlayState* PlayState::instance = nullptr;
+int PlayState::campaignScore = 0;
+int PlayState::campaignSicks = 0;
+int PlayState::campaignGoods = 0;
+int PlayState::campaignBads = 0;
+int PlayState::campaignShits = 0;
+int PlayState::campaignMisses = 0;
+int PlayState::campaignTotalNotes = 0;
+int PlayState::campaignMaxCombo = 0;
 
 inline float lerp(float a, float b, float t) {
     return a + t * (b - a);
@@ -279,6 +287,17 @@ PlayState::PlayState(const WeekData& week, int songIdx, const std::string& diffi
         curSong = week.songs[songIdx].name;
     }
     currentDifficulty = difficulty;
+
+    if (songIdx == 0) {
+        campaignScore = 0;
+        campaignSicks = 0;
+        campaignGoods = 0;
+        campaignBads = 0;
+        campaignShits = 0;
+        campaignMisses = 0;
+        campaignTotalNotes = 0;
+        campaignMaxCombo = 0;
+    }
 }
 
 
@@ -4069,12 +4088,34 @@ void PlayState::endSong() {
         }
     }
 
+    if (isStoryMode) {
+        campaignScore += score;
+        campaignSicks += sicks;
+        campaignGoods += goods;
+        campaignBads += bads;
+        campaignShits += shits;
+        campaignMisses += misses;
+        campaignTotalNotes += (int)totalNotesHit + misses;
+        if (maxCombo > campaignMaxCombo) {
+            campaignMaxCombo = maxCombo;
+        }
+    }
+
     MusicBeatState* nextState = nullptr;
     if (isStoryMode && curSongIdx + 1 < (int)weekData.songs.size()) {
         nextState = new PlayState(weekData, curSongIdx + 1, currentDifficulty);
     } else {
-        std::string resName = isStoryMode ? weekData.weekName : curSong;
-        nextState = new ResultState(isStoryMode, false, resName, currentDifficulty, (int)totalNotesHit + misses, maxCombo, sicks, goods, bads, shits, misses, score);
+        std::string resName = isStoryMode ? (weekData.fileName.empty() ? weekData.weekName : weekData.fileName) : curSong;
+        int resTotalNotes = isStoryMode ? campaignTotalNotes : ((int)totalNotesHit + misses);
+        int resMaxCombo   = isStoryMode ? campaignMaxCombo   : maxCombo;
+        int resSicks      = isStoryMode ? campaignSicks      : sicks;
+        int resGoods      = isStoryMode ? campaignGoods      : goods;
+        int resBads       = isStoryMode ? campaignBads       : bads;
+        int resShits      = isStoryMode ? campaignShits      : shits;
+        int resMisses     = isStoryMode ? campaignMisses     : misses;
+        long long resScore= isStoryMode ? campaignScore      : score;
+
+        nextState = new ResultState(isStoryMode, false, resName, currentDifficulty, resTotalNotes, resMaxCombo, resSicks, resGoods, resBads, resShits, resMisses, resScore);
     }
 
     if (!info.outroVideo.empty()) {

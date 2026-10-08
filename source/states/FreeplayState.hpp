@@ -4,6 +4,7 @@
 #include "../backend/WeekData.hpp"
 #include "SparrowParser.hpp"
 #include "../objects/CppAnimate.hpp"
+#include "../objects/AccuracyDisplay.hpp"
 #include <vector>
 #include <string>
 #include <map>
@@ -130,11 +131,8 @@ private:
     float albumRotation = -5.0f;
     float albumTextFlashTime = 0.0f;
 
-    // Cleared accuracy display details
-    std::vector<Frame> clearedNumberFrames[10];
-    Frame clearedBoxFrame;
-    float lerpAccuracy = 0.0f;
-    float targetAccuracy = 0.0f;
+    // Cleared accuracy display
+    AccuracyDisplay accuracyDisplay;
 
     // Difficulty selection arrow and animation offset details
     float leftArrowVisibleTime = 0.0f;

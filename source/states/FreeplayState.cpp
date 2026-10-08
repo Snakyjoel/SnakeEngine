@@ -157,12 +157,12 @@ void FreeplayState::init() {
     std::string bfAssetsXmlPath = Paths::xml("freeplay/freeplayAssetsBF");
     freeplayBFSheet = C2D_SpriteSheetLoad(bfAssetsImgPath.c_str());
 
+    accuracyDisplay.load();
     letterStuffFrames.clear();
     for (int i = 0; i < 10; i++) {
         numberFrames[i].clear();
-        clearedNumberFrames[i].clear();
     }
-    clearedBoxFrame.tex = nullptr;
+    bfBgFrame.tex = nullptr;
     bfBgFrame.tex = nullptr;
     capsuleFrame.tex = nullptr;
     arrowFrame.tex = nullptr;
@@ -200,10 +200,6 @@ void FreeplayState::init() {
             else if (nl == "arrow" || (nl.find("arrow") == 0 && nl.find("mini") == std::string::npos)) {
                 arrowFrame = f;
             }
-            // 4. clearBox
-            else if (nl.find("clearbox") != std::string::npos) {
-                clearedBoxFrame = f;
-            }
             // 5. Digital numbers
             else if (nl.find("zero digital")  != std::string::npos) numberFrames[0].push_back(f);
             else if (nl.find("one digital")   != std::string::npos) numberFrames[1].push_back(f);
@@ -216,17 +212,7 @@ void FreeplayState::init() {
             else if (nl.find("eight digital") != std::string::npos) numberFrames[8].push_back(f);
             else if (nl.find("nine digital")  != std::string::npos) numberFrames[9].push_back(f);
 
-            // 6. Cleared accuracy numbers
-            for (int i = 0; i < 10; i++) {
-                std::string numExact = std::to_string(i);
-                std::string numZeros = std::to_string(i) + "0000";
-                if (nl == numExact || nl == numZeros) {
-                    clearedNumberFrames[i].push_back(f);
-                    break;
-                }
-            }
-
-            // 7. LetterStuff items
+            // 6. LetterStuff items
             if (nl.find("instance") != std::string::npos || nl.find("seperator") != std::string::npos) {
                 letterStuffFrames.push_back(f);
             }
@@ -292,13 +278,12 @@ void FreeplayState::init() {
         }
         targetScore = Highscores::getScore(songs[curSelected].name, suffix);
         lerpScore = (float)targetScore;
-        targetAccuracy = Highscores::getAccuracy(songs[curSelected].name, suffix);
-        lerpAccuracy = targetAccuracy;
+        float acc = Highscores::getAccuracy(songs[curSelected].name, suffix);
+        accuracyDisplay.setAccuracy(acc, true);
     } else {
         targetScore = 0;
         lerpScore = 0.0f;
-        targetAccuracy = 0.0f;
-        lerpAccuracy = 0.0f;
+        accuracyDisplay.setAccuracy(0.0f, true);
     }
 
     LightLock_Init(&loadLock);
@@ -851,10 +836,11 @@ void FreeplayState::update(float dt) {
             for (char& c : suffix) c = (char)tolower((unsigned char)c);
         }
         targetScore = Highscores::getScore(songs[curSelected].name, suffix);
-        targetAccuracy = Highscores::getAccuracy(songs[curSelected].name, suffix);
+        float acc = Highscores::getAccuracy(songs[curSelected].name, suffix);
+        accuracyDisplay.setAccuracy(acc);
     } else {
         targetScore = 0;
-        targetAccuracy = 0.0f;
+        accuracyDisplay.setAccuracy(0.0f);
     }
 
     if (std::abs(targetScore - lerpScore) < 0.5f) {
@@ -863,11 +849,7 @@ void FreeplayState::update(float dt) {
         lerpScore += (targetScore - lerpScore) * (1.0f - exp2f(-12.0f * dt));
     }
 
-    if (std::abs(targetAccuracy - lerpAccuracy) < 0.05f) {
-        lerpAccuracy = targetAccuracy;
-    } else {
-        lerpAccuracy += (targetAccuracy - lerpAccuracy) * (1.0f - exp2f(-12.0f * dt));
-    }
+    accuracyDisplay.update(dt);
 
     iconBounceY += (0.0f - iconBounceY) * (1.0f - exp2f(-8.0f * dt));
     categoryBounceY += (0.0f - categoryBounceY) * (1.0f - exp2f(-8.0f * dt));
@@ -1270,34 +1252,10 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     }
 
     // Draw cleared box and accuracy inside (top screen, upper right, below the black bar)
-    if (clearedBoxFrame.tex) {
-        float scale = 0.65f;
-        float cbX = 400.0f - (82.4f * scale) - 10.0f;
-        float cbY = 32.0f + topIntroY;
-        C2D_ImageTint tint;
-        C2D_AlphaImageTint(&tint, exitAlpha);
-        drawFrameAt(clearedBoxFrame, cbX, cbY, 0.5f, &tint, scale, scale);
-
-        int accVal = (int)std::round(lerpAccuracy);
-        if (accVal < 0) accVal = 0;
-        if (accVal > 100) accVal = 100;
-        std::string accStr = std::to_string(accVal);
-        
-        float currentX = cbX + (65.0f * scale);
-        float currentY = cbY + (18.0f * scale);
-        float padding = 1.0f * scale;
-
-        for (int idx = (int)accStr.length() - 1; idx >= 0; idx--) {
-            int digit = accStr[idx] - '0';
-            if (digit >= 0 && digit <= 9 && !clearedNumberFrames[digit].empty()) {
-                const Frame& f = clearedNumberFrames[digit][0];
-                float digitW = (float)f.w * scale;
-                currentX -= digitW;
-                drawFrameAt(f, currentX, currentY, 0.6f, &tint, scale, scale);
-                currentX -= padding;
-            }
-        }
-    }
+    float scale = 0.65f;
+    float cbX = 400.0f - (82.4f * scale) - 10.0f;
+    float cbY = 32.0f + topIntroY;
+    accuracyDisplay.draw(cbX, cbY, 0.5f, exitAlpha, scale);
 
     // Song list (on top)
     float centerY = 130.0f;
@@ -1763,8 +1721,6 @@ void FreeplayState::exitState() {
 
     if (menuBgSheet) C2D_SpriteSheetFree(menuBgSheet);
     menuBgSheet = nullptr;
-
-    for (int i = 0; i < 10; i++) clearedNumberFrames[i].clear();
 
     letterStuffFrames.clear();
 

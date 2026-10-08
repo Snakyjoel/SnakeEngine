@@ -156,13 +156,18 @@ ResultState::ResultState(bool isStoryMode, bool fromDebug, const std::string& na
     } else {
         rank = "CLEAR";
     }
-
-    Highscores::saveScore(name, (int)this->score, difficulty);
-    Highscores::saveAccuracy(name, percentage, difficulty);
     std::string ratingKey = finalRating;
     if (finalRating == "G" && percentage < 80.0f) {
         ratingKey = "g"; // lowercase g for Good
     }
+
+    Highscores::saveScore(name, (int)this->score, difficulty);
+    if (isStoryMode) {
+        Highscores::saveWeekScore(name, (int)this->score, difficulty);
+        Highscores::saveWeekRating(name, ratingKey, difficulty, percentage);
+        Highscores::saveWeekAccuracy(name, percentage, difficulty);
+    }
+    Highscores::saveAccuracy(name, percentage, difficulty);
     Highscores::saveRating(name, ratingKey, difficulty, percentage);
 
     if (!ClientPrefs::botPlay) {
