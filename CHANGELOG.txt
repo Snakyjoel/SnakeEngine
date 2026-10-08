@@ -1,6 +1,6 @@
 v3.7.8
 (The list of changes is very long; I may have missed some changes that aren't listed.)
-- Game Over was finally added
+- Game Over was finally added (Its freezed, I will fix it eventually)
 - The ogg files of the base game were converted to adp for better performance
 - Improved the audio player in debug menu
 - Improved the source files organization
