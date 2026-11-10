@@ -1,4 +1,4 @@
-<p align="center"><img src="https://cdn.discordapp.com/attachments/1492889087449764051/1568993657007247400/Logo.png?ex=6af1d6b6&is=6af08536&hm=4f0691f3eea04523ce6cf6719813c71bc146e6490dab28538b7a8bf7706336bb" alt="Snake Engine Logo" width="900"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Snakyjoel/SnakeEngine/refs/heads/main/art/Logo.png" alt="Snake Engine Logo" width="900"></p>
 
 <h1 align="center">Friday Night Funkin': Snake Engine</h1>
 
@@ -23,19 +23,19 @@ Furthermore, you will be able to modify this engine in a way very similar to Psy
 
 ## (Some photos of the engine)
 
-<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1568999751922352148/08.11.26_11.41.48.986.png?ex=6af1dc63&is=6af08ae3&hm=32223d088f9ca3290063dd14b86e6f65d1ddc5c4f5db62ee97f6a725b25551bd&" alt="Tttile" width="900">
+<img src="https://raw.githubusercontent.com/Snakyjoel/SnakeEngine/refs/heads/main/art/_08.11.26_11.41.48.986.png" alt="Tttile" width="900">
 
-<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1568999752446509147/08.11.26_11.42.08.183.png?ex=6af1dc63&is=6af08ae3&hm=ae798b160ffa4c9fd806eaa9e4c8679505753ddcd960a34f8d923eea4f671d4e&" alt="Menu" width="900">
+<img src="https://raw.githubusercontent.com/Snakyjoel/SnakeEngine/refs/heads/main/art/_08.11.26_11.42.08.183.png" alt="Menu" width="900">
 
-<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1568999752920727562/08.11.26_11.42.17.437.png?ex=6af1dc63&is=6af08ae3&hm=3555ae598336d8f84ab047384ebfd0153a82811ec63939d7079a3693e6e5e1dd&" alt="Story" width="900">
+<img src="https://raw.githubusercontent.com/Snakyjoel/SnakeEngine/refs/heads/main/art/_08.11.26_11.42.17.437.png" alt="Story" width="900">
 
-<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1568999753398751406/08.11.26_11.42.26.583.png?ex=6af1dc63&is=6af08ae3&hm=df7f2b343899f2c525a93f8ca5ccabac5317fd63f99403a0a4ad5b45658a7bb4&" alt="Freeplay" width="900">
+<img src="https://raw.githubusercontent.com/Snakyjoel/SnakeEngine/refs/heads/main/art/_08.11.26_11.42.26.583.png" alt="Freeplay" width="900">
 
-<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1569000801769095318/image.png?ex=6af1dd5d&is=6af08bdd&hm=16a47e448623b83ae101aa08b0830bbe8ab06a47ebc66084e7a24dc6ef54b012" alt="Mods" width="900">
+<img src="https://raw.githubusercontent.com/Snakyjoel/SnakeEngine/refs/heads/main/art/_08.11.26_11.42.42.023.png" alt="Mods" width="900">
 
-<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1568999754879340544/08.11.26_11.43.06.647.png?ex=6af1dc64&is=6af08ae4&hm=771a65cee8058b29c5c6865ff0a0e762df8352c6073ea061e6e2281117b63872&" alt="Options" width="900">
+<img src="https://raw.githubusercontent.com/Snakyjoel/SnakeEngine/refs/heads/main/art/_08.11.26_11.43.06.647.png" alt="Options" width="900">
 
-<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1568999755571536024/08.11.26_11.43.40.784.png?ex=6af1dc64&is=6af08ae4&hm=8b08e9c70c6eb305eeff0884aa4f1293a594a112193203b9c23c0d8ea522dc12&" alt="Game" width="900">
+<img src="https://raw.githubusercontent.com/Snakyjoel/SnakeEngine/refs/heads/main/art/_08.11.26_11.43.40.784.png" alt="Game" width="900">
 
 ## HOW TO INSTALL
 
