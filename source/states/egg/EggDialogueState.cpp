@@ -1,5 +1,4 @@
 #include "EggDialogueState.hpp"
-#include "EggDuelState.hpp"
 #include "TitleState.hpp"
 #include "backend/savedata/ClientPrefs.hpp"
 #include <cmath>
@@ -354,11 +353,7 @@ void EggDialogueState::update(float dt) {
         float limit = toDuel ? 2.5f : 0.8f;
         if (exitTimer >= limit) {
             MusicBeatState::skipTransition = true;
-            if (toDuel) {
-                switchState(new EggDuelState());
-            } else {
-                switchState(new TitleState());
-            }
+            switchState(new TitleState());
         }
         return;
     }

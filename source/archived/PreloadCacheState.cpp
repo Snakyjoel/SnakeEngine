@@ -2,7 +2,6 @@
 #include "TitleState.hpp"
 #include "LegacyCompatState.hpp"
 #include "EggDialogueState.hpp"
-#include "EggDuelState.hpp"
 #include "../backend/savedata/ClientPrefs.hpp"
 #include "../backend/ModHandler.hpp"
 #include "../backend/AudioEngine.hpp"
@@ -266,10 +265,7 @@ void PreloadCacheState::update(float dt) {
     if (!hwCheckDone) return;
     bootTimer += dt;
     if (bootTimer >= 0.016f) {
-        if (ClientPrefs::inEggDuel) {
-            MusicBeatState::skipTransition = true;
-            switchState(new EggDuelState());
-        } else if (ClientPrefs::acceptedEgg) {
+        if (ClientPrefs::acceptedEgg) {
             MusicBeatState::skipTransition = true;
             switchState(new EggDialogueState());
         } else {

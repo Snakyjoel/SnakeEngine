@@ -12,7 +12,6 @@
 #include "backend/AsyncAssetManager.hpp"
 #include "backend/UpdateChecker.hpp"
 #include "states/TitleState.hpp"
-#include "states/egg/EggDuelState.hpp"
 #include "states/egg/EggDialogueState.hpp"
 #include "states/PlayState.hpp"
 
@@ -139,10 +138,7 @@ int main(int argc, char* argv[]) {
     AsyncAssetManager::get().init();
 
     MusicBeatState* currentState = nullptr;
-    if (ClientPrefs::inEggDuel) {
-        MusicBeatState::skipTransition = true;
-        currentState = new EggDuelState();
-    } else if (ClientPrefs::acceptedEgg) {
+    if (ClientPrefs::acceptedEgg) {
         MusicBeatState::skipTransition = true;
         currentState = new EggDialogueState();
     } else {
