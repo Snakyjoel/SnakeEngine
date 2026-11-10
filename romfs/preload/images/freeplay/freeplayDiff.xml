@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.2 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="freeplayDiff.png" width="203" height="108">
+  <SubTexture name="easy" x="105" y="38"  width="89" height="32" frameX="-0" frameY="-0" frameWidth="89" frameHeight="32"/>
+  <SubTexture name="erect" x="2" y="2"  width="103" height="32" frameX="-0" frameY="-0" frameWidth="103" frameHeight="32"/>
+  <SubTexture name="hard" x="2" y="38"  width="99" height="32" frameX="-0" frameY="-0" frameWidth="99" frameHeight="32"/>
+  <SubTexture name="nightmare" x="109" y="2"  width="92" height="32" frameX="-0" frameY="-0" frameWidth="92" frameHeight="32"/>
+  <SubTexture name="normal" x="2" y="74"  width="99" height="32" frameX="-0" frameY="-0" frameWidth="99" frameHeight="32"/>
+</TextureAtlas>

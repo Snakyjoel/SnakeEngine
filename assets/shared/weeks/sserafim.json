@@ -18,7 +18,12 @@
 				255,
 				52,
 				124
-			]
+			],
+			{
+				"easy": 2,
+				"normal": 3,
+				"hard": 5
+			}
 		]
 	],
 	"hideStoryMode": false,

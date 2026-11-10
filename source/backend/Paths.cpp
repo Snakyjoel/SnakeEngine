@@ -1,4 +1,6 @@
 #include "ModHandler.hpp"
+#include "parsers/SparrowParser.hpp"
+#include "TextureLoader.hpp"
 #include <unistd.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -105,6 +107,12 @@ std::string Paths::getPath(const std::string& file, const std::string& type, con
         std::string rawRel = type + "/" + rawFile;
         std::string rawMod = ModHandler::get().getModPath(rawRel);
         if (!rawMod.empty()) return resolve(rawMod);
+
+        // Automatic .png fallback for .t3x files in mods!
+        std::string pngFile = file.substr(0, file.find_last_of(".")) + ".png";
+        std::string pngRel = type + "/" + pngFile;
+        std::string pngMod = ModHandler::get().getModPath(pngRel);
+        if (!pngMod.empty()) return resolve(pngMod);
     }
 
     std::string resolvedCandidate;
@@ -132,6 +140,19 @@ std::string Paths::getPath(const std::string& file, const std::string& type, con
         }
         for (const auto& lib : defaultLibs) {
             if (checkAndResolve("romfs:/" + lib + "/" + type + "/" + rawFile, resolvedCandidate)) {
+                return resolvedCandidate;
+            }
+        }
+
+        // Automatic .png fallback for .t3x files in romfs!
+        std::string pngFile = file.substr(0, file.find_last_of(".")) + ".png";
+        if (!library.empty()) {
+            if (checkAndResolve("romfs:/" + library + "/" + type + "/" + pngFile, resolvedCandidate)) {
+                return resolvedCandidate;
+            }
+        }
+        for (const auto& lib : defaultLibs) {
+            if (checkAndResolve("romfs:/" + lib + "/" + type + "/" + pngFile, resolvedCandidate)) {
                 return resolvedCandidate;
             }
         }
@@ -285,16 +306,32 @@ std::string Paths::songJson(const std::string& song, const std::string& difficul
     std::transform(folder.begin(), folder.end(), folder.begin(), ::tolower);
     std::replace(folder.begin(), folder.end(), ' ', '-');
 
-    std::string filename = folder;
-    if (!difficulty.empty()) {
-        std::string diffSuffix = difficulty;
-        std::transform(diffSuffix.begin(), diffSuffix.end(), diffSuffix.begin(), ::tolower);
-        filename += "-" + diffSuffix;
+    std::string diffLower = difficulty;
+    std::transform(diffLower.begin(), diffLower.end(), diffLower.begin(), ::tolower);
+
+    // Build candidate chart names in order of preference
+    std::vector<std::string> candidates;
+    if (diffLower.empty() || diffLower == "normal") {
+        candidates.push_back(folder);              // Standard FNF / Psych format: song.json
+        candidates.push_back(folder + "-normal");   // Explicit normal suffix in some mods: song-normal.json
+        candidates.push_back(folder + "-hard");     // Fallbacks if normal chart missing
+        candidates.push_back(folder + "-easy");
+    } else {
+        candidates.push_back(folder + "-" + diffLower); // e.g. song-hard.json, song-easy.json, song-erect.json
+        candidates.push_back(folder);                   // Fallback to standard/normal chart
+        candidates.push_back(folder + "-normal");
+        candidates.push_back(folder + "-hard");
+        candidates.push_back(folder + "-easy");
     }
-    
-    // Check multiple variations in mod folder (including songs/ and root folder for compatibility)
-    auto checkVariations = [&](const std::string& targetFile) -> std::string {
-        std::vector<std::string> variations = {
+
+    auto checkFileExists = [](const std::string& p) -> bool {
+        if (p.empty()) return false;
+        return Paths::fileExists(p);
+    };
+
+    // Helper to find a specific target file in mods, then romfs
+    auto findTarget = [&](const std::string& targetFile) -> std::string {
+        std::vector<std::string> modVariations = {
             "data/" + folder + "/" + targetFile + ".json",
             "data/" + song + "/" + targetFile + ".json",
             "songs/" + folder + "/" + targetFile + ".json",
@@ -303,36 +340,63 @@ std::string Paths::songJson(const std::string& song, const std::string& difficul
             song + "/" + targetFile + ".json"
         };
 
-        for (const auto& relPath : variations) {
+        for (const auto& relPath : modVariations) {
             std::string modPath = ModHandler::get().getModPath(relPath);
             if (!modPath.empty()) {
-                return resolve(modPath);
+                std::string resolved = resolve(modPath);
+                if (checkFileExists(resolved)) return resolved;
             }
         }
+
+        std::vector<std::string> romfsVariations = {
+            "romfs:/preload/data/" + folder + "/" + targetFile + ".json",
+            "romfs:/preload/data/" + song + "/" + targetFile + ".json",
+            "romfs:/preload/songs/" + folder + "/" + targetFile + ".json",
+            "romfs:/data/" + folder + "/" + targetFile + ".json",
+            "romfs:/songs/" + folder + "/" + targetFile + ".json"
+        };
+
+        for (const auto& romPath : romfsVariations) {
+            std::string resolved = resolve(romPath);
+            if (checkFileExists(resolved)) return resolved;
+        }
+
         return "";
     };
 
-    std::string result = checkVariations(filename);
-    if (!result.empty()) return resolve(result);
-
-    if (!difficulty.empty()) {
-        result = checkVariations(folder);
-        if (!result.empty()) return resolve(result);
+    // Try candidates in order
+    for (const auto& cand : candidates) {
+        std::string path = findTarget(cand);
+        if (!path.empty()) return path;
     }
 
-    result = checkVariations(folder + "-hard");
-    if (!result.empty()) return resolve(result);
-
-    result = checkVariations(folder + "-easy");
-    if (!result.empty()) return resolve(result);
-
-    return resolve("romfs:/preload/data/" + folder + "/" + filename + ".json");
+    // Default fallback if nothing found on disk
+    std::string fallbackFilename = (diffLower.empty() || diffLower == "normal") ? folder : (folder + "-" + diffLower);
+    return resolve("romfs:/preload/data/" + folder + "/" + fallbackFilename + ".json");
 }
 
-
-
 std::string Paths::stageJson(const std::string& stage) {
-    return getPath(stage + ".json", "stages", "preload");
+    std::string path = getPath(stage + ".json", "stages", "preload");
+    if (!fileExists(path) && !stage.empty()) {
+        std::string alt = stage;
+        if (std::islower((unsigned char)alt[0])) alt[0] = (char)std::toupper((unsigned char)alt[0]);
+        else alt[0] = (char)std::tolower((unsigned char)alt[0]);
+        std::string altPath = getPath(alt + ".json", "stages", "preload");
+        if (fileExists(altPath)) return altPath;
+    }
+    return path;
+}
+
+std::string Paths::stageLua(const std::string& stage) {
+    std::string path = getPath(stage + ".lua", "stages", "preload");
+    if (!fileExists(path) && !stage.empty()) {
+        std::string alt = stage;
+        if (std::islower((unsigned char)alt[0])) alt[0] = (char)std::toupper((unsigned char)alt[0]);
+        else alt[0] = (char)std::tolower((unsigned char)alt[0]);
+        std::string altPath = getPath(alt + ".lua", "stages", "preload");
+        if (fileExists(altPath)) return altPath;
+    }
+    return path;
 }
 
 std::string Paths::songDataDir(const std::string& song) {
@@ -457,6 +521,21 @@ C2D_SpriteSheet Paths_loadSpriteSheet(const char* path) {
     if (!path) return nullptr;
 
     std::string resolvedPath = Paths::resolve(path);
+
+    struct Mock_Tex3DS_Texture_s {
+        u16 numSubTextures;
+        u16 width;
+        u16 height;
+        u8 format;
+        u8 mipmapLevels;
+        Tex3DS_SubTexture subTextures[1];
+    };
+
+    struct Mock_C2D_SpriteSheet_s {
+        Mock_Tex3DS_Texture_s* t3x;
+        C3D_Tex tex;
+    };
+
     if (resolvedPath.find(".rawtex") != std::string::npos) {
         FILE* f = fopen(resolvedPath.c_str(), "rb");
         if (f) {
@@ -491,19 +570,6 @@ C2D_SpriteSheet Paths_loadSpriteSheet(const char* path) {
                             C3D_TexUpload(texArray, data);
                             C3D_TexFlush(texArray);
                             linearFree(data);
-                            struct Mock_Tex3DS_Texture_s {
-                                u16 numSubTextures;
-                                u16 width;
-                                u16 height;
-                                u8 format;
-                                u8 mipmapLevels;
-                                Tex3DS_SubTexture subTextures[1];
-                            };
-
-                            struct Mock_C2D_SpriteSheet_s {
-                                Mock_Tex3DS_Texture_s* t3x;
-                                C3D_Tex tex;
-                            };
 
                             Mock_C2D_SpriteSheet_s* mock = (Mock_C2D_SpriteSheet_s*)malloc(sizeof(Mock_C2D_SpriteSheet_s));
                             Mock_Tex3DS_Texture_s* t3xMock = (Mock_Tex3DS_Texture_s*)malloc(sizeof(Mock_Tex3DS_Texture_s));
@@ -541,7 +607,52 @@ C2D_SpriteSheet Paths_loadSpriteSheet(const char* path) {
         return nullptr;
     }
 
-    return C2D_SpriteSheetLoad(resolvedPath.c_str());
+    if (resolvedPath.find(".png") != std::string::npos) {
+        C3D_Tex* tex = nullptr;
+        Tex3DS_SubTexture* sub = nullptr;
+        if (TextureLoader::loadPng(resolvedPath, &tex, &sub)) {
+            Mock_C2D_SpriteSheet_s* mock = (Mock_C2D_SpriteSheet_s*)malloc(sizeof(Mock_C2D_SpriteSheet_s));
+            Mock_Tex3DS_Texture_s* t3xMock = (Mock_Tex3DS_Texture_s*)malloc(sizeof(Mock_Tex3DS_Texture_s));
+            if (mock && t3xMock) {
+                t3xMock->numSubTextures = 1;
+                t3xMock->width = tex->width;
+                t3xMock->height = tex->height;
+                t3xMock->format = GPU_RGBA8;
+                t3xMock->mipmapLevels = 1;
+                t3xMock->subTextures[0] = *sub;
+
+                mock->t3x = t3xMock;
+                mock->tex = *tex;
+                delete tex;
+                delete sub;
+
+                mockSheets.insert(mock);
+                return (C2D_SpriteSheet)mock;
+            }
+            if (mock) free(mock);
+            if (t3xMock) free(t3xMock);
+            C3D_TexDelete(tex);
+            delete tex;
+            delete sub;
+        }
+        return nullptr;
+    }
+
+    C2D_SpriteSheet sheet = C2D_SpriteSheetLoad(resolvedPath.c_str());
+    if (!sheet) {
+        size_t dot = resolvedPath.find_last_of('.');
+        if (dot != std::string::npos) {
+            std::string rawCandidate = resolvedPath.substr(0, dot) + ".rawtex";
+            if (Paths::fileExists(rawCandidate)) {
+                return Paths_loadSpriteSheet(rawCandidate.c_str());
+            }
+            std::string pngCandidate = resolvedPath.substr(0, dot) + ".png";
+            if (Paths::fileExists(pngCandidate)) {
+                return Paths_loadSpriteSheet(pngCandidate.c_str());
+            }
+        }
+    }
+    return sheet;
 }
 
 void Paths_freeSpriteSheet(C2D_SpriteSheet sheet) {

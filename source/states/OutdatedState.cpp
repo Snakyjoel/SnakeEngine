@@ -93,14 +93,17 @@ void OutdatedState::update(float dt) {
         fadeAlpha -= dt * 2.0f;
         if (fadeAlpha <= 0.0f) {
             fadeAlpha = 0.0f;
-            switchState(new MainMenuState());
+            if (!hasSwitched) {
+                hasSwitched = true;
+                switchState(new MainMenuState());
+            }
         }
         return;
     }
 
     u32 kDown = hidKeysDown();
     if (kDown & (KEY_A | KEY_START | KEY_B)) {
-        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
         transitioning = true;
     }
 }
@@ -164,29 +167,31 @@ void OutdatedState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         C2D_DrawRectSolid(0, 0, 0.95f, 400, 240, C2D_Color32(0, 0, 0, (u8)((1.0f - alphaVal) * 255.0f)));
     }
 
-    beginScreen(bottom);
-    if (comparison < 0) {
-        C2D_DrawRectSolid(0, 0, 0.0f, 320, 240, CBlack);
-        if (bgLogoSheet && !bgLogoSheet->frames.empty()) {
-            Frame& f = bgLogoSheet->frames[0];
-            float scale = 0.5f;
-            float drawX = 160.0f - ((frameLogicalW(f) * scale) / 2.0f);
-            float drawY = 120.0f - ((frameLogicalH(f) * scale) / 2.0f);
-            drawFrameAt(f, drawX, drawY, 0.5f, nullptr, scale, scale);
-        }
-    } else {
-        if (hifellaSheet && !hifellaSheet->frames.empty()) {
-            Frame& f = hifellaSheet->frames[0];
-            float sx = 320.0f / frameLogicalW(f);
-            float sy = 240.0f / frameLogicalH(f);
-            drawFrameAt(f, 0.0f, 0.0f, 0.05f, nullptr, sx, sy);
-        } else {
+    if (!g_isRightEye && bottom) {
+        beginScreen(bottom);
+        if (comparison < 0) {
             C2D_DrawRectSolid(0, 0, 0.0f, 320, 240, CBlack);
+            if (bgLogoSheet && !bgLogoSheet->frames.empty()) {
+                Frame& f = bgLogoSheet->frames[0];
+                float scale = 0.5f;
+                float drawX = 160.0f - ((frameLogicalW(f) * scale) / 2.0f);
+                float drawY = 120.0f - ((frameLogicalH(f) * scale) / 2.0f);
+                drawFrameAt(f, drawX, drawY, 0.5f, nullptr, scale, scale);
+            }
+        } else {
+            if (hifellaSheet && !hifellaSheet->frames.empty()) {
+                Frame& f = hifellaSheet->frames[0];
+                float sx = 320.0f / frameLogicalW(f);
+                float sy = 240.0f / frameLogicalH(f);
+                drawFrameAt(f, 0.0f, 0.0f, 0.05f, nullptr, sx, sy);
+            } else {
+                C2D_DrawRectSolid(0, 0, 0.0f, 320, 240, CBlack);
+            }
         }
-    }
 
-    // Bottom screen transition fade
-    if (alphaVal < 1.0f) {
-        C2D_DrawRectSolid(0, 0, 0.95f, 320, 240, C2D_Color32(0, 0, 0, (u8)((1.0f - alphaVal) * 255.0f)));
+        // Bottom screen transition fade
+        if (alphaVal < 1.0f) {
+            C2D_DrawRectSolid(0, 0, 0.95f, 320, 240, C2D_Color32(0, 0, 0, (u8)((1.0f - alphaVal) * 255.0f)));
+        }
     }
 }

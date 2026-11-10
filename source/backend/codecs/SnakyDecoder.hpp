@@ -44,6 +44,12 @@ public:
     uint32_t getTotalFrames() const { return totalFrames; }
     bool hasAudioTrack() const { return hasAudio; }
     int getAvailableFrames() const { return ringCount; }
+    size_t getLinearMemoryUsed() const {
+        return isOpen() ? (RING_SIZE * PADDED_WIDTH * PADDED_HEIGHT * 2) : 0;
+    }
+    size_t getHeapMemoryUsed() const {
+        return isOpen() ? (compressedBuf.capacity() + uncompressedBuf.capacity()) : 0;
+    }
 
 private:
     std::string path;
@@ -92,6 +98,7 @@ private:
     int16_t* audioBufferData = nullptr;
     uint64_t audioSamplesPlayed = 0;
     AdpcmDecoder::State adpcmState;
+    AdpcmDecoder::State adpcmStateR;
     std::vector<uint8_t> adpcmAudioBuf;
 
     void readHeader();

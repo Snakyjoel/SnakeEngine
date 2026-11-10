@@ -31,4 +31,5 @@ private:
     int bodyTextLines;
     float fadeAlpha;
     bool transitioning;
+    bool hasSwitched = false;
 };

@@ -16,6 +16,11 @@ struct SpritemapPiece {
     std::string name;   // the string key ("0", "18", ...)
     int x, y, w, h;
     bool rotated;
+    float uvLeft = 0.0f;
+    float uvTop = 0.0f;
+    float uvRight = 0.0f;
+    float uvBottom = 0.0f;
+    bool hasUv = false;
 };
 
 // An affine transform matrix [a, b, c, d, tx, ty]
@@ -71,6 +76,7 @@ struct SpritemapLayer {
 struct SpritemapSymbol {
     std::string name;
     std::vector<SpritemapLayer> layers;
+    mutable int cachedDuration = -1;
 
     // Total duration in frames (max of all layer durations)
     int duration() const;

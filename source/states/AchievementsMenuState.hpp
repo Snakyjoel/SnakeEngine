@@ -16,6 +16,7 @@ public:
 
 private:
     void changeSelection(int change = 0);
+    void updateSelectedDesc();
     std::string wrapText(const std::string& text, float scale, float maxWidth);
     void drawQuanticoText(const std::string& textStr, float x, float y, float scale, bool centered, u32 color, float depth = 0.85f, float border = 0.0f, float maxWidth = 0.0f);
     float getQuanticoTextWidth(const std::string& textStr, float scale);
@@ -26,6 +27,9 @@ private:
     
     std::vector<AchievementInfo> options;
     std::vector<int> achievementIndex;
+    std::vector<std::string> cachedUpperNames;
+    std::vector<float> cachedUpperWidths;
+    std::vector<std::string> cachedDescLines;
 
     C2D_SpriteSheet bgSheet = nullptr;
     C2D_SpriteSheet bottomBGSheet = nullptr;

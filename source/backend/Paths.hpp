@@ -20,6 +20,7 @@ public:
     static std::string weekJson(const std::string& name);
     static std::string songJson(const std::string& song, const std::string& difficulty = "");
     static std::string stageJson(const std::string& stage);
+    static std::string stageLua(const std::string& stage);
     static std::string songDataDir(const std::string& song);  // romfs:/preload/data/<song>/
     static std::vector<std::string> songLuaScripts(const std::string& song); // all .lua files in song data dir
     static std::vector<std::string> globalLuaScripts(); // all global .lua files

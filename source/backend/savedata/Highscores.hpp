@@ -10,6 +10,7 @@ public:
     static std::map<std::string, float> weekAccuracies;
     static std::map<std::string, std::string> songRatings;
     static std::map<std::string, std::string> weekRatings;
+    static std::map<std::string, bool> weekCompleted;
 
     static void load();
     static void reset();
@@ -26,5 +27,6 @@ public:
     static int getWeekScore(const std::string& week, const std::string& diff);
     static float getWeekAccuracy(const std::string& week, const std::string& diff);
     static std::string getWeekRating(const std::string& week, const std::string& diff);
+    static bool isWeekCompleted(const std::string& week);
     static std::string formatKey(const std::string& name, const std::string& diff);
 };

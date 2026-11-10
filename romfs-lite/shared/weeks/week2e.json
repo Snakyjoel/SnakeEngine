@@ -13,23 +13,32 @@
 	"songs": [
 		[
 			"Spookeez Erect",
-			"spooky",
+			"spookypixel",
 			[
 				34,
 				51,
 				68
-			]
+			],
+			{
+				"erect": 11,
+				"nightmare": 12
+			}
 		],
 		[
 			"South Erect",
-			"spooky",
+			"spookypixel",
 			[
 				34,
 				51,
 				68
-			]
+			],
+			{
+				"erect": 8,
+				"nightmare": 9
+			}
 		]
 	],
 	"hideStoryMode": true,
-	"weekName": "Week 2 Erect"
+	"weekName": "Week 2 Erect",
+	"album": "volume3"
 }

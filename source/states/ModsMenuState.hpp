@@ -23,6 +23,12 @@ struct ModIconEntry {
     int lastAccessFrame = 0;
 };
 
+struct ModDisplayInfo {
+    std::string name;
+    std::string desc;
+    float nameWidth = 0.0f;
+};
+
 class ModsMenuState : public MusicBeatState {
 public:
     void init() override;
@@ -31,6 +37,9 @@ public:
     void exitState() override;
 
 private:
+    void cacheDisplayInfo();
+    std::vector<ModDisplayInfo> cachedDisplayInfo;
+
     enum MenuState {
         STATE_IDLE,
         STATE_CONVERT_MENU,

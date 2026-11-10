@@ -157,6 +157,22 @@ bool CppAnimate::loadSpritemap(const std::string& t3xPath,
     smFullSub.right  = 1.0f;
     smFullSub.bottom = 1.0f;
 
+    // Precompute piece base UVs once at load time
+    const Tex3DS_SubTexture* baseSub = smSubtex ? smSubtex : &smFullSub;
+    float baseRw = baseSub->right - baseSub->left;
+    float baseRh = baseSub->bottom - baseSub->top;
+    float baseRefW = (float)baseSub->width;
+    float baseRefH = (float)baseSub->height;
+
+    for (auto& pair : smData.atlas) {
+        SpritemapPiece& p = pair.second;
+        p.uvLeft   = baseSub->left + ((float)p.x * baseRw / baseRefW);
+        p.uvTop    = baseSub->top  + ((float)p.y * baseRh / baseRefH);
+        p.uvRight  = baseSub->left + ((float)(p.x + p.w) * baseRw / baseRefW);
+        p.uvBottom = baseSub->top  + ((float)(p.y + p.h) * baseRh / baseRefH);
+        p.hasUv    = true;
+    }
+
     isSpritemapMode = true;
 
     // Auto-scale: fit the canvas into the 3DS top screen (400 x 240)
@@ -316,6 +332,8 @@ void CppAnimate::draw(float x, float y, float depth, float sx, float sy, C2D_Ima
 
     if (isSpritemapMode) {
         if (!smTex) return;
+        GPU_TEXTURE_FILTER_PARAM filt = antialiasing ? GPU_LINEAR : GPU_NEAREST;
+        C3D_TexSetFilter(smTex, filt, filt);
         std::string symName;
         auto it = smAnims.find(curAnim);
         if (it != smAnims.end()) {
@@ -451,28 +469,34 @@ void CppAnimate::drawPiece(const std::string& pieceName,
     if (pit == smData.atlas.end()) return;
     const SpritemapPiece& piece = pit->second;
 
-    static Tex3DS_SubTexture defaultSubtex;
-    defaultSubtex.width = (u16)smTex->width;
-    defaultSubtex.height = (u16)smTex->height;
-    defaultSubtex.left = 0.0f;
-    defaultSubtex.top = 0.0f;
-    defaultSubtex.right = 1.0f;
-    defaultSubtex.bottom = 1.0f;
-
-    const Tex3DS_SubTexture* sub = smSubtex ? smSubtex : &defaultSubtex;
-
-    float rw = sub->right - sub->left;
-    float rh = sub->bottom - sub->top;
-    float refW = (float)sub->width;
-    float refH = (float)sub->height;
-
     Tex3DS_SubTexture uv;
     uv.width  = (u16)piece.w;
     uv.height = (u16)piece.h;
-    uv.left   = sub->left + ((float)piece.x * rw / refW);
-    uv.top    = sub->top  + ((float)piece.y * rh / refH);
-    uv.right  = sub->left + ((float)(piece.x + piece.w) * rw / refW);
-    uv.bottom = sub->top  + ((float)(piece.y + piece.h) * rh / refH);
+    if (piece.hasUv) {
+        uv.left   = piece.uvLeft;
+        uv.top    = piece.uvTop;
+        uv.right  = piece.uvRight;
+        uv.bottom = piece.uvBottom;
+    } else {
+        static Tex3DS_SubTexture defaultSubtex;
+        defaultSubtex.width = (u16)smTex->width;
+        defaultSubtex.height = (u16)smTex->height;
+        defaultSubtex.left = 0.0f;
+        defaultSubtex.top = 0.0f;
+        defaultSubtex.right = 1.0f;
+        defaultSubtex.bottom = 1.0f;
+
+        const Tex3DS_SubTexture* sub = smSubtex ? smSubtex : &defaultSubtex;
+        float rw = sub->right - sub->left;
+        float rh = sub->bottom - sub->top;
+        float refW = (float)sub->width;
+        float refH = (float)sub->height;
+
+        uv.left   = sub->left + ((float)piece.x * rw / refW);
+        uv.top    = sub->top  + ((float)piece.y * rh / refH);
+        uv.right  = sub->left + ((float)(piece.x + piece.w) * rw / refW);
+        uv.bottom = sub->top  + ((float)(piece.y + piece.h) * rh / refH);
+    }
 
     float A = mx.a;
     float B = mx.b;
@@ -511,9 +535,6 @@ void CppAnimate::drawPiece(const std::string& pieceName,
 
     float cx = mx.a * (localW * 0.5f) + mx.c * (localH * 0.5f) + mx.tx;
     float cy = mx.b * (localW * 0.5f) + mx.d * (localH * 0.5f) + mx.ty;
-
-    GPU_TEXTURE_FILTER_PARAM filt = antialiasing ? GPU_LINEAR : GPU_NEAREST;
-    C3D_TexSetFilter(smTex, filt, filt);
 
     C2D_ImageTint alphaTint;
     const C2D_ImageTint* usedTint = nullptr;

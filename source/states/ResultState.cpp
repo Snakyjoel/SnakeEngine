@@ -1,6 +1,9 @@
+//I need to recode this bullshit
 #include "ResultState.hpp"
 #include "StoryMenuState.hpp"
 #include "FreeplayState.hpp"
+#include "MainMenuState.hpp"
+#include "../backend/Macros.hpp"
 #include "../debug/DebugMenuState.hpp"
 #include "../backend/AudioEngine.hpp"
 #include "Highscores.hpp"
@@ -471,7 +474,7 @@ void ResultState::init() {
             for (const auto& f : heartsSheet->frames) heartsFrames.push_back(f.index);
         }
         applyAntialiasing(heartsSheet);
-        musicLoopPath = "romfs:/preload/music/results/resultsPERFECT.ogg";
+        musicLoopPath = "romfs:/preload/music/results/resultsPERFECT.adp";
     } else if (finalRating == "E") {
         rankAnim.scale = 1.2f;
         rankAnim.offsetY = 0.0f;
@@ -490,8 +493,8 @@ void ResultState::init() {
             }
             applyAntialiasing(rankAnim.sheet);
         }
-        musicIntroPath = "romfs:/preload/music/results/resultsEXCELLENT-intro.ogg";
-        musicLoopPath = "romfs:/preload/music/results/resultsEXCELLENT.ogg";
+        musicIntroPath = "romfs:/preload/music/results/resultsEXCELLENT-intro.adp";
+        musicLoopPath = "romfs:/preload/music/results/resultsEXCELLENT.adp";
     } else if (finalRating == "G" && percentage >= 80.0f) {
         rankAnim.scale = 1.0f;
         rankAnim.offsetY = 0.0f;
@@ -518,8 +521,8 @@ void ResultState::init() {
             for (const auto& f : gfSheet->frames) gfFrames.push_back(f.index);
         }
         applyAntialiasing(gfSheet);
-        musicIntroPath = "romfs:/preload/music/results/resultsEXCELLENT-intro.ogg";
-        musicLoopPath = "romfs:/preload/music/results/resultsEXCELLENT.ogg";
+        musicIntroPath = "romfs:/preload/music/results/resultsEXCELLENT-intro.adp";
+        musicLoopPath = "romfs:/preload/music/results/resultsEXCELLENT.adp";
     } else if (finalRating == "G") {
         rankAnim.scale = 1.0f;
         rankAnim.offsetY = 0.0f;
@@ -548,7 +551,7 @@ void ResultState::init() {
         goodGfScale = 0.25f;
         goodGfCurFrame = 0;
         goodGfFrameTimer = 0.0f;
-        musicLoopPath = "romfs:/preload/music/results/resultsNORMAL.ogg";
+        musicLoopPath = "romfs:/preload/music/results/resultsNORMAL.adp";
     } else {
         rankAnim.scale = 0.85f;
         rankAnim.offsetY = 0.0f;
@@ -587,8 +590,8 @@ void ResultState::init() {
             float baseFrameY = rankAnim.loopFrames[0].frameY;
             for (auto& f : rankAnim.loopFrames) f.frameY -= baseFrameY;
         }
-        musicIntroPath = "romfs:/preload/music/results/resultsSHIT-intro.ogg";
-        musicLoopPath = "romfs:/preload/music/results/resultsSHIT.ogg";
+        musicIntroPath = "romfs:/preload/music/results/resultsSHIT-intro.adp";
+        musicLoopPath = "romfs:/preload/music/results/resultsSHIT.adp";
     }
 
     pctAnimTimer = 0.0f;
@@ -805,7 +808,7 @@ void ResultState::update(float dt) {
             int curInt = (int)std::floor(pctDisplayValue);
             if (curInt != pctLastInt && curInt >= 0) {
                 pctLastInt = curInt;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.5f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.5f);
             }
         } else {
             pctPauseTimer += dt;
@@ -816,7 +819,7 @@ void ResultState::update(float dt) {
                 pctAnimDone = true;
                 pctAnimActive = false;
  
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                 flashAlpha = 1.0f;
                 flashTriggered = true;
  
@@ -961,6 +964,8 @@ void ResultState::update(float dt) {
         }
     }
 
+    if (isExiting) return;
+
     u32 kDown = hidKeysDown();
     
     bool touchPressed = false;
@@ -969,7 +974,8 @@ void ResultState::update(float dt) {
     }
 
     if (keyJustPressed(KEY_A | KEY_START) || touchPressed) {
-        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+        isExiting = true;
+        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
         
         MusicBeatState* nextState = nullptr;
         if (fromDebug) {
@@ -977,12 +983,13 @@ void ResultState::update(float dt) {
         } else if (isStoryMode) {
             nextState = new StoryMenuState();
         } else {
-            nextState = new FreeplayState();
+            nextState = new MainMenuState(true);
         }
         
         Achievements::sessionUnlocks.clear();
         MusicBeatState::useStickerTransition = true;
         switchState(nextState);
+        return;
     }
 }
 
@@ -1273,8 +1280,9 @@ void ResultState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         }
     }
 
-    C2D_SceneBegin(bottom);
-    C2D_TargetClear(bottom, C2D_Color32(248, 202, 97, 255));
+    if (!g_isRightEye && bottom) {
+        C2D_SceneBegin(bottom);
+        C2D_TargetClear(bottom, C2D_Color32(248, 202, 97, 255));
  
     if (bgFadeAlpha > 0.0f && bgScrollFrame.tex) {
         drawBackgroundScrollingText(bgScrollFrame, bgScrollOffset, bgFadeAlpha, barAngleRad, 320.0f, 240.0f);
@@ -1385,9 +1393,10 @@ void ResultState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             }
         }
     }
+    }
 }
 
 void ResultState::exitState() {
-    if (achievementsSheet) C2D_SpriteSheetFree(achievementsSheet);
-    C2D_TextBufDelete(vcrFontBuf);
+    if (achievementsSheet) { C2D_SpriteSheetFree(achievementsSheet); achievementsSheet = nullptr; }
+    if (vcrFontBuf) { C2D_TextBufDelete(vcrFontBuf); vcrFontBuf = nullptr; }
 }

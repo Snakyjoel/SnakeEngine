@@ -18,14 +18,19 @@
 	"songs": [
 		[
 			"Ugh Erect",
-			"tankman",
+			"tankmanpixel",
 			[
 				246,
 				182,
 				4
-			]
+			],
+			{
+				"erect": 8,
+				"nightmare": 9
+			}
 		]
 	],
 	"hideStoryMode": true,
-	"weekName": "Week 7 Erect"
+	"weekName": "Week 7 Erect",
+	"album": "volume4"
 }

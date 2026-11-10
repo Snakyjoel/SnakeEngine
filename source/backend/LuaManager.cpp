@@ -3,6 +3,7 @@
 #include "ShaderManager.hpp"
 #include "../objects/InGameVideoPlayer.hpp"
 #include "SpritesheetCache.hpp"
+#include "TextureLoader.hpp"
 #include "savedata/OptionManager.hpp"
 extern void logToFile(const std::string& msg);
 #include "../states/MainMenuState.hpp"
@@ -878,6 +879,31 @@ int LuaManager::lua_makeLuaSprite(lua_State* L) {
             }
 
             if (!loadedRaw) {
+                std::string pngPath = TextureLoader::resolveImagePath(imgName);
+                if (!pngPath.empty() && pngPath.find(".png") != std::string::npos) {
+                    C3D_Tex* tex = nullptr;
+                    Tex3DS_SubTexture* sub = nullptr;
+                    if (TextureLoader::loadPng(pngPath, &tex, &sub)) {
+                        C3D_TexSetFilter(tex, s.antialiasing ? GPU_LINEAR : GPU_NEAREST, s.antialiasing ? GPU_LINEAR : GPU_NEAREST);
+                        s.img.tex = tex;
+                        s.img.subtex = sub;
+                        s.sheet = nullptr;
+                        loadedRaw = true;
+
+                        auto it = PlayState::instance->luaSpriteIndices.find(tag);
+                        if (it != PlayState::instance->luaSpriteIndices.end()) {
+                            StageSprite& oldSprite = PlayState::instance->luaSprites[it->second];
+                            releaseLuaSpriteMemory(oldSprite);
+                            PlayState::instance->luaSprites[it->second] = s;
+                        } else {
+                            PlayState::instance->luaSpriteIndices[tag] = PlayState::instance->luaSprites.size();
+                            PlayState::instance->luaSprites.push_back(s);
+                        }
+                    }
+                }
+            }
+
+            if (!loadedRaw) {
                 char debugMsg[128];
                 snprintf(debugMsg, sizeof(debugMsg), "SnakeEngine: makeLuaSprite('%s') FAILED to load image", tag.c_str());
                 PlayState::instance->addDebugMessage(debugMsg);
@@ -1049,6 +1075,18 @@ int LuaManager::lua_loadGraphic(lua_State* L) {
                         }
                     }
                     fclose(f);
+                }
+            }
+            if (!s.img.tex) {
+                std::string pngPath = TextureLoader::resolveImagePath(imgName);
+                if (!pngPath.empty() && pngPath.find(".png") != std::string::npos) {
+                    C3D_Tex* tex = nullptr;
+                    Tex3DS_SubTexture* sub = nullptr;
+                    if (TextureLoader::loadPng(pngPath, &tex, &sub)) {
+                        C3D_TexSetFilter(tex, s.antialiasing ? GPU_LINEAR : GPU_NEAREST, s.antialiasing ? GPU_LINEAR : GPU_NEAREST);
+                        s.img.tex = tex;
+                        s.img.subtex = sub;
+                    }
                 }
             }
         }
@@ -1433,6 +1471,46 @@ int LuaManager::lua_makeAnimatedLuaSprite(lua_State* L) {
                     } // close else from C3D_TexInit
                 }
                 fclose(f);
+            }
+        }
+    }
+
+    if (!loaded) {
+        std::string pngPath = TextureLoader::resolveImagePath(imgName);
+        if (!pngPath.empty() && pngPath.find(".png") != std::string::npos) {
+            std::string xmlPath = ModHandler::get().getModPath("images/" + imgName + ".xml");
+            if (xmlPath.empty() && Paths::fileExists("romfs:/preload/images/" + imgName + ".xml")) {
+                xmlPath = "romfs:/preload/images/" + imgName + ".xml";
+            }
+            if (xmlPath.empty() && Paths::fileExists("romfs:/shared/images/" + imgName + ".xml")) {
+                xmlPath = "romfs:/shared/images/" + imgName + ".xml";
+            }
+
+            if (!xmlPath.empty() && Paths::fileExists(xmlPath)) {
+                C3D_Tex* tex = nullptr;
+                Tex3DS_SubTexture* sub = nullptr;
+                if (TextureLoader::loadPng(pngPath, &tex, &sub)) {
+                    C3D_TexSetFilter(tex, s.antialiasing ? GPU_LINEAR : GPU_NEAREST, s.antialiasing ? GPU_LINEAR : GPU_NEAREST);
+                    s.img.tex = tex;
+                    s.img.subtex = sub;
+                    s.sheet = nullptr;
+
+                    SparrowParser::parseXml(xmlPath, s.frames);
+                    float rw = sub->right - sub->left;
+                    float rh = sub->bottom - sub->top;
+                    float refW = (float)sub->width;
+                    float refH = (float)sub->height;
+                    for (auto& frame : s.frames) {
+                        frame.tex = tex;
+                        frame.uv.width = (u16)frame.w;
+                        frame.uv.height = (u16)frame.h;
+                        frame.uv.left   = sub->left + ((float)frame.x       * rw / refW);
+                        frame.uv.top    = sub->top  + ((float)frame.y       * rh / refH);
+                        frame.uv.right  = sub->left + ((float)(frame.x+frame.w) * rw / refW);
+                        frame.uv.bottom = sub->top  + ((float)(frame.y+frame.h) * rh / refH);
+                    }
+                    loaded = true;
+                }
             }
         }
     }
@@ -3117,7 +3195,7 @@ int LuaManager::lua_getSongPosition(lua_State* L) {
 
 int LuaManager::lua_restartSong(lua_State* L) {
     if (PlayState::instance) {
-        MusicBeatState::switchState(new PlayState(PlayState::instance->curSong, PlayState::instance->currentDifficulty));
+        MusicBeatState::switchState(new PlayState(PlayState::instance->curSong, PlayState::instance->currentDifficulty, PlayState::instance->modDirectory));
     }
     return 0;
 }

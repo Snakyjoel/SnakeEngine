@@ -23,7 +23,7 @@ AccessControlInfo:
   MemoryType                    : Application
   HandleTableSize               : 0x200
   SystemMode                    : 80MB
-  SystemModeExt                 : 124MB
+  SystemModeExt                 : 178MB
   IdealProcessor                : 0
   AffinityMask                  : 1
   DisableDebug                  : true
@@ -41,7 +41,7 @@ AccessControlInfo:
     - apt:u
     - ac:u
     - am:app
-    - am:net
+    - cam:u
     - cecd:u
     - cfg:i
     - cfg:s
@@ -60,20 +60,7 @@ AccessControlInfo:
     - ldr:ro
     - mvd:7
     - mvd:std
-    - ns:PM
-    - ns:su
-    - nwm:u
-    - pm:SM
-    - pm:u
-    - pm:WIN
-    - ptr:srv
-    - set:FD
-    - set:HS
-    - set:SM
-    - set:SS
-    - srv:pm
     - ssl:C
-    - xdma:sys
   SystemCallAccess:
     ArbitrateAddress: 34
     Break: 60

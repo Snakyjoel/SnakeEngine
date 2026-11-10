@@ -16,8 +16,8 @@ void AsyncAssetManager::init() {
     if (running) return;
     LightLock_Init(&queueLock);
     running = true;
-    // Create background thread (priority 30, stack size 32KB, default CPU)
-    workerThread = threadCreate(threadMain, this, 32 * 1024, 30, -1, true);
+    // Create background thread (priority 30, stack size 32KB, default CPU, non-detached)
+    workerThread = threadCreate(threadMain, this, 32 * 1024, 30, -1, false);
 }
 
 void AsyncAssetManager::shutdown() {
@@ -25,7 +25,7 @@ void AsyncAssetManager::shutdown() {
         running = false;
         suspended = false;
         if (workerThread) {
-            threadJoin(workerThread, U64_MAX);
+            threadJoin(workerThread, 2000000000ULL); // 2s safe timeout
             threadFree(workerThread);
             workerThread = nullptr;
         }

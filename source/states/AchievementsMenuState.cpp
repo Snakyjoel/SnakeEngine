@@ -45,13 +45,33 @@ void AchievementsMenuState::init() {
         iconAnimate.addAnim(opt.saveTag, opt.saveTag, 24.0f, true);
     }
 
+    quanticoFont = C2D_FontLoad("romfs:/fonts/Quantico-Bold.bcfnt");
+    quanticoFontBuf = C2D_TextBufNew(4096);
+
+    // Precalculate uppercase titles and their measured width
+    cachedUpperNames.resize(options.size());
+    cachedUpperWidths.resize(options.size());
+    for (size_t i = 0; i < options.size(); i++) {
+        bool unlocked = Achievements::isAchievementUnlocked(options[i].saveTag);
+        bool isSecret = options[i].hidden;
+        std::string textToDraw;
+        if (unlocked) {
+            textToDraw = options[i].name;
+        } else if (isSecret) {
+            textToDraw = "Secret Medal";
+        } else {
+            textToDraw = "?";
+        }
+        std::string nameUpper = textToDraw;
+        std::transform(nameUpper.begin(), nameUpper.end(), nameUpper.begin(), ::toupper);
+        cachedUpperNames[i] = nameUpper;
+        cachedUpperWidths[i] = getQuanticoTextWidth(nameUpper, 0.9f);
+    }
+
     curSelected = 0;
     lerpSelected = 0.0f;
     changeSelection(0);
     textScrollTime = 0.0f;
-
-    quanticoFont = C2D_FontLoad("romfs:/fonts/Quantico-Bold.bcfnt");
-    quanticoFontBuf = C2D_TextBufNew(4096);
 }
 
 void AchievementsMenuState::update(float dt) {
@@ -65,7 +85,7 @@ void AchievementsMenuState::update(float dt) {
     }
 
     if (kDown & KEY_B) {
-        AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
         switchState(new MainMenuState());
     }
 
@@ -74,13 +94,40 @@ void AchievementsMenuState::update(float dt) {
     textScrollTime += dt;
 }
 
+void AchievementsMenuState::updateSelectedDesc() {
+    cachedDescLines.clear();
+    if (curSelected < 0 || curSelected >= (int)options.size()) return;
+
+    std::string desc;
+    bool unlocked = Achievements::isAchievementUnlocked(options[curSelected].saveTag);
+    bool isSecret = options[curSelected].hidden;
+
+    if (unlocked) {
+        desc = options[curSelected].description;
+    } else if (isSecret) {
+        desc = "Unlock to view details.";
+    } else {
+        desc = options[curSelected].description;
+    }
+
+    std::string wrapped = wrapText(desc, 0.45f, 280.0f);
+    std::stringstream ss(wrapped);
+    std::string line;
+    while (std::getline(ss, line, '\n')) {
+        cachedDescLines.push_back(line);
+    }
+}
+
 void AchievementsMenuState::changeSelection(int change) {
+    if (options.empty()) return;
     curSelected += change;
     if (curSelected < 0) curSelected = options.size() - 1;
     if (curSelected >= (int)options.size()) curSelected = 0;
     
+    updateSelectedDesc();
+
     if (change != 0) {
-        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
         textScrollTime = 0.0f;
     }
 }
@@ -154,54 +201,48 @@ void AchievementsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom
         iconAnimate.drawCentered(tempX + 125.0f, tempY + 36.0f, 0.45f, 1.0f, 1.0f, &tempTint);
 
         // Draw text on top of template (name) inside the capsule zone (X: 71, Y: 35, W: 168, H: 24)
-        std::string nameUpper = textToDraw;
-        std::transform(nameUpper.begin(), nameUpper.end(), nameUpper.begin(), ::toupper);
-
-        float tw, th;
-        C2D_Text tempText;
-        C2D_TextFontParse(&tempText, quanticoFont, quanticoFontBuf, nameUpper.c_str());
-        C2D_TextGetDimensions(&tempText, 0.9f, 0.9f, &tw, &th);
+        const std::string& nameUpper = cachedUpperNames[i];
+        float textW = cachedUpperWidths[i];
         
         float textBoxX = tempX + 71.0f;
         float textBoxY = tempY + 35.0f;
         float textBoxW = 168.0f;
         float textBoxH = 24.0f;
         float textBoxXEnd = textBoxX + textBoxW;
-        float textY = tempY + 47.0f - th / 2.0f;
+        float textY = tempY + 47.0f - 10.0f;
 
-        C2D_Flush();
-
-        float sLeft = textBoxY;
-        float sRight = textBoxY + textBoxH;
-        float sTop = textBoxX;
-        float sBottom = textBoxXEnd;
-
-        if (sLeft < 0.0f) sLeft = 0.0f;
-        if (sRight > 240.0f) sRight = 240.0f;
-        if (sTop < 0.0f) sTop = 0.0f;
-        if (sBottom > 400.0f) sBottom = 400.0f;
-
-        u32 phys_left = (u32)(240.0f - sRight);
-        u32 phys_right = (u32)(240.0f - sLeft);
-        u32 phys_top = (u32)(400.0f - sBottom);
-        u32 phys_bottom = (u32)(400.0f - sTop);
-        
-        C3D_SetScissor(GPU_SCISSOR_NORMAL, phys_left, phys_top, phys_right, phys_bottom);
-
-        float textW = tw;
         if (isSelected && textW > 168.0f) {
+            C2D_Flush();
+
+            float sLeft = textBoxY;
+            float sRight = textBoxY + textBoxH;
+            float sTop = textBoxX;
+            float sBottom = textBoxXEnd;
+
+            if (sLeft < 0.0f) sLeft = 0.0f;
+            if (sRight > 240.0f) sRight = 240.0f;
+            if (sTop < 0.0f) sTop = 0.0f;
+            if (sBottom > 400.0f) sBottom = 400.0f;
+
+            u32 phys_left = (u32)(240.0f - sRight);
+            u32 phys_right = (u32)(240.0f - sLeft);
+            u32 phys_top = (u32)(400.0f - sBottom);
+            u32 phys_bottom = (u32)(400.0f - sTop);
+            
+            C3D_SetScissor(GPU_SCISSOR_NORMAL, phys_left, phys_top, phys_right, phys_bottom);
+
             float speed = 35.0f;
             float totalDist = textW + 40.0f;
             float scrollOffset = fmodf(textScrollTime * speed, totalDist);
             float drawX = textBoxX - scrollOffset;
             drawQuanticoText(nameUpper, drawX, textY, 0.9f, false, color, 0.48f, 1.5f);
             drawQuanticoText(nameUpper, drawX + totalDist, textY, 0.9f, false, color, 0.48f, 1.5f);
+
+            C2D_Flush();
+            C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
         } else {
             drawQuanticoText(nameUpper, textBoxX, textY, 0.9f, false, color, 0.48f, 1.5f);
         }
-
-        C2D_Flush();
-        C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
         
         std::string frameName;
         float iconAlpha = itemAlpha;
@@ -227,48 +268,29 @@ void AchievementsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom
 
     drawQuanticoText("ACHIEVEMENTS", 200.0f, 20.0f, 0.8f, true, CWhite, 0.95f, 2.0f);
 
-    C2D_SceneBegin(bottom);
-    C2D_TargetClear(bottom, C2D_Color32(123, 92, 224, 255));
+    if (!g_isRightEye && bottom) {
+        C2D_SceneBegin(bottom);
+        C2D_TargetClear(bottom, C2D_Color32(123, 92, 224, 255));
 
-    if (bottomBGSheet && bottomBG.tex) {
-        C2D_ImageTint tintBG;
-        C2D_PlainImageTint(&tintBG, C2D_Color32(39, 71, 220, 255), 1.0f);
-        drawCenteredBG(bottomBG, 320.0f, 240.0f, 0.1f, &tintBG);
+        if (bottomBGSheet && bottomBG.tex) {
+            C2D_ImageTint tintBG;
+            C2D_PlainImageTint(&tintBG, C2D_Color32(39, 71, 220, 255), 1.0f);
+            drawCenteredBG(bottomBG, 320.0f, 240.0f, 0.1f, &tintBG);
+        }
+        
+        C2D_DrawRectSolid(0, 0, 0.2f, 320, 240, C2D_Color32(0, 0, 0, 100));
+
+        if (!cachedDescLines.empty()) {
+            float lineH = 18.0f;
+            float totalH = cachedDescLines.size() * lineH;
+            float startY = 120.0f - totalH / 2.0f;
+            
+            for (size_t l = 0; l < cachedDescLines.size(); l++) {
+                drawQuanticoText(cachedDescLines[l], 160.0f, startY + l * lineH, 0.45f, true, CWhite, 0.5f, 1.0f);
+            }
+        }
+        ButtonPrompt::drawPrompt("b", "Back", 8.0f, 205.0f, 0.70f, 1.0f);
     }
-    
-    C2D_DrawRectSolid(0, 0, 0.2f, 320, 240, C2D_Color32(0, 0, 0, 100));
-
-    if (curSelected >= 0 && curSelected < (int)options.size()) {
-        std::string desc;
-        bool unlocked = Achievements::isAchievementUnlocked(options[curSelected].saveTag);
-        bool isSecret = options[curSelected].hidden;
-        
-        if (unlocked) {
-            desc = options[curSelected].description;
-        } else if (isSecret) {
-            desc = "Unlock to view details.";
-        } else {
-            desc = options[curSelected].description;
-        }
-
-        std::string wrapped = wrapText(desc, 0.45f, 280.0f);
-        
-        std::vector<std::string> lines;
-        std::stringstream ss(wrapped);
-        std::string line;
-        while (std::getline(ss, line, '\n')) {
-            lines.push_back(line);
-        }
-        
-        float lineH = 18.0f;
-        float totalH = lines.size() * lineH;
-        float startY = 120.0f - totalH / 2.0f;
-        
-        for (size_t l = 0; l < lines.size(); l++) {
-            drawQuanticoText(lines[l], 160.0f, startY + l * lineH, 0.45f, true, CWhite, 0.5f, 1.0f);
-        }
-    }
-    ButtonPrompt::drawPrompt("b", "Back", 8.0f, 205.0f, 0.70f, 1.0f);
 }
 
 std::string AchievementsMenuState::wrapText(const std::string& text, float scale, float maxWidth) {
@@ -329,8 +351,8 @@ float AchievementsMenuState::getQuanticoTextWidth(const std::string& textStr, fl
 }
 
 void AchievementsMenuState::exitState() {
-    if (bgSheet) C2D_SpriteSheetFree(bgSheet);
-    if (bottomBGSheet) C2D_SpriteSheetFree(bottomBGSheet);
+    if (bgSheet) { C2D_SpriteSheetFree(bgSheet); bgSheet = nullptr; }
+    if (bottomBGSheet) { C2D_SpriteSheetFree(bottomBGSheet); bottomBGSheet = nullptr; }
     if (quanticoFontBuf) {
         C2D_TextBufDelete(quanticoFontBuf);
         quanticoFontBuf = nullptr;

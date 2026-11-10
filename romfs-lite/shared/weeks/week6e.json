@@ -13,21 +13,29 @@
 	"songs": [
 		[
 			"Senpai Erect",
-			"senpai-pixel",
+			"senpaipixel",
 			[
 				255,
 				120,
 				191
-			]
+			],
+			{
+				"erect": 6,
+				"nightmare": 7
+			}
 		],
 		[
 			"Roses Erect",
-			"senpai-pixel",
+			"senpaipixel",
 			[
 				255,
 				120,
 				191
-			]
+			],
+			{
+				"erect": 8,
+				"nightmare": 9
+			}
 		],
 		[
 			"Thorns Erect",
@@ -36,9 +44,13 @@
 				255,
 				120,
 				191
-			]
+			],
+			{
+				"erect": 9,
+				"nightmare": 10
+			}
 		]
 	],
 	"hideStoryMode": true,
-	"weekName": "Week 6 Erect"
+	"album": "volume3"
 }

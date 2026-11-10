@@ -50,9 +50,9 @@ RSF    := template.rsf
 ICON   := homemenu/icon.png
 endif
 BUILD		:=	build
-SOURCES		:=	source source/backend source/backend/codecs source/backend/savedata source/backend/parsers source/shaders source/objects source/states source/substates source/options source/debug source/editors $(3DS_LIBS_SRC) $(3DS_LIBS_SRC)/renderable $(3DS_LIBS_SRC)/audio
+SOURCES		:=	source source/backend source/backend/codecs source/backend/savedata source/backend/parsers source/shaders source/objects source/states source/states/egg source/states/egg/attacks source/substates source/options source/debug source/editors $(3DS_LIBS_SRC) $(3DS_LIBS_SRC)/renderable $(3DS_LIBS_SRC)/audio
 DATA		:=	data
-INCLUDES	:=	include source source/backend source/backend/codecs source/backend/savedata source/backend/parsers source/shaders source/objects source/states source/substates source/options source/debug source/editors $(3DS_LIBS_INC) $(3DS_LIBS_INC)/renderable $(3DS_LIBS_INC)/audio
+INCLUDES	:=	include source source/backend source/backend/codecs source/backend/savedata source/backend/parsers source/shaders source/objects source/states source/states/egg source/states/egg/attacks source/substates source/options source/debug source/editors $(3DS_LIBS_INC) $(3DS_LIBS_INC)/renderable $(3DS_LIBS_INC)/audio
 GRAPHICS	:=	gfx gfx/stages gfx/characters
 #GFXBUILD	:=	$(BUILD)
 GFXBUILD	:=	$(ROMFS)/gfx
@@ -150,7 +150,7 @@ RAWTEX_FILES := $(filter %.rawtex, $(ALL_ASSETS))
 ROMFS_T3XFILES  := $(patsubst $(ROMFS_SOURCE)/%.t3s, $(ROMFS_TARGET)/%.t3x, $(T3S_FILES))
 ROMFS_XMLFILES  := $(patsubst $(ROMFS_SOURCE)/%, $(ROMFS_TARGET)/%, $(XML_FILES))
 ROMFS_JSONFILES := $(patsubst $(ROMFS_SOURCE)/%, $(ROMFS_TARGET)/%, $(JSON_FILES))
-ROMFS_OGGFILES  := $(patsubst $(ROMFS_SOURCE)/%, $(ROMFS_TARGET)/%, $(OGG_FILES))
+ROMFS_ADPFILES_FROM_OGG := $(patsubst $(ROMFS_SOURCE)/%.ogg, $(ROMFS_TARGET)/%.adp, $(OGG_FILES))
 ROMFS_ADPFILES  := $(patsubst $(ROMFS_SOURCE)/%, $(ROMFS_TARGET)/%, $(ADP_FILES))
 ROMFS_TTFFILES  := $(patsubst $(ROMFS_SOURCE)/%.ttf, $(ROMFS_TARGET)/%.bcfnt, $(TTF_FILES))
 ROMFS_OTFFILES  := $(patsubst $(ROMFS_SOURCE)/%.otf, $(ROMFS_TARGET)/%.bcfnt, $(OTF_FILES))
@@ -215,7 +215,7 @@ endif
 
 #---------------------------------------------------------------------------------
 # Export RomFS files to ensure they can be used as dependencies in the recursive make
-export ALL_ROMFS_OUT := $(ROMFS_T3XFILES) $(ROMFS_XMLFILES) $(ROMFS_JSONFILES) $(ROMFS_OGGFILES) $(ROMFS_ADPFILES) $(ROMFS_TTFFILES) $(ROMFS_OTFFILES) $(ROMFS_LUAFILES) $(ROMFS_TXTFILES) $(ROMFS_SNAKYFILES) $(ROMFS_RAWTEXFILES)
+export ALL_ROMFS_OUT := $(ROMFS_T3XFILES) $(ROMFS_XMLFILES) $(ROMFS_JSONFILES) $(ROMFS_ADPFILES_FROM_OGG) $(ROMFS_ADPFILES) $(ROMFS_TTFFILES) $(ROMFS_OTFFILES) $(ROMFS_LUAFILES) $(ROMFS_TXTFILES) $(ROMFS_SNAKYFILES) $(ROMFS_RAWTEXFILES)
 
 all: $(BUILD) $(ROMFS_TARGET) $(ALL_ROMFS_OUT)
 	@mkdir -p $(CURDIR)/export
@@ -233,7 +233,7 @@ cia: all
 	@echo "Construyendo archivo .cia con RomFS (Estructura Psych)..."
 	@echo $(BANNER_MSG)
 	@$(BANNER_CMD)
-	@makerom -f cia -o "$(CURDIR)/export/$(TARGET).cia" -elf "$(CURDIR)/export/$(TARGET).elf" -rsf "$(CURDIR)/$(RSF)" -icon "$(CURDIR)/export/$(TARGET).smdh" -banner "$(CURDIR)/build/banner.bin" -exefslogo -target t -desc app:7 -ver 1 -major 1 -minor 0 -micro 0
+	@makerom -f cia -o "$(CURDIR)/export/$(TARGET).cia" -elf "$(CURDIR)/export/$(TARGET).elf" -rsf "$(CURDIR)/$(RSF)" -icon "$(CURDIR)/export/$(TARGET).smdh" -banner "$(CURDIR)/build/banner.bin" -exefslogo -target t -ver 1 -major 1 -minor 0 -micro 0
 
 cia-lite:
 	@$(MAKE) cia LITE=1
@@ -260,6 +260,11 @@ $(ROMFS_TARGET)/%.t3x: $(ROMFS_SOURCE)/%.t3s $(ROMFS_SOURCE)/%.png
 	@echo "Converting $< -> $@"
 	@mkdir -p $(dir $@)
 	@tex3ds --atlas -i $< -H $(BUILD)/$(notdir $*.h) -d $(DEPSDIR)/$(notdir $*.d) -o $@
+
+$(ROMFS_TARGET)/%.adp: $(ROMFS_SOURCE)/%.ogg
+	@echo "Converting Audio $< -> $@"
+	@mkdir -p $(dir $@)
+	@python $(TOPDIR)/tools/ogg2adp.py "$<" "$@" 44100
 
 $(ROMFS_TARGET)/%: $(ROMFS_SOURCE)/%
 	@echo "Copying $< -> $@"

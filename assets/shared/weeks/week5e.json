@@ -13,23 +13,34 @@
 	"songs": [
 		[
 			"Cocoa Erect",
-			"parents",
+			"parents-christmaspixel",
 			[
 				160,
 				209,
 				255
-			]
+			],
+			{
+				"erect": 7,
+				"nightmare": 8
+			}
 		],
 		[
 			"Eggnog Erect",
-			"parents",
+			"parents-christmaspixel",
 			[
 				160,
 				209,
 				255
-			]
+			],
+			{
+				"erect": 6,
+				"nightmare": 7
+			}
 		]
 	],
 	"hideStoryMode": true,
-	"weekName": "Week 5 Erect"
+	"songAlbum": {
+		"Cocoa Erect": "volume4",
+		"Eggnog Erect": "expansion1"
+	}
 }

@@ -21,6 +21,11 @@ public:
     bool finished = false;
     float alpha = 1.0f;
 
+    friend class MemoryDebugState;
+    const std::string& getPath() const { return path; }
+    const C3D_Tex* getTex(int idx) const { return (idx >= 0 && idx < 2) ? &tex[idx] : nullptr; }
+    const SnakyDecoder& getDecoder() const { return decoder; }
+
 private:
     std::string path;
     SnakyDecoder decoder;
@@ -36,6 +41,8 @@ private:
     int displayedFrame = -1;
     double songStartPosition = -1.0;
     bool firstFrameReady = false;
+    bool transferInProgress = false;
+    int pendingRingSlot = -1;
 
     void processGPUTransfer(uint16_t* frameBuf, int ringSlot);
 };

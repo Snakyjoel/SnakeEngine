@@ -13,32 +13,45 @@
 	"songs": [
 		[
 			"Bopeebo Erect",
-			"dad",
+			"dadpixel",
 			[
 				146,
 				113,
 				253
-			]
+			],
+			{
+				"erect": 7,
+				"nightmare": 8
+			}
 		],
 		[
 			"Fresh Erect",
-			"dad",
+			"dadpixel",
 			[
 				146,
 				113,
 				253
-			]
+			],
+			{
+				"erect": 6,
+				"nightmare": 7
+			}
 		],
 		[
 			"Dad Battle Erect",
-			"dad",
+			"dadpixel",
 			[
 				146,
 				113,
 				253
-			]
+			],
+			{
+				"erect": 9,
+				"nightmare": 10
+			}
 		]
 	],
 	"hideStoryMode": true,
-	"weekName": "Week 1 Erect"
+	"weekName": "Week 1 Erect",
+	"album": "volume3"
 }

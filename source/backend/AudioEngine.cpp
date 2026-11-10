@@ -51,7 +51,7 @@ void AudioEngine::stopAudioThread() {
     if (!s_audioThreadRunning) return;
     s_audioThreadRunning = false;
     if (s_audioThread) {
-        threadJoin(s_audioThread, U64_MAX);
+        threadJoin(s_audioThread, 2000000000ULL); // 2s safe timeout
         threadFree(s_audioThread);
         s_audioThread = nullptr;
     }
@@ -70,6 +70,7 @@ bool AudioEngine::oggEof = false;
 FILE* AudioEngine::adpFile = nullptr;
 bool AudioEngine::isAdp = false;
 AdpcmDecoder::State AudioEngine::adpState;
+AdpcmDecoder::State AudioEngine::adpStateR;
 uint32_t AudioEngine::adpTotalSamples = 0;
 uint32_t AudioEngine::adpSamplesRead = 0;
 
@@ -83,6 +84,7 @@ bool AudioEngine::vocalsOggEof = false;
 FILE* AudioEngine::vocalsAdpFile = nullptr;
 bool AudioEngine::vocalsIsAdp = false;
 AdpcmDecoder::State AudioEngine::vocalsAdpState;
+AdpcmDecoder::State AudioEngine::vocalsAdpStateR;
 uint32_t AudioEngine::vocalsAdpTotalSamples = 0;
 uint32_t AudioEngine::vocalsAdpSamplesRead = 0;
 
@@ -207,6 +209,8 @@ bool AudioEngine::init(const char* instPath, const char* vocalsPath) {
                 adpSamplesRead = 0;
                 adpState.predictor = 0;
                 adpState.stepIndex = 0;
+                adpStateR.predictor = 0;
+                adpStateR.stepIndex = 0;
                 instChannels = header.channels;
             } else {
                 fclose(adpFile);
@@ -218,14 +222,10 @@ bool AudioEngine::init(const char* instPath, const char* vocalsPath) {
     if (!isAdp && !isWav) {
         FILE* fInst = fopen(instPath, "rb");
         if (!fInst) {
-            FILE* log = fopen("sdmc:/snake_log.txt", "a");
-            if(log) { fprintf(log, "Failed to open inst file: %s\n", instPath); fclose(log); }
             return false;
         }
         int err = ov_open_callbacks(fInst, &vf, NULL, 0, s_vorbisCallbacks);
         if (err < 0) {
-            FILE* log = fopen("sdmc:/snake_log.txt", "a");
-            if(log) { fprintf(log, "ov_open_callbacks failed with code %d for %s\n", err, instPath); fclose(log); }
             fclose(fInst);
             return false;
         }
@@ -274,6 +274,8 @@ bool AudioEngine::init(const char* instPath, const char* vocalsPath) {
                     vocalsAdpSamplesRead = 0;
                     vocalsAdpState.predictor = 0;
                     vocalsAdpState.stepIndex = 0;
+                    vocalsAdpStateR.predictor = 0;
+                    vocalsAdpStateR.stepIndex = 0;
                     vocalsChannels = vHeader.channels;
                 } else {
                     fclose(vocalsAdpFile);
@@ -389,17 +391,23 @@ void AudioEngine::fill(int id, bool countAsPlayed, bool isVocals) {
         uint32_t& adpRead = isVocals ? vocalsAdpSamplesRead : adpSamplesRead;
         uint32_t adpTotal = isVocals ? vocalsAdpTotalSamples : adpTotalSamples;
         AdpcmDecoder::State& state = isVocals ? vocalsAdpState : adpState;
+        AdpcmDecoder::State& stateR = isVocals ? vocalsAdpStateR : adpStateR;
+        int numChannels = isVocals ? vocalsNumChannels : instNumChannels;
 
         samplesToRead = std::min((uint32_t)BUFFER_SAMPLES, adpTotal - adpRead);
         if (samplesToRead > 0) {
-            uint32_t bytesToRead = samplesToRead / 2; // ADP is 4bpp
+            uint32_t bytesToRead = (samplesToRead * numChannels) / 2; // ADP is 4bpp
             uint8_t* adpBuffer = (uint8_t*)malloc(bytesToRead);
             if (adpBuffer) {
-                fread(adpBuffer, 1, bytesToRead, f);
+                size_t r = fread(adpBuffer, 1, bytesToRead, f);
                 uint32_t decoded = 0;
-                AdpcmDecoder::decodeIMA(adpBuffer, bytesToRead, ptr, decoded, state);
-                samplesRead = decoded;
-                adpRead += decoded;
+                if (numChannels == 2) {
+                    AdpcmDecoder::decodeIMAStereo(adpBuffer, (uint32_t)r, ptr, decoded, state, stateR);
+                } else {
+                    AdpcmDecoder::decodeIMA(adpBuffer, (uint32_t)r, ptr, decoded, state);
+                }
+                samplesRead = decoded / numChannels;
+                adpRead += samplesRead;
                 free(adpBuffer);
             }
         }
@@ -427,8 +435,6 @@ void AudioEngine::fill(int id, bool countAsPlayed, bool isVocals) {
             long read = ov_read(targetVf, (char*)(ptr + samplesRead * numChannels), (BUFFER_SAMPLES - samplesRead) * numChannels * 2, &bitstream);
             if (read < 0) {
                 if (read == OV_HOLE) continue;
-                FILE* log = fopen("sdmc:/snake_log.txt", "a");
-                if(log) { fprintf(log, "ov_read failed with %ld in AudioEngine::fill\n", read); fclose(log); }
                 break;
             }
             if (read == 0) {
@@ -584,6 +590,15 @@ void AudioEngine::exit() {
         vocalsBufferData = nullptr;
         isLoaded = false;
         hasVocals = false;
+    } else {
+        // Even if not playing a song, ensure SFX channels are reset
+        ndspChnSetPaused(2, true);
+        ndspChnSetPaused(3, true);
+        ndspChnSetPaused(4, true);
+        ndspChnReset(2);
+        ndspChnReset(3);
+        ndspChnReset(4);
+        svcSleepThread(16000000LL); // 16 ms
     }
     LightLock_Unlock(&s_audioLock);
 
@@ -602,6 +617,7 @@ void AudioEngine::clearSoundCache() {
     ndspChnReset(2);
     ndspChnReset(3);
     ndspChnReset(4);
+    svcSleepThread(16000000LL); // 16 ms for DSP to release memory
     for (auto const& pair : soundCache) {
         if (pair.second.buffer) {
             linearFree(pair.second.buffer);
@@ -610,53 +626,168 @@ void AudioEngine::clearSoundCache() {
     soundCache.clear();
 }
 
+void AudioEngine::shutdown() {
+    stopAudioThread();
+    MusicPlayer::stop();
+
+    LightLock_Lock(&s_audioLock);
+    if (isLoaded) {
+        if (isAdp) {
+            if (adpFile) { fclose(adpFile); adpFile = nullptr; }
+        } else if (isWav) {
+            if (wavFile) { fclose(wavFile); wavFile = nullptr; }
+        } else {
+            ov_clear(&vf);
+        }
+
+        if (hasVocals) {
+            if (vocalsIsAdp) {
+                if (vocalsAdpFile) { fclose(vocalsAdpFile); vocalsAdpFile = nullptr; }
+            } else if (vocalsIsWav) {
+                if (vocalsWavFile) { fclose(vocalsWavFile); vocalsWavFile = nullptr; }
+            } else {
+                ov_clear(&vocalsVf);
+            }
+        }
+
+        if (bufferData) { linearFree(bufferData); bufferData = nullptr; }
+        if (vocalsBufferData) { linearFree(vocalsBufferData); vocalsBufferData = nullptr; }
+        bufferData = nullptr;
+        vocalsBufferData = nullptr;
+        isLoaded = false;
+        hasVocals = false;
+    }
+    LightLock_Unlock(&s_audioLock);
+
+    // Completely pause and reset all 24 NDSP hardware channels so nothing is left active
+    for (int i = 0; i < 24; i++) {
+        ndspChnSetPaused(i, true);
+        ndspChnReset(i);
+    }
+    svcSleepThread(25000000LL); // 25ms to let DSP pipeline fully drain and settle
+
+    for (auto const& pair : soundCache) {
+        if (pair.second.buffer) {
+            linearFree(pair.second.buffer);
+        }
+    }
+    soundCache.clear();
+
+    for (int i = 0; i < 3; i++) {
+        if (missSfx[i].buffer) {
+            linearFree(missSfx[i].buffer);
+            missSfx[i].buffer = nullptr;
+        }
+    }
+    for (int i = 0; i < 4; i++) {
+        if (countdownSfx[i].buffer) {
+            linearFree(countdownSfx[i].buffer);
+            countdownSfx[i].buffer = nullptr;
+        }
+    }
+}
+
 void AudioEngine::playSound(const std::string& path, float vol) {
     std::string actualPath = path;
-    if (actualPath.find(".wav") != std::string::npos) {
-        FILE* testFile = fopen(actualPath.c_str(), "rb");
-        if (testFile) {
-            fclose(testFile);
-        } else {
-            actualPath.replace(actualPath.find(".wav"), 4, ".ogg");
+    FILE* checkF = fopen(actualPath.c_str(), "rb");
+    if (!checkF) {
+        if (actualPath.find(".ogg") != std::string::npos) {
+            std::string alt = actualPath;
+            alt.replace(alt.find(".ogg"), 4, ".adp");
+            checkF = fopen(alt.c_str(), "rb");
+            if (checkF) actualPath = alt;
+        } else if (actualPath.find(".adp") != std::string::npos) {
+            std::string alt = actualPath;
+            alt.replace(alt.find(".adp"), 4, ".ogg");
+            checkF = fopen(alt.c_str(), "rb");
+            if (checkF) actualPath = alt;
+        } else if (actualPath.find(".wav") != std::string::npos) {
+            std::string alt = actualPath;
+            alt.replace(alt.find(".wav"), 4, ".adp");
+            checkF = fopen(alt.c_str(), "rb");
+            if (checkF) actualPath = alt;
+            else {
+                alt = actualPath;
+                alt.replace(alt.find(".wav"), 4, ".ogg");
+                checkF = fopen(alt.c_str(), "rb");
+                if (checkF) actualPath = alt;
+            }
         }
     }
 
     SoundData sound;
     auto it = soundCache.find(actualPath);
     if (it == soundCache.end()) {
-        FILE* f = fopen(actualPath.c_str(), "rb");
-        if (!f) return;
+        if (!checkF) checkF = fopen(actualPath.c_str(), "rb");
+        if (!checkF) return;
         
-        OggVorbis_File sfxVf;
-        if (ov_open_callbacks(f, &sfxVf, NULL, 0, s_vorbisCallbacks) < 0) {
-            fclose(f);
-            return;
-        }
-        
-        vorbis_info* vi = ov_info(&sfxVf, -1);
-        long totalSamples = ov_pcm_total(&sfxVf, -1);
-        sound.samplesPerChannel = totalSamples;
-        sound.channels = vi->channels;
-        sound.rate = vi->rate;
-        
-        uint32_t bufferSize = totalSamples * vi->channels * sizeof(int16_t);
-        sound.buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
-        if (sound.buffer) {
-            uint32_t totalRead = 0;
-            int bitstream = 0;
-            while (totalRead < bufferSize) {
-                long ret = ov_read(&sfxVf, (char*)sound.buffer + totalRead, bufferSize - totalRead, &bitstream);
-                if (ret <= 0) break;
-                totalRead += ret;
+        AdpcmEncoder::Header adpHead;
+        if (fread(&adpHead, sizeof(adpHead), 1, checkF) == 1 &&
+            memcmp(adpHead.magic, "SADP", 4) == 0 && adpHead.numSamples > 0) {
+            sound.samplesPerChannel = adpHead.numSamples;
+            sound.channels = adpHead.channels;
+            sound.rate = adpHead.sampleRate;
+            uint32_t totalSamples = adpHead.numSamples * adpHead.channels;
+            uint32_t bufferSize = totalSamples * sizeof(int16_t);
+            sound.buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
+            if (sound.buffer) {
+                fseek(checkF, 0, SEEK_END);
+                long fileSize = ftell(checkF);
+                long adpBytes = fileSize - (long)sizeof(AdpcmEncoder::Header);
+                fseek(checkF, sizeof(AdpcmEncoder::Header), SEEK_SET);
+                if (adpBytes > 0) {
+                    uint8_t* adpData = (uint8_t*)malloc(adpBytes);
+                    if (adpData) {
+                        size_t readBytes = fread(adpData, 1, adpBytes, checkF);
+                        uint32_t decoded = 0;
+                        if (adpHead.channels == 2) {
+                            AdpcmDecoder::State stateL, stateR;
+                            AdpcmDecoder::decodeIMAStereo(adpData, (uint32_t)readBytes, sound.buffer, decoded, stateL, stateR);
+                        } else {
+                            AdpcmDecoder::State state;
+                            AdpcmDecoder::decodeIMA(adpData, (uint32_t)readBytes, sound.buffer, decoded, state);
+                        }
+                        free(adpData);
+                    }
+                }
+                DSP_FlushDataCache(sound.buffer, bufferSize);
             }
-            DSP_FlushDataCache(sound.buffer, bufferSize);
+            fclose(checkF);
+            if (!sound.buffer) return;
+            soundCache.emplace(actualPath, sound);
+        } else {
+            fseek(checkF, 0, SEEK_SET);
+            OggVorbis_File sfxVf;
+            if (ov_open_callbacks(checkF, &sfxVf, NULL, 0, s_vorbisCallbacks) < 0) {
+                fclose(checkF);
+                return;
+            }
+            
+            vorbis_info* vi = ov_info(&sfxVf, -1);
+            long totalSamples = ov_pcm_total(&sfxVf, -1);
+            sound.samplesPerChannel = totalSamples;
+            sound.channels = vi->channels;
+            sound.rate = vi->rate;
+            
+            uint32_t bufferSize = totalSamples * vi->channels * sizeof(int16_t);
+            sound.buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
+            if (sound.buffer) {
+                uint32_t totalRead = 0;
+                int bitstream = 0;
+                while (totalRead < bufferSize) {
+                    long ret = ov_read(&sfxVf, (char*)sound.buffer + totalRead, bufferSize - totalRead, &bitstream);
+                    if (ret <= 0) break;
+                    totalRead += ret;
+                }
+                DSP_FlushDataCache(sound.buffer, bufferSize);
+            }
+            ov_clear(&sfxVf);
+            
+            if (!sound.buffer) return;
+            soundCache.emplace(actualPath, sound);
         }
-        ov_clear(&sfxVf);
-        
-        if (!sound.buffer) return;
-        
-        soundCache.emplace(actualPath, sound);
     } else {
+        if (checkF) fclose(checkF);
         sound = it->second;
     }
 
@@ -688,31 +819,75 @@ AudioEngine::SfxData AudioEngine::countdownSfx[4] = { {nullptr, 0, 0, 0}, {nullp
 ndspWaveBuf AudioEngine::sfxWaveBuf[3];
 int AudioEngine::sndChannelIdx = 2;
 
+static bool loadSfxFile(const std::string& basePathNoExt, AudioEngine::SfxData& sfx) {
+    std::string adpPath = basePathNoExt + ".adp";
+    FILE* f = fopen(adpPath.c_str(), "rb");
+    if (f) {
+        AdpcmEncoder::Header header;
+        if (fread(&header, sizeof(header), 1, f) == 1 && memcmp(header.magic, "SADP", 4) == 0 && header.numSamples > 0) {
+            sfx.samplesPerChannel = header.numSamples;
+            sfx.channels = header.channels;
+            sfx.rate = header.sampleRate;
+            uint32_t totalSamples = header.numSamples * header.channels;
+            uint32_t bufferSize = totalSamples * sizeof(int16_t);
+            sfx.buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
+            if (sfx.buffer) {
+                fseek(f, 0, SEEK_END);
+                long fileSize = ftell(f);
+                long adpBytes = fileSize - (long)sizeof(AdpcmEncoder::Header);
+                fseek(f, sizeof(AdpcmEncoder::Header), SEEK_SET);
+                if (adpBytes > 0) {
+                    uint8_t* adpData = (uint8_t*)malloc(adpBytes);
+                    if (adpData) {
+                        size_t r = fread(adpData, 1, adpBytes, f);
+                        uint32_t decoded = 0;
+                        if (header.channels == 2) {
+                            AdpcmDecoder::State stateL, stateR;
+                            AdpcmDecoder::decodeIMAStereo(adpData, (uint32_t)r, sfx.buffer, decoded, stateL, stateR);
+                        } else {
+                            AdpcmDecoder::State state;
+                            AdpcmDecoder::decodeIMA(adpData, (uint32_t)r, sfx.buffer, decoded, state);
+                        }
+                        free(adpData);
+                    }
+                }
+                DSP_FlushDataCache(sfx.buffer, bufferSize);
+            }
+            fclose(f);
+            return (sfx.buffer != nullptr);
+        }
+        fclose(f);
+    }
+
+    std::string oggPath = basePathNoExt + ".ogg";
+    f = fopen(oggPath.c_str(), "rb");
+    if (!f) return false;
+    OggVorbis_File sfxVf;
+    if (ov_open(f, &sfxVf, NULL, 0) < 0) { fclose(f); return false; }
+    vorbis_info* vi = ov_info(&sfxVf, -1);
+    long totalSamples = ov_pcm_total(&sfxVf, -1);
+    sfx.samplesPerChannel = totalSamples;
+    sfx.channels = vi->channels;
+    sfx.rate = vi->rate;
+    uint32_t bufferSize = totalSamples * vi->channels * sizeof(int16_t);
+    sfx.buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
+    if (sfx.buffer) {
+        uint32_t totalRead = 0; int bitstream = 0;
+        while (totalRead < bufferSize) {
+            long ret = ov_read(&sfxVf, (char*)sfx.buffer + totalRead, bufferSize - totalRead, &bitstream);
+            if (ret <= 0) break;
+            totalRead += ret;
+        }
+        DSP_FlushDataCache(sfx.buffer, bufferSize);
+    }
+    ov_clear(&sfxVf);
+    return (sfx.buffer != nullptr);
+}
+
 void AudioEngine::initMissSounds() {
     for (int i = 0; i < 3; i++) {
         if (missSfx[i].buffer) continue;
-        std::string path = "romfs:/shared/sounds/missnote" + std::to_string(i+1) + ".ogg";
-        FILE* f = fopen(path.c_str(), "rb");
-        if (!f) continue;
-        OggVorbis_File sfxVf;
-        if (ov_open(f, &sfxVf, NULL, 0) < 0) { fclose(f); continue; }
-        vorbis_info* vi = ov_info(&sfxVf, -1);
-        long totalSamples = ov_pcm_total(&sfxVf, -1);
-        missSfx[i].samplesPerChannel = totalSamples;
-        missSfx[i].channels = vi->channels;
-        missSfx[i].rate = vi->rate;
-        uint32_t bufferSize = totalSamples * vi->channels * sizeof(int16_t);
-        missSfx[i].buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
-        if (missSfx[i].buffer) {
-            uint32_t totalRead = 0; int bitstream = 0;
-            while (totalRead < bufferSize) {
-                long ret = ov_read(&sfxVf, (char*)missSfx[i].buffer + totalRead, bufferSize - totalRead, &bitstream);
-                if (ret <= 0) break;
-                totalRead += ret;
-            }
-            DSP_FlushDataCache(missSfx[i].buffer, bufferSize);
-        }
-        ov_clear(&sfxVf);
+        loadSfxFile("romfs:/shared/sounds/missnote" + std::to_string(i + 1), missSfx[i]);
     }
 }
 
@@ -739,31 +914,10 @@ void AudioEngine::playMissSound() {
 }
 
 void AudioEngine::initCountdownSounds() {
-    static const char* const files[4] = {"intro3.ogg", "intro2.ogg", "intro1.ogg", "introGo.ogg"};
+    static const char* const files[4] = {"intro3", "intro2", "intro1", "introGo"};
     for (int i = 0; i < 4; i++) {
         if (countdownSfx[i].buffer) continue;
-        std::string path = "romfs:/shared/sounds/" + std::string(files[i]);
-        FILE* f = fopen(path.c_str(), "rb");
-        if (!f) continue;
-        OggVorbis_File sfxVf;
-        if (ov_open(f, &sfxVf, NULL, 0) < 0) { fclose(f); continue; }
-        vorbis_info* vi = ov_info(&sfxVf, -1);
-        long totalSamples = ov_pcm_total(&sfxVf, -1);
-        countdownSfx[i].samplesPerChannel = totalSamples;
-        countdownSfx[i].channels = vi->channels;
-        countdownSfx[i].rate = vi->rate;
-        uint32_t bufferSize = totalSamples * vi->channels * sizeof(int16_t);
-        countdownSfx[i].buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
-        if (countdownSfx[i].buffer) {
-            uint32_t totalRead = 0; int bitstream = 0;
-            while (totalRead < bufferSize) {
-                long ret = ov_read(&sfxVf, (char*)countdownSfx[i].buffer + totalRead, bufferSize - totalRead, &bitstream);
-                if (ret <= 0) break;
-                totalRead += ret;
-            }
-            DSP_FlushDataCache(countdownSfx[i].buffer, bufferSize);
-        }
-        ov_clear(&sfxVf);
+        loadSfxFile("romfs:/shared/sounds/" + std::string(files[i]), countdownSfx[i]);
     }
 }
 
@@ -828,6 +982,7 @@ FILE*          MusicPlayer::adpFile    = nullptr;
 uint32_t       MusicPlayer::adpTotalSamples = 0;
 uint32_t       MusicPlayer::adpSamplesRead  = 0;
 AdpcmDecoder::State MusicPlayer::adpDecState;
+AdpcmDecoder::State MusicPlayer::adpDecStateR;
 
 bool           MusicPlayer::isWavMode  = false;
 FILE*          MusicPlayer::wavFile    = nullptr;
@@ -850,17 +1005,27 @@ void MusicPlayer::fillBuffer(int idx) {
                 size_t r = fread(adpTmp, 1, bytesNeeded, adpFile);
                 if (r > 0) {
                     uint32_t decoded = 0;
-                    AdpcmDecoder::decodeIMA(adpTmp, (uint32_t)r, buf, decoded, adpDecState);
-                    adpSamplesRead += decoded;
+                    if (mChannels == 2) {
+                        AdpcmDecoder::decodeIMAStereo(adpTmp, (uint32_t)r, buf, decoded, adpDecState, adpDecStateR);
+                    } else {
+                        AdpcmDecoder::decodeIMA(adpTmp, (uint32_t)r, buf, decoded, adpDecState);
+                    }
+                    adpSamplesRead += decoded / mChannels;
                 } else {
                     fseek(adpFile, sizeof(AdpcmEncoder::Header), SEEK_SET);
                     adpDecState.predictor = 0;
                     adpDecState.stepIndex = 0;
+                    adpDecStateR.predictor = 0;
+                    adpDecStateR.stepIndex = 0;
                     size_t r2 = fread(adpTmp, 1, bytesNeeded, adpFile);
                     if (r2 > 0) {
                         uint32_t decoded = 0;
-                        AdpcmDecoder::decodeIMA(adpTmp, (uint32_t)r2, buf, decoded, adpDecState);
-                        adpSamplesRead += decoded;
+                        if (mChannels == 2) {
+                            AdpcmDecoder::decodeIMAStereo(adpTmp, (uint32_t)r2, buf, decoded, adpDecState, adpDecStateR);
+                        } else {
+                            AdpcmDecoder::decodeIMA(adpTmp, (uint32_t)r2, buf, decoded, adpDecState);
+                        }
+                        adpSamplesRead += decoded / mChannels;
                     } else {
                         memset(buf, 0, totalBytes);
                     }
@@ -986,6 +1151,8 @@ bool MusicPlayer::play(const char* path, float volume) {
         adpSamplesRead = 0;
         adpDecState.predictor = 0;
         adpDecState.stepIndex = 0;
+        adpDecStateR.predictor = 0;
+        adpDecStateR.stepIndex = 0;
         trackDurationMs = ((double)adpTotalSamples / (double)mSampleRate) * 1000.0;
     } else {
         if (checkF) { fclose(checkF); checkF = nullptr; }
@@ -1006,16 +1173,12 @@ bool MusicPlayer::play(const char* path, float volume) {
         } else {
             FILE* f = fopen(path, "rb");
             if (!f) {
-                FILE* log = fopen("sdmc:/snake_log.txt", "a");
-                if(log) { fprintf(log, "MusicPlayer failed to open: %s\n", path); fclose(log); }
                 LightLock_Unlock(&s_musicLock);
                 return false;
             }
             memset(&vf, 0, sizeof(OggVorbis_File));
             int err = ov_open_callbacks(f, &vf, NULL, 0, s_vorbisCallbacks);
             if (err < 0) {
-                FILE* log = fopen("sdmc:/snake_log.txt", "a");
-                if(log) { fprintf(log, "MusicPlayer ov_open_callbacks failed with code %d for %s\n", err, path); fclose(log); }
                 fclose(f);
                 LightLock_Unlock(&s_musicLock);
                 return false;
@@ -1077,9 +1240,9 @@ bool MusicPlayer::play(const char* path, float volume) {
 }
 
 void MusicPlayer::playMenuMusic() {
-    if (loaded && playing && !mPaused && currentTrackPath == "romfs:/preload/music/freakyMenu.ogg") return; // already running
-    if (mPaused && currentTrackPath == "romfs:/preload/music/freakyMenu.ogg") { resume(); return; }
-    play("romfs:/preload/music/freakyMenu.ogg", 0.7f);
+    if (loaded && playing && !mPaused && (currentTrackPath == "romfs:/preload/music/freakyMenu.adp" || currentTrackPath == "romfs:/preload/music/freakyMenu.ogg")) return; // already running
+    if (mPaused && (currentTrackPath == "romfs:/preload/music/freakyMenu.adp" || currentTrackPath == "romfs:/preload/music/freakyMenu.ogg")) { resume(); return; }
+    play("romfs:/preload/music/freakyMenu.adp", 0.7f);
 }
 
 void MusicPlayer::stop() {

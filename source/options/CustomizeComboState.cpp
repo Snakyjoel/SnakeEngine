@@ -1,6 +1,7 @@
 #include "CustomizeComboState.hpp"
 #include "OptionsMenuState.hpp"
 #include "../backend/AudioEngine.hpp"
+#include "../backend/Macros.hpp"
 #include "../objects/Alphabet.hpp"
 #include "../objects/ButtonPrompt.hpp"
 #include <fstream>
@@ -256,7 +257,7 @@ void CustomizeComboState::update(float dt) {
     
     // START = save and exit
     if (kDown & KEY_START) {
-        AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
         ClientPrefs::comboOffsetX = currentX - (400.0f - 50.0f);
         ClientPrefs::comboOffsetY = currentY - 35.0f;
         ClientPrefs::comboScale = currentScale;
@@ -272,7 +273,7 @@ void CustomizeComboState::update(float dt) {
 
     // B = switch between rating sprite and number counter
     if (kDown & KEY_B) {
-        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         editingNumbers = !editingNumbers;
         dragging = false;
         return;
@@ -364,7 +365,7 @@ void CustomizeComboState::update(float dt) {
             currentScale = 1.3f;
             currentAlpha = 1.0f;
         }
-        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
     }
     
     // Bounds checking for rating sprite
@@ -608,8 +609,9 @@ void CustomizeComboState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
 
 
     // -- BOTTOM SCREEN --
-    C2D_SceneBegin(bottom);
-    C2D_TargetClear(bottom, C2D_Color32(146, 113, 253, 255));
+    if (!g_isRightEye && bottom) {
+        C2D_SceneBegin(bottom);
+        C2D_TargetClear(bottom, C2D_Color32(146, 113, 253, 255));
     if (bgSheet) {
         C2D_ImageTint tint;
         C2D_PlainImageTint(&tint, C2D_Color32(39, 71, 220, 255), 1.0f);
@@ -726,4 +728,5 @@ void CustomizeComboState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
     ButtonPrompt::drawPrompt("select", "Reset",  bx1, bottomY, uiScale, 1.0f, CWhite, 0.95f, textMult);
     ButtonPrompt::drawPrompt("b",      "Switch", bx2, bottomY, uiScale, 1.0f, CWhite, 0.95f, textMult);
     ButtonPrompt::drawPrompt2("x",     "y", "Alpha", bx3, bottomY, uiScale, 1.0f, CWhite, 0.95f, textMult);
+    }
 }

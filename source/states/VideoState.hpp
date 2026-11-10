@@ -9,7 +9,8 @@
 
 class VideoState : public MusicBeatState {
 public:
-    VideoState(const std::string& videoPath, MusicBeatState* nextState, bool debugUI = false);
+    VideoState(const std::string& videoPath, MusicBeatState* nextState, bool instantSkip = false);
+    VideoState(const std::string& videoPath, MusicBeatState* nextState, bool unusedDebug, bool instantSkip);
     ~VideoState() override;
 
     void init() override;
@@ -32,11 +33,7 @@ private:
     bool failedToLoad;
     volatile bool transitioning;
 
-    // Debug UI
-    bool isDebug;
-    bool isPaused;
-    float currentFPS = 60.0f;
-    C2D_TextBuf textBuf;
+    bool m_instantSkip = false;
 
     // Hold to skip progress ring
     float skipProgress = 0.0f;

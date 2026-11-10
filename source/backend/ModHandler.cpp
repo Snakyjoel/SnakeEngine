@@ -252,8 +252,6 @@ void ModHandler::reorderMod(int from, int to) {
 std::string ModHandler::getModPath(const std::string& relativePath) {
     checkWorkingBase();
 
-
-
     // Global Mode: Search active global mods
     for (const auto& mod : mods) {
         if (!mod.active && mod.folder != currentModFolder) continue;

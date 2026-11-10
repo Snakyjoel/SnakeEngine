@@ -17,14 +17,22 @@
 	"songs": [
 		[
 			"Darnell Bf Mix",
-			"darnell",
+			"darnellpixel",
 			[
 				65,
 				60,
 				174
-			]
+			],
+			{
+				"easy": 3,
+				"normal": 4,
+				"hard": 5
+			}
 		]
 	],
 	"hideStoryMode": true,
-	"weekName": "Weekend 1 Bf Mix"
+	"weekName": "Weekend 1 Bf Mix",
+	"songAlbum": {
+		"Darnell Bf Mix": "volume4"
+	}
 }

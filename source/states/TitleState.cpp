@@ -1,5 +1,6 @@
 #include "TitleState.hpp"
 #include "MainMenuState.hpp"
+#include "../backend/Macros.hpp"
 #include "../debug/DebugMenuState.hpp"
 #include "../backend/ModHandler.hpp"
 #include "../backend/AudioEngine.hpp"
@@ -86,12 +87,12 @@ void TitleState::init() {
     ringAlpha = 0.0f;
 
     // Load animated title sprites
-    logo.loadSheet("preload/images/logoBumpin");
-    logo.addAnim("bump", "default", 24.0f, true);
+    logo.loadSheet("preload/images/newgroundsandlogo");
+    logo.addAnim("bump", "logoBumpin", 24.0f, true);
     logo.play("bump");
     logo.antialiasing = ClientPrefs::globalAntialiasing;
 
-    ng.loadSheet("preload/images/newgrounds");
+    ng.loadSheet("preload/images/newgroundsandlogo");
     ng.addAnim("flash", "newgrounds logo instance", 6.0f, true);
     ng.play("flash");
     ng.antialiasing = ClientPrefs::globalAntialiasing;
@@ -134,9 +135,9 @@ void TitleState::init() {
 
     // Pre-warm audio and fonts
     SpritesheetCache::get().load("shared/images/Alphabet");
-    AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.0f);
-    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.0f);
-    AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.0f);
+    AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.0f);
+    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.0f);
+    AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.0f);
 
     // Start menu music if not already playing
     if (!MusicPlayer::isPlaying()) {
@@ -250,9 +251,16 @@ void TitleState::update(float dt) {
 
     // State transition logic
     if (transitioning) {
+        if (konamiInput != konamiTarget && keyJustPressed(KEY_START | KEY_A | KEY_TOUCH)) {
+            switchTimer = 0.0f;
+            updateWaitTimer = 3.0f;
+        }
+
         switchTimer -= dt;
         if (switchTimer <= 0.0f) {
+            switchTimer = 0.0f;
             if (konamiInput == konamiTarget) {
+                switchTimer = 999999.0f;
                 switchState(new DebugMenuState());
             } else {
                 if (ClientPrefs::checkForUpdates && UpdateChecker::isChecking() && !UpdateChecker::isFinished()) {
@@ -264,11 +272,13 @@ void TitleState::update(float dt) {
                 if (ClientPrefs::checkForUpdates && UpdateChecker::isFinished() && !UpdateChecker::getOnlineVersion().empty()) {
                     int comp = UpdateChecker::compareVersions(UpdateChecker::getCurrentVersion(), UpdateChecker::getOnlineVersion());
                     if (comp != 0) {
+                        switchTimer = 999999.0f;
                         Achievements::unlockAchievement("startgame");
                         switchState(new OutdatedState(comp, UpdateChecker::getOnlineVersion(), UpdateChecker::getUpdateSource()));
                         return;
                     }
                 }
+                switchTimer = 999999.0f;
                 Achievements::unlockAchievement("startgame");
                 switchState(new MainMenuState());
             }
@@ -313,7 +323,7 @@ void TitleState::update(float dt) {
                     }
                     
                     if (konamiInput == konamiTarget) {
-                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                         MusicPlayer::stop();
                         transitioning = true;
                         switchTimer = 0.5f;
@@ -333,9 +343,11 @@ void TitleState::update(float dt) {
             if (!skippedIntro) {
                 skipIntro();
             } else {
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                 transitioning = true;
                 switchTimer = 2.0f;
+                promoPending = false;
+                promoFadingOut = false;
                 titleEnter.play("press");
                 titleEnter2.play("press");
                 if (ClientPrefs::flashing) {
@@ -409,38 +421,40 @@ void TitleState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     }
 
     // BOTTOM SCREEN
-    beginScreen(bottom);
- 
-    if (!skippedIntro) {
-        if (showNewgrounds) {
-            ng.drawCentered(160.0f, 120.0f, 0.8f, 1.0f, 1.0f);
+    if (!g_isRightEye && bottom) {
+        beginScreen(bottom);
+     
+        if (!skippedIntro) {
+            if (showNewgrounds) {
+                ng.drawCentered(160.0f, 120.0f, 0.8f, 1.0f, 1.0f);
+            }
+        } else {
+            titleEnter.drawCentered(160.0f, 108.0f, 0.8f, 0.85f, 0.85f);
+            titleEnter2.drawCentered(160.0f, 138.0f, 0.8f, 0.85f, 0.85f);
+
+            if (ringAlpha > 0.0f) {
+                float cx = 285.0f;
+                float cy = 205.0f;
+                float r_in = 12.0f;
+                float r_out = 16.0f;
+
+                u8 alphaBack = (u8)(ringAlpha * 100.0f);
+                u8 alphaFront = (u8)(ringAlpha * 255.0f);
+
+                u32 colorBack = C2D_Color32(0, 0, 0, alphaBack);
+                drawProgressRing(cx, cy, r_in, r_out, 1.0f, colorBack, 0.9f);
+
+                u32 colorFront = C2D_Color32(255, 255, 255, alphaFront);
+                drawProgressRing(cx, cy, r_in, r_out, exitProgress, colorFront, 0.91f);
+            }
+            
+            drawFlash(bottomScreen);
         }
-    } else {
-        titleEnter.drawCentered(160.0f, 108.0f, 0.8f, 0.85f, 0.85f);
-        titleEnter2.drawCentered(160.0f, 138.0f, 0.8f, 0.85f, 0.85f);
 
-        if (ringAlpha > 0.0f) {
-            float cx = 285.0f;
-            float cy = 205.0f;
-            float r_in = 12.0f;
-            float r_out = 16.0f;
-
-            u8 alphaBack = (u8)(ringAlpha * 100.0f);
-            u8 alphaFront = (u8)(ringAlpha * 255.0f);
-
-            u32 colorBack = C2D_Color32(0, 0, 0, alphaBack);
-            drawProgressRing(cx, cy, r_in, r_out, 1.0f, colorBack, 0.9f);
-
-            u32 colorFront = C2D_Color32(255, 255, 255, alphaFront);
-            drawProgressRing(cx, cy, r_in, r_out, exitProgress, colorFront, 0.91f);
+        if (promoFadingOut) {
+            u8 alpha = (u8)(promoProgress * 255.0f);
+            C2D_DrawRectSolid(0, 0, 0.99f, 320.0f, 240.0f, C2D_Color32(0, 0, 0, alpha));
         }
-        
-        drawFlash(bottomScreen);
-    }
-
-    if (promoFadingOut) {
-        u8 alpha = (u8)(promoProgress * 255.0f);
-        C2D_DrawRectSolid(0, 0, 0.99f, 320.0f, 240.0f, C2D_Color32(0, 0, 0, alpha));
     }
 }
 

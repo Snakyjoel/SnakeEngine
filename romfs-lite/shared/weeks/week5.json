@@ -7,7 +7,12 @@
 				160,
 				209,
 				255
-			]
+			],
+			{
+				"easy": 1,
+				"normal": 2,
+				"hard": 2
+			}
 		],
 		[
 			"Eggnog",
@@ -16,7 +21,12 @@
 				160,
 				209,
 				255
-			]
+			],
+			{
+				"easy": 1,
+				"normal": 2,
+				"hard": 3
+			}
 		],
 		[
 			"Winter Horrorland",
@@ -25,7 +35,12 @@
 				160,
 				209,
 				255
-			]
+			],
+			{
+				"easy": 1,
+				"normal": 2,
+				"hard": 2
+			}
 		]
 	],
 	"weekCharacters": [

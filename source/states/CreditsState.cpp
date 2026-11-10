@@ -38,6 +38,35 @@ static void drawRotatedRect(float cx, float cy, float w, float h, float angleRad
     C2D_DrawTriangle(x1, y1, color, x3, y3, color, x4, y4, color, depth);
 }
 
+static std::vector<std::string> wrapAlphabetText(const std::string& text, float scale, float maxWidth) {
+    std::vector<std::string> lines;
+    std::string currentLine = "";
+    size_t start = 0;
+
+    while (start < text.length()) {
+        size_t spacePos = text.find(' ', start);
+        std::string word = (spacePos == std::string::npos) ? text.substr(start) : text.substr(start, spacePos - start);
+        start = (spacePos == std::string::npos) ? text.length() : spacePos + 1;
+        if (word.empty()) continue;
+
+        std::string testLine = currentLine.empty() ? word : currentLine + " " + word;
+        float tw = Alphabet::getTextWidth(testLine, scale);
+        if (tw > maxWidth && !currentLine.empty()) {
+            lines.push_back(currentLine);
+            currentLine = word;
+        } else {
+            currentLine = testLine;
+        }
+    }
+    if (!currentLine.empty()) {
+        lines.push_back(currentLine);
+    }
+    if (lines.empty()) {
+        lines.push_back(text);
+    }
+    return lines;
+}
+
 static int countParagraphLines(const std::string& str, int charsPerLine) {
     if (str.empty()) return 1;
     int lines = 0;
@@ -225,7 +254,7 @@ void CreditsState::init() {
         };
 
         addTitle("Snake Engine");
-        addEntry("Made by:", "SnakyJoel");
+        addTitle("Made by: SnakyJoel");
         
         addTitle("Special thanks to:");
         addEntry("Psych Engine team", "Engine on which the port was based");
@@ -243,9 +272,12 @@ void CreditsState::init() {
         addEntry("Mimikitty3", "Composed the home menu sound");
         addEntry("Fukita", "Fixed the sustains visuals");
         addEntry("Jon SpeedArts", "Ported the week 6");
+        addEntry("Felix 64", "Tested the engine on New 3DS when the extended memory mode was enabled");
+        addEntry("Adrian", "Helped with porting");
 
         addTitle("TOP DONATORS, THANKS <3");
-        addEntry("SG Lara", "US$ 28,08");
+        addEntry("SG Lara", "US$ 122.38");
+        addEntry("Conni Sumitro", "US$ 34.75");
 
         groups.push_back(snake);
     }
@@ -261,10 +293,14 @@ void CreditsState::init() {
             modGrp.isMod = true;
             modGrp.modFolder = mod.folder;
             
-            std::string music1 = modPath + "/music/freeplayAndCredits.ogg";
-            std::string music2 = modPath + "/sounds/freeplayAndCredits.ogg";
-            if (Paths::fileExists(music1)) modGrp.musicPath = music1;
-            else if (Paths::fileExists(music2)) modGrp.musicPath = music2;
+            std::string music1_adp = modPath + "/music/freeplayAndCredits.adp";
+            std::string music1_ogg = modPath + "/music/freeplayAndCredits.ogg";
+            std::string music2_adp = modPath + "/sounds/freeplayAndCredits.adp";
+            std::string music2_ogg = modPath + "/sounds/freeplayAndCredits.ogg";
+            if (Paths::fileExists(music1_adp)) modGrp.musicPath = music1_adp;
+            else if (Paths::fileExists(music1_ogg)) modGrp.musicPath = music1_ogg;
+            else if (Paths::fileExists(music2_adp)) modGrp.musicPath = music2_adp;
+            else if (Paths::fileExists(music2_ogg)) modGrp.musicPath = music2_ogg;
 
             parseCreditsFile(modGrp, creditsPath);
             groups.push_back(modGrp);
@@ -302,6 +338,39 @@ void CreditsState::init() {
     inconsolataFont = C2D_FontLoad("romfs:/fonts/Inconsolata-Black.bcfnt");
     inconsolataFontBuf = C2D_TextBufNew(4096);
     textScrollTime = 0.0f;
+
+    // Cache static UI texts
+    C2D_Font qFont = quanticoFont ? quanticoFont : vcrFont;
+    C2D_TextBuf qBuf = quanticoFontBuf ? quanticoFontBuf : vcrFontBuf;
+    if (qFont && qBuf) {
+        const char* creditsLetters[] = {"C", "R", "E", "D", "I", "T", "S"};
+        for (int i = 0; i < 7; i++) {
+            C2D_TextFontParse(&textCreditsLetters[i], qFont, qBuf, creditsLetters[i]);
+            C2D_TextOptimize(&textCreditsLetters[i]);
+        }
+        textCreditsLettersInit = true;
+
+        const char* marqueeLabels[] = {"C++   ", "DEVKITARM   ", "LIBCTRU   ", "CITRO2D   "};
+        const float marqueeScales[] = {1.25f, 0.90f, 1.25f, 0.90f};
+        for (int i = 0; i < 4; i++) {
+            C2D_TextFontParse(&marqueeTexts[i], qFont, qBuf, marqueeLabels[i]);
+            C2D_TextOptimize(&marqueeTexts[i]);
+            float th = 0.0f;
+            C2D_TextGetDimensions(&marqueeTexts[i], marqueeScales[i], marqueeScales[i], &marqueeWidths[i], &th);
+            if (marqueeWidths[i] <= 0.0f) marqueeWidths[i] = 120.0f;
+        }
+        marqueeTextsInit = true;
+
+        C2D_TextFontParse(&textMadeWith, qFont, qBuf, "MADE WITH:");
+        C2D_TextOptimize(&textMadeWith);
+        textMadeWithInit = true;
+    }
+
+    // Pre-wrap Alphabet names for groups in STATE_SELECTING
+    const float nameScale = 0.8625f;
+    for (auto& gp : groups) {
+        gp.wrappedAlphabetName = wrapAlphabetText(gp.name, nameScale, 210.0f);
+    }
 }
 
 void CreditsState::parseCreditsFile(CreditsGroup& group, const std::string& filePath) {
@@ -506,40 +575,53 @@ void CreditsState::update(float dt) {
     u32 kDown = hidKeysDown();
     u32 kHeld = hidKeysHeld();
     int count = (int)groups.size();
+    if (count == 0) {
+        if (kDown & KEY_B) {
+            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
+            switchState(new MainMenuState());
+        }
+        return;
+    }
     
     if (subState == STATE_SELECTING) {
         if (kDown & (KEY_DUP | KEY_CPAD_UP)) {
             curSelected--;
             if (curSelected < 0) curSelected = count - 1;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         }
         if (kDown & (KEY_DDOWN | KEY_CPAD_DOWN)) {
             curSelected++;
             if (curSelected >= count) curSelected = 0;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         }
 
         if (kDown & KEY_B) {
-            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
             switchState(new MainMenuState());
             return;
         }
 
         if (kDown & (KEY_A | KEY_START)) {
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
             subState = STATE_SCROLLING;
             
             scrollY = 480.0f;
             
+            prepareGroupCredits(groups[curSelected]);
+
             totalScrollHeight = 0.0f;
             for (const auto& entry : groups[curSelected].entries) {
-                totalScrollHeight += getEntryHeight(entry);
+                totalScrollHeight += entry.height;
             }
             totalScrollHeight += 150.0f; // Ending margin
 
             std::string specialMusic = groups[curSelected].musicPath;
-            if (specialMusic.empty() && Paths::fileExists("romfs:/preload/music/freeplayAndCredits.ogg")) {
-                specialMusic = "romfs:/preload/music/freeplayAndCredits.ogg";
+            if (specialMusic.empty()) {
+                if (Paths::fileExists("romfs:/preload/music/freeplayAndCredits.adp")) {
+                    specialMusic = "romfs:/preload/music/freeplayAndCredits.adp";
+                } else if (Paths::fileExists("romfs:/preload/music/freeplayAndCredits.ogg")) {
+                    specialMusic = "romfs:/preload/music/freeplayAndCredits.ogg";
+                }
             }
 
             if (!specialMusic.empty()) {
@@ -555,7 +637,7 @@ void CreditsState::update(float dt) {
         
         if (scrollY < -totalScrollHeight || (kDown & (KEY_B | KEY_START))) {
             if (kDown & (KEY_B | KEY_START)) {
-                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
             }
             subState = STATE_SELECTING;
             if (musicPlaying) {
@@ -571,6 +653,116 @@ void CreditsState::update(float dt) {
         updateIconCache();
     }
     textScrollTime += dt;
+}
+
+static std::vector<std::string> wrapTextLines(const std::string& text, C2D_Font font, C2D_TextBuf buf, float scale, float wrapWidth) {
+    std::vector<std::string> paragraphs;
+    size_t start = 0;
+    while (start <= text.length()) {
+        size_t end = text.find('\n', start);
+        if (end == std::string::npos) {
+            paragraphs.push_back(text.substr(start));
+            break;
+        }
+        paragraphs.push_back(text.substr(start, end - start));
+        start = end + 1;
+    }
+
+    std::vector<std::string> lines;
+    lines.reserve(paragraphs.size());
+    for (const auto& para : paragraphs) {
+        if (wrapWidth <= 0.0f || para.empty()) {
+            lines.push_back(para);
+        } else {
+            std::string line = "";
+            size_t pStart = 0;
+            while (pStart < para.length()) {
+                size_t pSpace = para.find(' ', pStart);
+                std::string word = (pSpace == std::string::npos) ? para.substr(pStart) : para.substr(pStart, pSpace - pStart);
+                pStart = (pSpace == std::string::npos) ? para.length() : pSpace + 1;
+                if (word.empty()) continue;
+
+                std::string testLine = line.empty() ? word : line + " " + word;
+                C2D_Text gText;
+                C2D_TextFontParse(&gText, font, buf, testLine.c_str());
+                float tw, th;
+                C2D_TextGetDimensions(&gText, scale, scale, &tw, &th);
+                
+                if (tw > wrapWidth && !line.empty()) {
+                    lines.push_back(line);
+                    line = word;
+                } else {
+                    line = testLine;
+                }
+            }
+            if (!line.empty()) {
+                lines.push_back(line);
+            }
+        }
+    }
+    return lines;
+}
+
+void CreditsState::prepareGroupCredits(CreditsGroup& group) {
+    C2D_Font fontToUse = inconsolataFont ? inconsolataFont : vcrFont;
+    C2D_TextBuf bufToUse = inconsolataFontBuf ? inconsolataFontBuf : vcrFontBuf;
+    if (!fontToUse || !bufToUse) return;
+
+    for (auto& entry : group.entries) {
+        if (entry.height > 0.0f) continue; // Already prepared
+
+        entry.height = getEntryHeight(entry);
+        if (entry.isTitle) {
+            entry.t1LinesTop = wrapTextLines(entry.text1, fontToUse, bufToUse, 0.75f, 360.0f);
+            entry.t1LinesBottom = wrapTextLines(entry.text1, fontToUse, bufToUse, 0.75f, 290.0f);
+        } else {
+            int lines1 = countParagraphLines(entry.text1, 26);
+            entry.t1Height = (float)lines1 * 18.0f;
+            entry.t1LinesTop = wrapTextLines(entry.text1, fontToUse, bufToUse, 0.60f, 360.0f);
+            entry.t1LinesBottom = wrapTextLines(entry.text1, fontToUse, bufToUse, 0.60f, 290.0f);
+
+            if (!entry.text2.empty()) {
+                int lines2 = countParagraphLines(entry.text2, 34);
+                entry.t2Height = (float)lines2 * 14.0f;
+                entry.t2LinesTop = wrapTextLines(entry.text2, fontToUse, bufToUse, 0.48f, 360.0f);
+                entry.t2LinesBottom = wrapTextLines(entry.text2, fontToUse, bufToUse, 0.48f, 290.0f);
+            }
+        }
+    }
+}
+
+void CreditsState::drawCachedLines(const std::vector<std::string>& lines, float x, float y, float scale, bool centered, float border, u32 color, float wrapWidth) {
+    if (lines.empty()) return;
+    C2D_Font fontToUse = inconsolataFont ? inconsolataFont : vcrFont;
+    C2D_TextBuf bufToUse = inconsolataFontBuf ? inconsolataFontBuf : vcrFontBuf;
+    if (!fontToUse || !bufToUse) return;
+
+    float lineHeight = 28.0f * scale;
+    float totalHeight = (float)lines.size() * lineHeight;
+    float startY = centered ? (y - totalHeight * 0.5f) : y;
+
+    for (size_t i = 0; i < lines.size(); i++) {
+        if (lines[i].empty()) continue;
+        C2D_Text gText;
+        C2D_TextFontParse(&gText, fontToUse, bufToUse, lines[i].c_str());
+        C2D_TextOptimize(&gText);
+        float tw, th;
+        C2D_TextGetDimensions(&gText, scale, scale, &tw, &th);
+        
+        float lineScale = scale;
+        if (wrapWidth > 0.0f && tw > wrapWidth) {
+            lineScale = scale * (wrapWidth / tw);
+            C2D_TextGetDimensions(&gText, lineScale, lineScale, &tw, &th);
+        }
+
+        float dx = centered ? (x - tw * 0.5f) : x;
+        float dy = startY + (float)i * lineHeight;
+        dx = std::round(dx); dy = std::round(dy);
+        if (border > 0.0f) {
+            DrawTextBorderFull(&gText, dx, dy, 0.84f, lineScale, lineScale, border, CBlack);
+        }
+        C2D_DrawText(&gText, C2D_WithColor, dx, dy, 0.85f, lineScale, lineScale, color);
+    }
 }
 
 void CreditsState::drawScrollText(const std::string& text, float x, float y, float scale, bool centered, float border, u32 color, float wrapWidth) {
@@ -650,35 +842,6 @@ void CreditsState::drawScrollText(const std::string& text, float x, float y, flo
     }
 }
 
-static std::vector<std::string> wrapAlphabetText(const std::string& text, float scale, float maxWidth) {
-    std::vector<std::string> lines;
-    std::string currentLine = "";
-    size_t start = 0;
-
-    while (start < text.length()) {
-        size_t spacePos = text.find(' ', start);
-        std::string word = (spacePos == std::string::npos) ? text.substr(start) : text.substr(start, spacePos - start);
-        start = (spacePos == std::string::npos) ? text.length() : spacePos + 1;
-        if (word.empty()) continue;
-
-        std::string testLine = currentLine.empty() ? word : currentLine + " " + word;
-        float tw = Alphabet::getTextWidth(testLine, scale);
-        if (tw > maxWidth && !currentLine.empty()) {
-            lines.push_back(currentLine);
-            currentLine = word;
-        } else {
-            currentLine = testLine;
-        }
-    }
-    if (!currentLine.empty()) {
-        lines.push_back(currentLine);
-    }
-    if (lines.empty()) {
-        lines.push_back(text);
-    }
-    return lines;
-}
-
 static void drawGrid(float width, float height, float textScrollTime, float depth) {
     float size = 36.0f;
     float offset = fmodf(textScrollTime * 25.0f, size);
@@ -697,14 +860,13 @@ static void drawGrid(float width, float height, float textScrollTime, float dept
 void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     C2D_SetTintMode(C2D_TintMult);
     ClearTextBuf();
-    if (quanticoFontBuf) C2D_TextBufClear(quanticoFontBuf);
     if (inconsolataFontBuf) C2D_TextBufClear(inconsolataFontBuf);
 
     u32 bgColor = C2D_Color32(43, 0, 135, 255);
     float angleRad = -6.0f * (3.14159265f / 180.0f);
 
     if (subState == STATE_SELECTING) {
-        // ── TOP SCREEN ────────────────────────────────────────────────────────
+        // TOP SCREEN
         C2D_SceneBegin(top);
         C2D_TargetClear(top, bgColor);
         
@@ -721,27 +883,24 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         drawRotatedRect(25.0f, 120.0f, 110.0f, 450.0f, angleRad, C2D_Color32(0, 0, 0, 255), 0.25f);
 
         // Vertical CREDITS text in Quantico-Bold font
-        const char* creditsLetters[] = {"C", "R", "E", "D", "I", "T", "S", " "};
         float letterStep = 40.0f;
         float loopHeight = 8.0f * letterStep;
         float vScrollOffset = fmodf(textScrollTime * 15.0f, loopHeight);
 
         for (float baseY = -loopHeight; baseY < 270.0f; baseY += loopHeight) {
-            for (int i = 0; i < 8; i++) {
-                if (creditsLetters[i][0] == ' ') continue;
+            for (int i = 0; i < 7; i++) {
                 float charY = baseY + vScrollOffset + (float)i * letterStep;
                 if (charY > -60.0f && charY < 260.0f) {
-                    C2D_Text letterObj;
-                    C2D_TextFontParse(&letterObj, quanticoFont ? quanticoFont : vcrFont, quanticoFontBuf ? quanticoFontBuf : vcrFontBuf, creditsLetters[i]);
-                    C2D_TextOptimize(&letterObj);
-                    
-                    // Shadow
-                    DrawTextBorderFull(&letterObj, 18.5f, charY + 4.5f, 0.28f, 1.725f, 1.725f, 1.5f, C2D_Color32(50, 50, 50, 255));
-                    C2D_DrawText(&letterObj, C2D_WithColor, 18.5f, charY + 4.5f, 0.285f, 1.725f, 1.725f, C2D_Color32(50, 50, 50, 255));
+                    if (textCreditsLettersInit) {
+                        C2D_Text* letterObj = &textCreditsLetters[i];
+                        // Shadow
+                        DrawTextBorderFull(letterObj, 18.5f, charY + 4.5f, 0.28f, 1.725f, 1.725f, 1.5f, C2D_Color32(50, 50, 50, 255));
+                        C2D_DrawText(letterObj, C2D_WithColor, 18.5f, charY + 4.5f, 0.285f, 1.725f, 1.725f, C2D_Color32(50, 50, 50, 255));
 
-                    // Main border & text
-                    DrawTextBorderFull(&letterObj, 12.0f, charY, 0.29f, 1.725f, 1.725f, 1.5f, CBlack);
-                    C2D_DrawText(&letterObj, C2D_WithColor, 12.0f, charY, 0.30f, 1.725f, 1.725f, CWhite);
+                        // Main border & text
+                        DrawTextBorderFull(letterObj, 12.0f, charY, 0.29f, 1.725f, 1.725f, 1.5f, CBlack);
+                        C2D_DrawText(letterObj, C2D_WithColor, 12.0f, charY, 0.30f, 1.725f, 1.725f, CWhite);
+                    }
                 }
             }
         }
@@ -835,9 +994,8 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 float curSelectIconW = getIconWidth(i, curSelectIconScale);
                 float curSelectIconLeft = iconX - curSelectIconW * 0.5f;
                 float textRightX = curSelectIconLeft - 5.0f;
-                float maxTextWidth = std::max(50.0f, textRightX - 40.0f);
 
-                std::vector<std::string> lines = wrapAlphabetText(groups[i].name, nameScale, maxTextWidth);
+                const std::vector<std::string>& lines = groups[i].wrappedAlphabetName;
                 float lineHeight = textHeight * nameScale * 0.90f;
                 float totalTextHeight = (float)lines.size() * lineHeight;
                 float startTextY = targetY - totalTextHeight * 0.5f;
@@ -853,57 +1011,55 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             }
         }
         
-        // ── BOTTOM SCREEN ─────────────────────────────────────────────────────
-        C2D_SceneBegin(bottom);
-        C2D_TargetClear(bottom, bgColor);
+        // BOTTOM SCREEN
+        if (!g_isRightEye && bottom) {
+            C2D_SceneBegin(bottom);
+            C2D_TargetClear(bottom, bgColor);
 
-        // Infinite scrolling transparent black checkerboard grid
-        drawGrid(320.0f, 240.0f, textScrollTime, 0.05f);
+            // Infinite scrolling transparent black checkerboard grid
+            drawGrid(320.0f, 240.0f, textScrollTime, 0.05f);
 
-        if (bottomBGSheet && bottomBG.tex) {
-            C2D_ImageTint tint;
-            C2D_PlainImageTint(&tint, C2D_Color32(255, 255, 255, 255), 1.0f);
-            drawCenteredBG(bottomBG, 320.0f, 240.0f, 0.10f, &tint);
-        }
-
-        // 4 Infinite Scrolling Marquee Rows
-        auto drawMarqueeRow = [&](const std::string& label, float y, float scale, float speed, float dir, u32 color) {
-            std::string unitText = label + "   ";
-            C2D_Text gText;
-            C2D_TextFontParse(&gText, quanticoFont ? quanticoFont : vcrFont, quanticoFontBuf ? quanticoFontBuf : vcrFontBuf, unitText.c_str());
-            C2D_TextOptimize(&gText);
-            float tw = 0.0f, th = 0.0f;
-            C2D_TextGetDimensions(&gText, scale, scale, &tw, &th);
-            if (tw <= 0.0f) tw = 120.0f;
-
-            float rawOffset = fmodf(textScrollTime * speed * dir, tw);
-            if (rawOffset < 0.0f) rawOffset += tw;
-
-            float startX = -tw + rawOffset;
-            while (startX < 320.0f) {
-                DrawTextBorderFull(&gText, startX, y, 0.14f, scale, scale, 1.5f, CBlack);
-                C2D_DrawText(&gText, C2D_WithColor, startX, y, 0.15f, scale, scale, color);
-                startX += tw;
+            if (bottomBGSheet && bottomBG.tex) {
+                C2D_ImageTint tint;
+                C2D_PlainImageTint(&tint, C2D_Color32(255, 255, 255, 255), 1.0f);
+                drawCenteredBG(bottomBG, 320.0f, 240.0f, 0.10f, &tint);
             }
-        };
 
-        drawMarqueeRow("C++", 62.0f, 1.25f, 35.0f, 1.0f, CWhite);
-        drawMarqueeRow("DEVKITARM", 102.0f, 0.90f, 35.0f, -1.0f, CWhite);
-        drawMarqueeRow("LIBCTRU", 142.0f, 1.25f, 35.0f, 1.0f, CWhite);
-        drawMarqueeRow("CITRO2D", 182.0f, 0.90f, 35.0f, -1.0f, CWhite);
+            // 4 Infinite Scrolling Marquee Rows
+            const float marqueeY[] = {62.0f, 102.0f, 142.0f, 182.0f};
+            const float marqueeScales[] = {1.25f, 0.90f, 1.25f, 0.90f};
+            const float marqueeDirs[] = {1.0f, -1.0f, 1.0f, -1.0f};
 
-        // Rotated black rectangle on left side of bottom screen
-        drawRotatedRect(10.0f, 120.0f, 110.0f, 450.0f, angleRad, C2D_Color32(0, 0, 0, 255), 0.25f);
+            for (int r = 0; r < 4; r++) {
+                if (!marqueeTextsInit) break;
+                float tw = marqueeWidths[r];
+                float scale = marqueeScales[r];
+                float y = marqueeY[r];
+                float dir = marqueeDirs[r];
 
-        // Header MADE WITH:
-        C2D_Text headerText;
-        C2D_TextFontParse(&headerText, quanticoFont ? quanticoFont : vcrFont, quanticoFontBuf ? quanticoFontBuf : vcrFontBuf, "MADE WITH:");
-        C2D_TextOptimize(&headerText);
-        DrawTextBorderFull(&headerText, 25.0f, 20.0f, 0.34f, 1.15f, 1.15f, 1.5f, CBlack);
-        C2D_DrawText(&headerText, C2D_WithColor, 25.0f, 20.0f, 0.35f, 1.15f, 1.15f, CWhite);
+                float rawOffset = fmodf(textScrollTime * 35.0f * dir, tw);
+                if (rawOffset < 0.0f) rawOffset += tw;
 
-        ButtonPrompt::drawPrompt("b", "Back", 8.0f, 205.0f, 0.70f, 1.0f);
-        C2D_Flush();
+                float startX = -tw + rawOffset;
+                while (startX < 320.0f) {
+                    DrawTextBorderFull(&marqueeTexts[r], startX, y, 0.14f, scale, scale, 1.5f, CBlack);
+                    C2D_DrawText(&marqueeTexts[r], C2D_WithColor, startX, y, 0.15f, scale, scale, CWhite);
+                    startX += tw;
+                }
+            }
+
+            // Rotated black rectangle on left side of bottom screen
+            drawRotatedRect(10.0f, 120.0f, 110.0f, 450.0f, angleRad, C2D_Color32(0, 0, 0, 255), 0.25f);
+
+            // Header MADE WITH:
+            if (textMadeWithInit) {
+                DrawTextBorderFull(&textMadeWith, 25.0f, 20.0f, 0.34f, 1.15f, 1.15f, 1.5f, CBlack);
+                C2D_DrawText(&textMadeWith, C2D_WithColor, 25.0f, 20.0f, 0.35f, 1.15f, 1.15f, CWhite);
+            }
+
+            ButtonPrompt::drawPrompt("b", "Back", 8.0f, 205.0f, 0.70f, 1.0f);
+            C2D_Flush();
+        }
     }
     else if (subState == STATE_SCROLLING) {
         auto& gp = groups[curSelected];
@@ -914,26 +1070,21 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         
         float currentY = scrollY;
         for (const auto& entry : gp.entries) {
-            float entryHeight = getEntryHeight(entry);
+            float entryHeight = entry.height;
             if (entry.isTitle) {
                 if (currentY > -entryHeight && currentY < 260.0f) {
-                    drawScrollText(entry.text1, 200.0f, currentY + entryHeight * 0.5f, 0.75f, true, 0.0f, CYellow, 360.0f);
+                    drawCachedLines(entry.t1LinesTop, 200.0f, currentY + entryHeight * 0.5f, 0.75f, true, 0.0f, CYellow, 360.0f);
                 }
             } else {
                 if (currentY > -entryHeight && currentY < 260.0f) {
-                    int lines1 = countParagraphLines(entry.text1, 26);
-                    float t1Height = (float)lines1 * 18.0f;
-                    
                     if (entry.text2.empty()) {
-                        drawScrollText(entry.text1, 200.0f, currentY + entryHeight * 0.5f, 0.60f, true, 0.0f, CWhite, 360.0f);
+                        drawCachedLines(entry.t1LinesTop, 200.0f, currentY + entryHeight * 0.5f, 0.60f, true, 0.0f, CWhite, 360.0f);
                     } else {
-                        float t1Center = currentY + 12.0f + t1Height * 0.5f;
-                        drawScrollText(entry.text1, 200.0f, t1Center, 0.60f, true, 0.0f, CWhite, 360.0f);
+                        float t1Center = currentY + 12.0f + entry.t1Height * 0.5f;
+                        drawCachedLines(entry.t1LinesTop, 200.0f, t1Center, 0.60f, true, 0.0f, CWhite, 360.0f);
                         
-                        int lines2 = countParagraphLines(entry.text2, 34);
-                        float t2Height = (float)lines2 * 14.0f;
-                        float t2Center = currentY + 12.0f + t1Height + 6.0f + t2Height * 0.5f;
-                        drawScrollText(entry.text2, 200.0f, t2Center, 0.48f, true, 0.0f, CGray, 360.0f);
+                        float t2Center = currentY + 12.0f + entry.t1Height + 6.0f + entry.t2Height * 0.5f;
+                        drawCachedLines(entry.t2LinesTop, 200.0f, t2Center, 0.48f, true, 0.0f, CGray, 360.0f);
                     }
                 }
             }
@@ -942,54 +1093,51 @@ void CreditsState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         C2D_Flush();
 
         // Bottom screen scrolling credits
-        C2D_SceneBegin(bottom);
-        C2D_TargetClear(bottom, CBlack);
+        if (!g_isRightEye && bottom) {
+            C2D_SceneBegin(bottom);
+            C2D_TargetClear(bottom, CBlack);
 
-        currentY = scrollY - 240.0f;
-        for (const auto& entry : gp.entries) {
-            float entryHeight = getEntryHeight(entry);
-            if (entry.isTitle) {
-                if (currentY > -entryHeight && currentY < 260.0f) {
-                    drawScrollText(entry.text1, 160.0f, currentY + entryHeight * 0.5f, 0.75f, true, 0.0f, CYellow, 290.0f);
-                }
-            } else {
-                if (currentY > -entryHeight && currentY < 260.0f) {
-                    int lines1 = countParagraphLines(entry.text1, 26);
-                    float t1Height = (float)lines1 * 18.0f;
-                    
-                    if (entry.text2.empty()) {
-                        drawScrollText(entry.text1, 160.0f, currentY + entryHeight * 0.5f, 0.60f, true, 0.0f, CWhite, 290.0f);
-                    } else {
-                        float t1Center = currentY + 12.0f + t1Height * 0.5f;
-                        drawScrollText(entry.text1, 160.0f, t1Center, 0.60f, true, 0.0f, CWhite, 290.0f);
-                        
-                        int lines2 = countParagraphLines(entry.text2, 34);
-                        float t2Height = (float)lines2 * 14.0f;
-                        float t2Center = currentY + 12.0f + t1Height + 6.0f + t2Height * 0.5f;
-                        drawScrollText(entry.text2, 160.0f, t2Center, 0.48f, true, 0.0f, CGray, 290.0f);
+            currentY = scrollY - 240.0f;
+            for (const auto& entry : gp.entries) {
+                float entryHeight = entry.height;
+                if (entry.isTitle) {
+                    if (currentY > -entryHeight && currentY < 260.0f) {
+                        drawCachedLines(entry.t1LinesBottom, 160.0f, currentY + entryHeight * 0.5f, 0.75f, true, 0.0f, CYellow, 290.0f);
+                    }
+                } else {
+                    if (currentY > -entryHeight && currentY < 260.0f) {
+                        if (entry.text2.empty()) {
+                            drawCachedLines(entry.t1LinesBottom, 160.0f, currentY + entryHeight * 0.5f, 0.60f, true, 0.0f, CWhite, 290.0f);
+                        } else {
+                            float t1Center = currentY + 12.0f + entry.t1Height * 0.5f;
+                            drawCachedLines(entry.t1LinesBottom, 160.0f, t1Center, 0.60f, true, 0.0f, CWhite, 290.0f);
+                            
+                            float t2Center = currentY + 12.0f + entry.t1Height + 6.0f + entry.t2Height * 0.5f;
+                            drawCachedLines(entry.t2LinesBottom, 160.0f, t2Center, 0.48f, true, 0.0f, CGray, 290.0f);
+                        }
                     }
                 }
+                currentY += entryHeight;
             }
-            currentY += entryHeight;
+            ButtonPrompt::drawPrompt("b", "Back", 8.0f, 205.0f, 0.70f, 1.0f);
+            C2D_Flush();
         }
-        ButtonPrompt::drawPrompt("b", "Back", 8.0f, 205.0f, 0.70f, 1.0f);
-        C2D_Flush();
     }
 }
 
 void CreditsState::exitState() {
-    if (iconSheet) C2D_SpriteSheetFree(iconSheet);
-    if (bgSheet) C2D_SpriteSheetFree(bgSheet);
-    if (bottomBGSheet) C2D_SpriteSheetFree(bottomBGSheet);
+    if (iconSheet) { C2D_SpriteSheetFree(iconSheet); iconSheet = nullptr; }
+    if (bgSheet) { C2D_SpriteSheetFree(bgSheet); bgSheet = nullptr; }
+    if (bottomBGSheet) { C2D_SpriteSheetFree(bottomBGSheet); bottomBGSheet = nullptr; }
     
     // Free all loaded mod icons
     for (auto& gp : groups) {
         freeModIcon(gp);
     }
     
-    C2D_TextBufDelete(vcrFontBuf);
-    if (quanticoFont) C2D_FontFree(quanticoFont);
-    if (quanticoFontBuf) C2D_TextBufDelete(quanticoFontBuf);
-    if (inconsolataFont) C2D_FontFree(inconsolataFont);
-    if (inconsolataFontBuf) C2D_TextBufDelete(inconsolataFontBuf);
+    if (vcrFontBuf) { C2D_TextBufDelete(vcrFontBuf); vcrFontBuf = nullptr; }
+    if (quanticoFont) { C2D_FontFree(quanticoFont); quanticoFont = nullptr; }
+    if (quanticoFontBuf) { C2D_TextBufDelete(quanticoFontBuf); quanticoFontBuf = nullptr; }
+    if (inconsolataFont) { C2D_FontFree(inconsolataFont); inconsolataFont = nullptr; }
+    if (inconsolataFontBuf) { C2D_TextBufDelete(inconsolataFontBuf); inconsolataFontBuf = nullptr; }
 }

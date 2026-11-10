@@ -19,6 +19,7 @@ public:
     static bool isStoryMode;
     static std::string songName;
     static std::string difficultyName;
+    static std::string modDir;
     static WeekData storyWeek;
     static int storySongIdx;
 

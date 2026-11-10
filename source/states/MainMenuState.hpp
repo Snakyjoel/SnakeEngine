@@ -5,6 +5,8 @@
 #include "../backend/SpritesheetCache.hpp"
 #include "../objects/CppAnimate.hpp"
 
+class FreeplayState;
+
 struct MenuItem {
     std::string name;
     CppAnimate animate;
@@ -15,6 +17,9 @@ struct MenuItem {
 class MainMenuState : public MusicBeatState {
 public:
     static std::string version;
+
+    MainMenuState(bool startInFreeplay = false);
+    ~MainMenuState() override;
 
     void init() override;
     void update(float dt) override;
@@ -31,6 +36,24 @@ private:
     C2D_Image bottomBG;
     float lerpSelected = 0.0f;  // for top parallax effect
 
+    // Precomputed background layout
+    float topBgScale = 0.95f;
+    float topBgW = 0.0f;
+    float topBgH = 0.0f;
+    float topBgDrawX = 0.0f;
+    float topBgMinY = 0.0f;
+
+    float botBgScale = 1.10f;
+    float botBgW = 0.0f;
+    float botBgH = 0.0f;
+    float botBgBaseX = 0.0f;
+    float botBgBaseY = 0.0f;
+
+    // Precomputed button prompt dimensions
+    float cachedYBtnW = 0.0f;
+    float cachedXBtnW = 0.0f;
+    float cachedOptTextW = 0.0f;
+
     // Bottom screen touch parallax
     float botParallaxX = 0.0f;
     float botParallaxY = 0.0f;
@@ -44,8 +67,6 @@ private:
     C2D_TextBuf vcrFontBuf = nullptr;
     std::string versionDisplayStr;
 
-    bool isTransitioningToFreeplay = false;
-    float transitionTimer = 0.0f;
     float introTimer = 0.0f;
 
     // Confirm animation
@@ -61,6 +82,11 @@ private:
     float bgMagentaTimer = 0.0f;
     float bgFlickerTimer = 0.0f;
     bool bgFlickerVisible = false;
+
+    // Freeplay substate overlay
+    bool startInFreeplay = false;
+    bool isFreeplayActive = false;
+    FreeplayState* freeplaySubState = nullptr;
 
 public:
     static bool comingFromFreeplay;

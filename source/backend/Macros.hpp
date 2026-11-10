@@ -319,7 +319,13 @@ static inline void renderNoteSprite(const NoteSprite& ns, float x, float y, floa
     if (!ns.sub.width || !ns.sub.height || !ns.tex) return;
     
     GPU_TEXTURE_FILTER_PARAM f = antialiasing ? GPU_LINEAR : GPU_NEAREST;
-    C3D_TexSetFilter(ns.tex, f, f);
+    static C3D_Tex* lastNoteTex = nullptr;
+    static GPU_TEXTURE_FILTER_PARAM lastNoteFilt = (GPU_TEXTURE_FILTER_PARAM)-1;
+    if (ns.tex != lastNoteTex || f != lastNoteFilt) {
+        C3D_TexSetFilter(ns.tex, f, f);
+        lastNoteTex = ns.tex;
+        lastNoteFilt = f;
+    }
 
     C2D_Image img = { ns.tex, &ns.sub };
 

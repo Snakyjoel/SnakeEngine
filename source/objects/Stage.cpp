@@ -96,7 +96,12 @@ void Stage::loadFromJson(const std::string& path) {
             auto* cs = SpritesheetCache::get().load(imgPath);
             if (cs && !cs->frames.empty()) {
                 s.sheet = cs->sheet;
-                s.img = C2D_SpriteSheetGetImage(s.sheet, 0);
+                if (cs->sheet) {
+                    s.img = C2D_SpriteSheetGetImage(s.sheet, 0);
+                } else if (cs->rawTex) {
+                    s.img.tex = cs->rawTex;
+                    s.img.subtex = cs->rawSub;
+                }
                 if (s.img.tex) {
                     C3D_TexSetFilter(s.img.tex, GPU_NEAREST, GPU_NEAREST);
                     sprites.push_back(s);

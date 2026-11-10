@@ -64,7 +64,7 @@ bool SnakyDecoder::open(const std::string& videoPath, bool includeAudio) {
         ndspChnSetRate(5, audioRate);
         ndspChnSetFormat(5, channels == 2 ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16);
 
-        int maxChunkSamples = audioRate / 10;
+        int maxChunkSamples = std::max((int)(audioRate / 5), 4096);
         audioBufferData = (int16_t*)linearAlloc(maxChunkSamples * channels * 2 * AUDIO_BUF_COUNT);
 
         float mix[12];
@@ -99,16 +99,24 @@ void SnakyDecoder::start() {
     audioSamplesPlayed = 0;
     videoEnded = false;
     skipToNextKey = false;
+    adpcmState.predictor = 0;
+    adpcmState.stepIndex = 0;
+    adpcmStateR.predictor = 0;
+    adpcmStateR.stepIndex = 0;
 
-    // Use THREAD_CPU_AFFINITY_ANY (-2) so threadCreate succeeds on all 3DS hardware models
-    decodeThread = threadCreate(threadMain, this, 32 * 1024, 0x1A, -2, false);
+    // Prefer affinity Core 1 (SysCore with up to 80% CPU limit) so video decoding doesn't starve the main gameplay core
+    decodeThread = threadCreate(threadMain, this, 32 * 1024, 0x22, 1, false);
+    if (!decodeThread) {
+        // Fallback to ANY core if Core 1 not allowed in current environment
+        decodeThread = threadCreate(threadMain, this, 32 * 1024, 0x28, -2, false);
+    }
 }
 
 void SnakyDecoder::stop() {
     threadRunning = false;
     LightEvent_Signal(&eventDecodeRequest);
     if (decodeThread) {
-        threadJoin(decodeThread, U64_MAX);
+        threadJoin(decodeThread, 2000000000ULL); // 2s safe timeout
         threadFree(decodeThread);
         decodeThread = nullptr;
     }
@@ -223,18 +231,14 @@ void SnakyDecoder::releaseFrame(int slotIndex) {
 void SnakyDecoder::decodeChunk() {
     if (!file) return;
 
-    uint8_t type;
-    if (fread(&type, 1, 1, file) != 1) {
+    // Read 4-byte chunk header (1 byte type + 3 bytes little-endian payload size) in one syscall
+    uint32_t chunkHdr = 0;
+    if (fread(&chunkHdr, 4, 1, file) != 1) {
         videoEnded = true;
         return;
     }
-
-    uint8_t sizeBytes[3];
-    if (fread(sizeBytes, 1, 3, file) != 3) {
-        videoEnded = true;
-        return;
-    }
-    uint32_t size = sizeBytes[0] | (sizeBytes[1] << 8) | (sizeBytes[2] << 16);
+    uint8_t type = (uint8_t)(chunkHdr & 0xFF);
+    uint32_t size = (chunkHdr >> 8) & 0xFFFFFF;
 
     if (type == 0x03) { // AUDIO
         if (hasAudio && includeAudioTrack) {
@@ -256,7 +260,11 @@ void SnakyDecoder::decodeChunk() {
                     if (size > adpcmAudioBuf.size()) adpcmAudioBuf.resize(size);
                     fread(adpcmAudioBuf.data(), 1, size, file);
                     uint32_t samplesDecoded = 0;
-                    AdpcmDecoder::decodeIMA(adpcmAudioBuf.data(), size, waveBuf[idx].data_pcm16, samplesDecoded, adpcmState);
+                    if (channels == 2) {
+                        AdpcmDecoder::decodeIMAStereo(adpcmAudioBuf.data(), size, waveBuf[idx].data_pcm16, samplesDecoded, adpcmState, adpcmStateR);
+                    } else {
+                        AdpcmDecoder::decodeIMA(adpcmAudioBuf.data(), size, waveBuf[idx].data_pcm16, samplesDecoded, adpcmState);
+                    }
                     waveBuf[idx].nsamples = samplesDecoded / channels;
                 } else {
                     size_t readBytes = fread(waveBuf[idx].data_pcm16, 1, size, file);
@@ -274,13 +282,7 @@ void SnakyDecoder::decodeChunk() {
     else if (type == 0x01 || type == 0x02) { // VIDEO KEY (0x01) / DELTA (0x02)
         // Fast-seek through DELTA chunks when behind target frame
         if (type == 0x02 && skipToNextKey) {
-            if (isZlib) {
-                uint8_t uncompBytes[3];
-                fread(uncompBytes, 1, 3, file);
-                fseek(file, size, SEEK_CUR);
-            } else {
-                fseek(file, size, SEEK_CUR);
-            }
+            fseek(file, isZlib ? (size + 3) : size, SEEK_CUR);
             currentFrame++;
             return;
         }
@@ -290,9 +292,9 @@ void SnakyDecoder::decodeChunk() {
         uint32_t uncompSize = 0;
 
         if (isZlib) {
-            uint8_t uncompBytes[3];
-            fread(uncompBytes, 1, 3, file);
-            uncompSize = uncompBytes[0] | (uncompBytes[1] << 8) | (uncompBytes[2] << 16);
+            uint32_t uncompWord = 0;
+            fread(&uncompWord, 3, 1, file);
+            uncompSize = uncompWord & 0xFFFFFF;
 
             if (size > compressedBuf.size()) compressedBuf.resize(size);
             if (uncompSize > uncompressedBuf.size()) uncompressedBuf.resize(uncompSize);
@@ -325,37 +327,39 @@ void SnakyDecoder::decodeChunk() {
         if (!destBase) return;
 
         // If KEY frame (0x01), clear padded frame buffer.
-        // If DELTA frame (0x02), carry forward the previous frame buffer to avoid full 192KB memcpy!
+        // If DELTA frame (0x02), carry forward the previous frame buffer (only active height rows).
         if (type == 0x01) {
-            memset(destBase, 0, PADDED_WIDTH * PADDED_HEIGHT * 2);
+            memset(destBase, 0, PADDED_WIDTH * height * 2);
         } else if (type == 0x02) {
             int prevIdx = (writeIdx + RING_SIZE - 1) % RING_SIZE;
             if (decodeBuf[prevIdx] && decodeBuf[prevIdx] != destBase) {
-                memcpy(destBase, decodeBuf[prevIdx], PADDED_WIDTH * PADDED_HEIGHT * 2);
+                memcpy(destBase, decodeBuf[prevIdx], PADDED_WIDTH * height * 2);
             }
         }
 
-        // Fast Direct-Strided RLE Opcode Unpacker
-        uint32_t pixelIdx = 0;
-        const uint32_t framePixels = (uint32_t)width * height;
+        // Fast Direct-Strided RLE Opcode Unpacker with zero per-chunk software division
+        uint32_t currX = 0;
+        uint32_t currY = 0;
 
         while (data < end) {
             uint8_t op = *data++;
             if (op == 0x00) break; // End of frame
 
-            if (op == 0x01) { // SKIP
+            if (op == 0x01) { // SKIP - fast subtraction loop, zero division cycles
                 uint16_t count = *(uint16_t*)data;
                 data += 2;
-                pixelIdx += count;
+                currX += count;
+                while (currX >= width) {
+                    currX -= width;
+                    currY++;
+                }
             } else if (op == 0x02) { // COPY
                 uint16_t count = *(uint16_t*)data;
                 data += 2;
 
                 if (format == 1) { // RGB444 packed (12-bit / 1.5 bytes per pixel)
-                    uint32_t currX = pixelIdx % width;
-                    uint32_t currY = pixelIdx / width;
-
                     for (uint32_t k = 0; k < count; k += 2) {
+                        uint16_t* rowPtr = destBase + (currY << 9);
                         if (k + 1 < count) { // Pair of pixels (3 bytes -> 2 GPU_RGBA4 pixels)
                             uint8_t b0 = data[0];
                             uint8_t b1 = data[1];
@@ -365,11 +369,12 @@ void SnakyDecoder::decodeChunk() {
                             uint16_t p0 = (uint16_t)((b0 << 8) | (b1 & 0xF0) | 0x0F);
                             uint16_t p1 = (uint16_t)(((b1 & 0x0F) << 12) | (b2 << 4) | 0x0F);
 
-                            destBase[currY * PADDED_WIDTH + currX] = p0;
+                            rowPtr[currX] = p0;
                             currX++;
                             if (currX == width) { currX = 0; currY++; }
 
-                            destBase[currY * PADDED_WIDTH + currX] = p1;
+                            rowPtr = destBase + (currY << 9);
+                            rowPtr[currX] = p1;
                             currX++;
                             if (currX == width) { currX = 0; currY++; }
                         } else { // Single trailing odd pixel (2 bytes -> 1 GPU_RGBA4 pixel)
@@ -378,30 +383,52 @@ void SnakyDecoder::decodeChunk() {
                             data += 2;
 
                             uint16_t p0 = (uint16_t)((b0 << 8) | (b1 & 0xF0) | 0x0F);
-                            destBase[currY * PADDED_WIDTH + currX] = p0;
+                            rowPtr[currX] = p0;
                             currX++;
                             if (currX == width) { currX = 0; currY++; }
                         }
                     }
-                    pixelIdx += count;
-                } else { // 16-bit per pixel formats
+                } else { // 16-bit per pixel formats (RGB565) - Fast strided unpack without inner software division
                     uint32_t copied = 0;
-                    while (copied < count && pixelIdx < framePixels) {
-                        uint32_t x = pixelIdx % width;
-                        uint32_t y = pixelIdx / width;
-                        uint32_t spaceInRow = width - x;
+                    while (copied < count) {
+                        uint32_t spaceInRow = width - currX;
                         uint32_t chunk = std::min((uint32_t)(count - copied), spaceInRow);
 
-                        uint16_t* rowPtr = destBase + (y * PADDED_WIDTH) + x;
-                        memcpy(rowPtr, data + (copied * 2), chunk * 2);
+                        uint16_t* rowPtr = destBase + (currY << 9) + currX;
+                        const uint16_t* srcPtr = (const uint16_t*)(data + (copied * 2));
+
+                        if (chunk == 1) {
+                            rowPtr[0] = srcPtr[0];
+                        } else if (chunk == 2) {
+                            rowPtr[0] = srcPtr[0];
+                            rowPtr[1] = srcPtr[1];
+                        } else if (chunk == 3) {
+                            rowPtr[0] = srcPtr[0];
+                            rowPtr[1] = srcPtr[1];
+                            rowPtr[2] = srcPtr[2];
+                        } else if (chunk == 4) {
+                            rowPtr[0] = srcPtr[0];
+                            rowPtr[1] = srcPtr[1];
+                            rowPtr[2] = srcPtr[2];
+                            rowPtr[3] = srcPtr[3];
+                        } else {
+                            memcpy(rowPtr, srcPtr, chunk * 2);
+                        }
 
                         copied += chunk;
-                        pixelIdx += chunk;
+                        currX += chunk;
+                        if (currX >= width) {
+                            currX = 0;
+                            currY++;
+                        }
                     }
                     data += count * 2;
                 }
             }
         }
+
+        // Flush CPU cache in decoder thread (Core 1) so main thread GPU transfer is immediate
+        GSPGPU_FlushDataCache(destBase, PADDED_WIDTH * height * 2);
 
         ringFrameIds[writeIdx] = currentFrame;
 

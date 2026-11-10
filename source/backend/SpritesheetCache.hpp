@@ -4,11 +4,14 @@
 #include <vector>
 #include <map>
 #include "SparrowParser.hpp"
+#include "TextureLoader.hpp"
 
 struct CachedSpritesheet {
-    C2D_SpriteSheet sheet;
+    C2D_SpriteSheet sheet = nullptr;
     std::vector<C2D_SpriteSheet> subSheets;
     std::vector<Frame> frames;
+    C3D_Tex* rawTex = nullptr;
+    Tex3DS_SubTexture* rawSub = nullptr;
 };
 
 class SpritesheetCache {
@@ -67,11 +70,6 @@ public:
                 C2D_SpriteSheet subSheet = C2D_SpriteSheetLoad(subPngPath.c_str());
                 if (!subSheet) {
                     printf("[CACHE] FAILED to load sub-sheet: %s\n", subPngPath.c_str());
-                    FILE* fLog = fopen("sdmc:/SnakeEngine/cache_log.txt", "a");
-                    if (fLog) {
-                        fprintf(fLog, "[CACHE] FAILED to load sub-sheet: %s\n", subPngPath.c_str());
-                        fclose(fLog);
-                    }
                 } else {
                     cs.subSheets.push_back(subSheet);
                 }
@@ -79,21 +77,11 @@ public:
 
             if (cs.subSheets.empty()) {
                 printf("[CACHE] FAILED to load any sub-sheets for: %s\n", pngPath.c_str());
-                FILE* fLog = fopen("sdmc:/SnakeEngine/cache_log.txt", "a");
-                if (fLog) {
-                    fprintf(fLog, "[CACHE] FAILED to load any sub-sheets for: %s\n", pngPath.c_str());
-                    fclose(fLog);
-                }
                 return nullptr;
             }
 
             printf("[CACHE] Loaded %d sub-sheets for split texture: %s\n", (int)cs.subSheets.size(), pngPath.c_str());
             fflush(stdout);
-            FILE* fLog = fopen("sdmc:/SnakeEngine/cache_log.txt", "a");
-            if (fLog) {
-                fprintf(fLog, "[CACHE] Loaded %d sub-sheets for split texture: %s\n", (int)cs.subSheets.size(), pngPath.c_str());
-                fclose(fLog);
-            }
 
             for (auto& f : cs.frames) {
                 if (f.sheetIdx >= 0 && f.sheetIdx < (int)cs.subSheets.size()) {
@@ -130,11 +118,6 @@ public:
                     f.tex = nullptr;
                     printf("[CACHE] Frame %s has invalid sheetIdx: %d (sheets size: %d)\n", f.name.c_str(), f.sheetIdx, (int)cs.subSheets.size());
                     fflush(stdout);
-                    FILE* fLog = fopen("sdmc:/SnakeEngine/cache_log.txt", "a");
-                    if (fLog) {
-                        fprintf(fLog, "[CACHE] Frame %s has invalid sheetIdx: %d (sheets size: %d)\n", f.name.c_str(), f.sheetIdx, (int)cs.subSheets.size());
-                        fclose(fLog);
-                    }
                 }
             }
 
@@ -143,16 +126,38 @@ public:
         }
 
         C2D_SpriteSheet sheet = C2D_SpriteSheetLoad(pngPath.c_str());
-        if (!sheet) {
-            printf("[CACHE] FAILED to load sheet: %s\n", pngPath.c_str());
-            return nullptr;
+        if (!sheet && pngPath.find(".png") == std::string::npos) {
+            std::string resolvedPng = pngPath;
+            size_t dot = resolvedPng.find_last_of('.');
+            if (dot != std::string::npos) resolvedPng = resolvedPng.substr(0, dot) + ".png";
+            sheet = C2D_SpriteSheetLoad(resolvedPng.c_str());
         }
 
-        printf("[CACHE] Loaded sheet: %s, xmlPath: %s (exists: %d)\n", 
-               pngPath.c_str(), xmlPath.c_str(), (int)Paths::fileExists(xmlPath));
+        C2D_Image mainImg;
+        mainImg.tex = nullptr;
+        mainImg.subtex = nullptr;
 
-        cs.sheet = sheet;
-        C2D_Image mainImg = C2D_SpriteSheetGetImage(sheet, 0);
+        if (sheet) {
+            cs.sheet = sheet;
+            mainImg = C2D_SpriteSheetGetImage(sheet, 0);
+        } else {
+            // Direct PNG fallback: try loading via TextureLoader
+            std::string resolvedPng = pngPath;
+            if (resolvedPng.find(".png") == std::string::npos) {
+                size_t dot = resolvedPng.find_last_of('.');
+                if (dot != std::string::npos) resolvedPng = resolvedPng.substr(0, dot) + ".png";
+            }
+            if (TextureLoader::loadPng(resolvedPng, &cs.rawTex, &cs.rawSub)) {
+                mainImg.tex = cs.rawTex;
+                mainImg.subtex = cs.rawSub;
+            } else {
+                printf("[CACHE] FAILED to load sheet or PNG: %s\n", pngPath.c_str());
+                return nullptr;
+            }
+        }
+
+        printf("[CACHE] Loaded asset: %s, xmlPath: %s (exists: %d)\n", 
+               pngPath.c_str(), xmlPath.c_str(), (int)Paths::fileExists(xmlPath));
         
         static Tex3DS_SubTexture defaultSubtex;
         defaultSubtex.width = mainImg.tex ? mainImg.tex->width : 0;
@@ -224,6 +229,15 @@ public:
             }
             for (auto sub : pair.second.subSheets) {
                 if (sub) C2D_SpriteSheetFree(sub);
+            }
+            if (pair.second.rawTex) {
+                C3D_TexDelete(pair.second.rawTex);
+                delete pair.second.rawTex;
+                pair.second.rawTex = nullptr;
+            }
+            if (pair.second.rawSub) {
+                delete pair.second.rawSub;
+                pair.second.rawSub = nullptr;
             }
         }
         cache.clear();

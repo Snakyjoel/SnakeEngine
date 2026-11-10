@@ -12,16 +12,110 @@ ShaderManager::~ShaderManager() {
     cleanup();
 }
 
-void ShaderManager::init() {
-    int h_game = (extendedCameras.count("camGame") > 0) ? 512 : 256;
-    int h_hud  = (extendedCameras.count("camHUD") > 0) ? 512 : 256;
-    int h_oth  = (extendedCameras.count("camOther") > 0) ? 512 : 256;
-    int h_bot  = (extendedCameras.count("camBottom") > 0) ? 512 : 256;
+void ShaderManager::prepareCamera(const std::string& camera) {
+    if (camera.empty()) return;
+    int h = (extendedCameras.count(camera) > 0) ? 512 : 256;
+    auto& rt = targets[camera];
+    if (!rt.active) {
+        rt.init(512, h);
+    } else if (rt.tex.height != h) {
+        rt.cleanup();
+        rt.init(512, h);
+    }
+}
 
-    if (!targets["camGame"].active) targets["camGame"].init(512, h_game);
-    if (!targets["camHUD"].active) targets["camHUD"].init(512, h_hud);
-    if (!targets["camOther"].active) targets["camOther"].init(512, h_oth);
-    if (!targets["camBottom"].active) targets["camBottom"].init(512, h_bot);
+static std::string readScriptFile(const std::string& path) {
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f) return "";
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (size <= 0 || size > 512 * 1024) {
+        fclose(f);
+        return "";
+    }
+    std::string str(size, '\0');
+    fread(&str[0], 1, size, f);
+    fclose(f);
+    return str;
+}
+
+void ShaderManager::preloadShadersForSong(const std::vector<std::string>& scriptPaths) {
+    // 1. Any cameras already requested during onCreate/onCreatePost
+    for (const auto& pair : activeShaders) {
+        prepareCamera(pair.first);
+    }
+    for (const auto& cam : extendedCameras) {
+        prepareCamera(cam);
+    }
+
+    int totalShadersDetected = 0;
+
+    // 2. Pre-scan all script files
+    for (const auto& path : scriptPaths) {
+        if (path.empty()) continue;
+        std::string content = readScriptFile(path);
+        if (content.empty()) continue;
+
+        bool hasShaderCalls = (content.find("setCameraShader") != std::string::npos ||
+                               content.find("addCameraShader") != std::string::npos ||
+                               content.find("setShaderParam") != std::string::npos ||
+                               content.find("setShaderFloat") != std::string::npos);
+        bool hasExtendedCalls = (content.find("setCameraExtended") != std::string::npos);
+
+        if (hasExtendedCalls) {
+            if (content.find("camGame") != std::string::npos) setCameraExtended("camGame", true);
+            if (content.find("camHUD") != std::string::npos) setCameraExtended("camHUD", true);
+            if (content.find("camOther") != std::string::npos) setCameraExtended("camOther", true);
+            if (content.find("camBottom") != std::string::npos) setCameraExtended("camBottom", true);
+        }
+
+        if (hasShaderCalls) {
+            bool specificFound = false;
+            if (content.find("camGame") != std::string::npos) {
+                prepareCamera("camGame");
+                specificFound = true;
+            }
+            if (content.find("camHUD") != std::string::npos) {
+                prepareCamera("camHUD");
+                specificFound = true;
+            }
+            if (content.find("camOther") != std::string::npos) {
+                prepareCamera("camOther");
+                specificFound = true;
+            }
+            if (content.find("camBottom") != std::string::npos) {
+                prepareCamera("camBottom");
+                specificFound = true;
+            }
+            // Fallback
+            if (!specificFound) {
+                prepareCamera("camGame");
+            }
+
+            size_t pos = 0;
+            while ((pos = content.find("setCameraShader", pos)) != std::string::npos) {
+                totalShadersDetected++;
+                pos += 15;
+            }
+        }
+    }
+
+    // If multiple shaders are detected, pre-allocate helperRT so stacking doesn't allocate during gameplay
+    if (totalShadersDetected > 1 && !helperRT.active) {
+        bool anyExtended = !extendedCameras.empty();
+        int helperHeight = anyExtended ? 512 : 256;
+        helperRT.init(512, helperHeight);
+    }
+}
+
+void ShaderManager::init() {
+    for (const auto& pair : activeShaders) {
+        prepareCamera(pair.first);
+    }
+    for (const auto& cam : extendedCameras) {
+        prepareCamera(cam);
+    }
 
     bool anyExtended = !extendedCameras.empty();
     int helperHeight = anyExtended ? 512 : 256;
@@ -40,6 +134,7 @@ void ShaderManager::cleanup() {
     targets.clear();
     helperRT.cleanup();
     helperRT2.cleanup();
+    bloomRT.cleanup();
     activeShaders.clear();
     extendedCameras.clear();
 }
@@ -117,6 +212,7 @@ void ShaderManager::RT::cleanup() {
 }
 
 void ShaderManager::setCameraShader(const std::string& camera, const std::string& shaderName, float v1, float v2, float v3) {
+    prepareCamera(camera);
     ShaderParams params;
     params.name   = shaderName;
     params.value1 = v1;
@@ -267,10 +363,10 @@ bool ShaderManager::beginCamera(const std::string& camera, C3D_RenderTarget* fal
     };
 
     if (hasShaders || isExtended || hasTransforms) {
-        auto& rt = targets[camera];
-        if (rt.active && rt.target) {
-            C2D_SceneBegin(rt.target);
-            C2D_TargetClear(rt.target, C2D_Color32(0, 0, 0, 0));
+        auto rtIt = targets.find(camera);
+        if (rtIt != targets.end() && rtIt->second.active && rtIt->second.target) {
+            C2D_SceneBegin(rtIt->second.target);
+            C2D_TargetClear(rtIt->second.target, C2D_Color32(0, 0, 0, 0));
             // Correct alpha accumulation for offscreen targets (alpha source uses GPU_ONE)
             C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
             applyCameraTransforms(camera);
@@ -351,8 +447,9 @@ void ShaderManager::presentCamera(const std::string& camName, C3D_RenderTarget* 
     if (!visible) return;
     if (!hasShaders && !isExtended && !hasTransforms) return;
     
-    const RT& cameraRT = targets[camName];
-    if (!cameraRT.active) return;
+    auto rtIt = targets.find(camName);
+    if (rtIt == targets.end() || !rtIt->second.active) return;
+    const RT& cameraRT = rtIt->second;
     
     Tex3DS_SubTexture tempSub;
     if (isExtended) {
@@ -374,6 +471,7 @@ void ShaderManager::presentCamera(const std::string& camName, C3D_RenderTarget* 
         const_cast<RT&>(cameraRT).img.subtex = &tempSub;
         if (helperRT.active) const_cast<RT&>(helperRT).img.subtex = &tempSub;
         if (helperRT2.active) const_cast<RT&>(helperRT2).img.subtex = &tempSub;
+        if (bloomRT.active) const_cast<RT&>(bloomRT).img.subtex = &tempSub;
     }
     
     const RT* finalSrc = &cameraRT;
@@ -448,22 +546,28 @@ void ShaderManager::presentCamera(const std::string& camName, C3D_RenderTarget* 
         const_cast<RT&>(cameraRT).img.subtex = cameraRT.origSubtex;
         if (helperRT.active) const_cast<RT&>(helperRT).img.subtex = helperRT.origSubtex;
         if (helperRT2.active) const_cast<RT&>(helperRT2).img.subtex = helperRT2.origSubtex;
+        if (bloomRT.active) const_cast<RT&>(bloomRT).img.subtex = bloomRT.origSubtex;
     }
 }
 
 void ShaderManager::endCamera(const std::string& camera, C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
-    C3D_DepthTest(false, GPU_GEQUAL, GPU_WRITE_ALL);
+    auto rtIt = targets.find(camera);
+    bool isOffscreen = (rtIt != targets.end() && rtIt->second.active);
 
-    presentCamera(camera, top, false);
-    if (isCameraExtended(camera) && bottom) {
-        presentCamera(camera, bottom, true);
+    if (isOffscreen) {
+        C3D_DepthTest(false, GPU_GEQUAL, GPU_WRITE_ALL);
+
+        presentCamera(camera, top, false);
+        if (isCameraExtended(camera) && bottom) {
+            presentCamera(camera, bottom, true);
+        }
+
+        // Restore depth test for normal rendering
+        C3D_DepthTest(true, GPU_GEQUAL, GPU_WRITE_ALL);
+        C2D_Flush();
+        C2D_SceneBegin(top); // Return focus to top screen
+        C2D_ViewReset();
     }
-
-    // Restore depth test for normal rendering
-    C3D_DepthTest(true, GPU_GEQUAL, GPU_WRITE_ALL);
-    C2D_Flush();
-    C2D_SceneBegin(top); // Return focus to top screen
-    C2D_ViewReset();
 }
 
 void ShaderManager::drawShaderEffect(const std::string& camera, const RT& rt, C3D_RenderTarget* dest, const ShaderParams& params, float x, float y, float scaleX, float scaleY) {
@@ -517,6 +621,8 @@ void ShaderManager::drawShaderEffect(const std::string& camera, const RT& rt, C3
         drawDrugs(rt, dest, params.value1, params.value2, params.value3, x, y, scaleX, scaleY);
     } else if (params.name == "bw" || params.name == "black_white" || params.name == "blackwhite" || params.name == "black white") {
         drawBW(rt, dest, params.value1, x, y, scaleX, scaleY);
+    } else if (params.name == "bloom" || params.name == "glow") {
+        drawBloom(camera, rt, dest, params.value1, params.value2, params.value3, x, y, scaleX, scaleY);
     } else {
         // Unknown shader name: just draw the source image unmodified
         C2D_Flush();
@@ -538,5 +644,6 @@ std::vector<std::pair<std::string, C3D_Tex*>> ShaderManager::getActiveTargets() 
     }
     if (helperRT.active) result.push_back({"helperRT", (C3D_Tex*)&helperRT.tex});
     if (helperRT2.active) result.push_back({"helperRT2", (C3D_Tex*)&helperRT2.tex});
+    if (bloomRT.active) result.push_back({"bloomRT", (C3D_Tex*)&bloomRT.tex});
     return result;
 }

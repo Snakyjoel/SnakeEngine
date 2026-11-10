@@ -10,7 +10,12 @@
 			],
 			"darnellCutscene.snaky",
 			"",
-			"pico"
+			"pico",
+			{
+				"easy": 2,
+				"normal": 3,
+				"hard": 4
+			}
 		],
 		[
 			"lit up",
@@ -22,7 +27,12 @@
 			],
 			"",
 			"",
-			"pico"
+			"pico",
+			{
+				"easy": 2,
+				"normal": 3,
+				"hard": 4
+			}
 		],
 		[
 			"2hot",
@@ -34,7 +44,12 @@
 			],
 			"",
 			"",
-			"pico"
+			"pico",
+			{
+				"easy": 3,
+				"normal": 4,
+				"hard": 5
+			}
 		],
 		[
 			"blazin",
@@ -46,7 +61,12 @@
 			],
 			"2hotCutscene.snaky",
 			"blazinCutscene.snaky",
-			"pico"
+			"pico",
+			{
+				"easy": 3,
+				"normal": 4,
+				"hard": 5
+			}
 		]
 	],
 	"hiddenUntilUnlocked": false,
@@ -67,5 +87,6 @@
 	],
 	"hideStoryMode": false,
 	"weekBefore": "tutorial",
-	"startUnlocked": true
+	"startUnlocked": true,
+	"album": "volume3"
 }

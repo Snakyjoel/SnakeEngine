@@ -8,6 +8,9 @@ public:
     // Starts the background update check thread (only if enabled in settings and not already checking).
     static void startCheck();
 
+    // Safely aborts and stops the background thread if running.
+    static void shutdown();
+
     // Returns true if the background thread has finished.
     static bool isFinished();
 

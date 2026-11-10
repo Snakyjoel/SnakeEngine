@@ -26,6 +26,11 @@ public:
     void init();
     void cleanup();
 
+    // Pre-allocates a single render target buffer for a camera if not already active
+    void prepareCamera(const std::string& camera);
+    // Pre-scans song scripts and custom events to pre-allocate required camera buffers at song init
+    void preloadShadersForSong(const std::vector<std::string>& scriptPaths);
+
     // Lua bindings
     // Adds shader to camera stack (updates params if name already exists, otherwise appends)
     void setCameraShader(const std::string& camera, const std::string& shaderName, float v1 = 1.0f, float v2 = 0.0f, float v3 = 0.0f);
@@ -69,6 +74,7 @@ private:
     std::map<std::string, RT> targets;
     RT helperRT;   // Internal scratch buffer for complex shaders (pixelate, drugs, bw)
     RT helperRT2;  // Chain buffer for multi-shader stacking (source for 2nd shader in stack)
+    RT bloomRT;    // Dedicated buffer for bloom downsampling (prevents clobbering in multi-shader chains)
 
     std::map<std::string, std::pair<float, float>> scrollAccumulators;
     u64 lastTick = 0;
@@ -94,6 +100,7 @@ private:
     void drawScroll(const std::string& camera, const RT& rt, C3D_RenderTarget* dest, float speedX, float speedY, float zoom, float x, float y, float scaleX, float scaleY);
     void drawDrugs(const RT& rt, C3D_RenderTarget* dest, float speed, float strength, float colorSpeed, float x, float y, float scaleX, float scaleY);
     void drawBW(const RT& rt, C3D_RenderTarget* dest, float passes, float x, float y, float scaleX, float scaleY);
+    void drawBloom(const std::string& camera, const RT& rt, C3D_RenderTarget* dest, float strength, float threshold, float radius, float x, float y, float scaleX, float scaleY);
     
     // Vertex grid drawing (for wave/bulge/crt)
     void drawMesh(const RT& rt, C3D_RenderTarget* dest, const ShaderParams& params, float x, float y, float scaleX, float scaleY);

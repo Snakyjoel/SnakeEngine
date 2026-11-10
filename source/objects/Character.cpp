@@ -4,6 +4,7 @@
 #include "../backend/ModHandler.hpp"
 #include "../backend/Conductor.hpp"
 #include "../backend/SpritesheetCache.hpp"
+#include "../backend/TextureLoader.hpp"
 #include <jansson.h>
 #include <fstream>
 #include <sstream>
@@ -195,6 +196,11 @@ bool Character::loadFromCache(const std::string& path, CharacterData* data) {
         rawPath = "romfs:/shared/images/" + fullPath + ".rawtex";
     }
 
+    std::string resolvedImg = Paths::image(fullPath);
+    if (rawPath.empty() && resolvedImg.find(".rawtex") != std::string::npos && Paths::fileExists(resolvedImg)) {
+        rawPath = resolvedImg;
+    }
+
     if (data->isRawTex && Paths::fileExists(rawPath)) {
         FILE* ft = fopen(rawPath.c_str(), "rb");
         if (ft) {
@@ -234,9 +240,9 @@ bool Character::loadFromCache(const std::string& path, CharacterData* data) {
             fclose(ft);
         }
     } else {
-        std::string t3xPath = Paths::image(fullPath);
-        if (Paths::fileExists(t3xPath)) {
-            FILE* ft = fopen(t3xPath.c_str(), "rb");
+        std::string t3xCandidate = (resolvedImg.find(".t3x") != std::string::npos) ? resolvedImg : "";
+        if (!t3xCandidate.empty() && Paths::fileExists(t3xCandidate)) {
+            FILE* ft = fopen(t3xCandidate.c_str(), "rb");
             if (ft) {
                 fseek(ft, 0, SEEK_END);
                 data->fileSize = ftell(ft);
@@ -271,6 +277,55 @@ bool Character::loadFromCache(const std::string& path, CharacterData* data) {
                     linearFree(data->fileBuffer);
                     data->fileBuffer = nullptr;
                     data->fileSize = 0;
+                }
+            }
+        } else if (Paths::fileExists(rawPath)) {
+            FILE* ft = fopen(rawPath.c_str(), "rb");
+            if (ft) {
+                struct RawTexHdr { char magic[4]; uint16_t w; uint16_t h; uint16_t ow; uint16_t oh; } rtex;
+                fread(&rtex, sizeof(RawTexHdr), 1, ft);
+                data->rawWidth = header.rawWidth;
+                data->rawHeight = header.rawHeight;
+                data->rawOrigW = header.rawOrigW;
+                data->rawOrigH = header.rawOrigH;
+                data->fileSize = header.fileSize;
+                data->fileBuffer = linearAlloc(data->fileSize);
+                if (data->fileBuffer) {
+                    readChunked(ft, data->fileBuffer, data->fileSize);
+                    data->rawTex = new C3D_Tex();
+                    memset(data->rawTex, 0, sizeof(C3D_Tex));
+                    if (C3D_TexInit(data->rawTex, data->rawWidth, data->rawHeight, GPU_RGBA8)) {
+                        if (data->rawTex->data) linearFree(data->rawTex->data);
+                        data->rawTex->data = data->fileBuffer;
+                        GSPGPU_FlushDataCache(data->rawTex->data, data->fileSize);
+                        data->fileBuffer = nullptr;
+                        
+                        data->rawSub = new Tex3DS_SubTexture();
+                        data->rawSub->width = data->rawOrigW;
+                        data->rawSub->height = data->rawOrigH;
+                        data->rawSub->left = 0.0f;
+                        data->rawSub->top = 1.0f;
+                        data->rawSub->right = (float)data->rawOrigW / data->rawWidth;
+                        data->rawSub->bottom = 1.0f - ((float)data->rawOrigH / data->rawHeight);
+                        data->isRawTex = false;
+                    } else {
+                        delete data->rawTex;
+                        data->rawTex = nullptr;
+                        linearFree(data->fileBuffer);
+                        data->fileBuffer = nullptr;
+                    }
+                }
+                fclose(ft);
+            }
+        } else {
+            std::string pngPath = (resolvedImg.find(".png") != std::string::npos) ? resolvedImg : TextureLoader::resolveImagePath(fullPath);
+            if (!pngPath.empty() && Paths::fileExists(pngPath)) {
+                C3D_Tex* tex = nullptr;
+                Tex3DS_SubTexture* sub = nullptr;
+                if (TextureLoader::loadPng(pngPath, &tex, &sub)) {
+                    data->rawTex = tex;
+                    data->rawSub = sub;
+                    data->isRawTex = false;
                 }
             }
         }
@@ -440,6 +495,10 @@ CharacterData* Character::parseDataAsync(const std::string& charName) {
                 rawPath = "romfs:/shared/images/" + fullPath + ".rawtex";
             }
 
+            if (rawPath.empty() && t3xPath.find(".rawtex") != std::string::npos && Paths::fileExists(t3xPath)) {
+                rawPath = t3xPath;
+            }
+
             if (Paths::fileExists(rawPath)) {
                 FILE* f = fopen(rawPath.c_str(), "rb");
                 if (f) {
@@ -479,7 +538,7 @@ CharacterData* Character::parseDataAsync(const std::string& charName) {
                     }
                     fclose(f);
                 }
-            } else if (Paths::fileExists(t3xPath)) {
+            } else if (t3xPath.find(".t3x") != std::string::npos && Paths::fileExists(t3xPath)) {
                 FILE* f = fopen(t3xPath.c_str(), "rb");
                 if (f) {
                     fseek(f, 0, SEEK_END);
@@ -519,6 +578,18 @@ CharacterData* Character::parseDataAsync(const std::string& charName) {
                         }
                     }
                     fclose(f);
+                }
+            } else {
+                // PNG fallback
+                std::string pngPath = (t3xPath.find(".png") != std::string::npos) ? t3xPath : TextureLoader::resolveImagePath(fullPath);
+                if (!pngPath.empty() && Paths::fileExists(pngPath)) {
+                    C3D_Tex* tex = nullptr;
+                    Tex3DS_SubTexture* sub = nullptr;
+                    if (TextureLoader::loadPng(pngPath, &tex, &sub)) {
+                        data->rawTex = tex;
+                        data->rawSub = sub;
+                        data->isRawTex = false;
+                    }
                 }
             }
         }
@@ -705,6 +776,7 @@ void Character::loadFromPsychJson(const std::string& jsonPath) {
     size_t dot = filename.find_last_of(".");
     curCharacterName = (dot == std::string::npos) ? filename : filename.substr(0, dot);
 
+
     json_t *root;
     json_error_t error;
     
@@ -780,8 +852,10 @@ void Character::loadFromPsychJson(const std::string& jsonPath) {
             }
         } else {
             isSpritemap = false;
-            loadSparrowXml(Paths::xml(fullPath));
-            addSpriteSheet(Paths::image(fullPath));
+            std::string xmlPath = Paths::xml(fullPath);
+            std::string imgPath = Paths::image(fullPath);
+            loadSparrowXml(xmlPath);
+            addSpriteSheet(imgPath);
         }
     }
 
@@ -1037,89 +1111,115 @@ void Character::addSpriteSheet(const std::string& t3xPath) {
     }
 
     if (!loadedFromCache) {
-        std::string actualT3xPath = t3xPath;
-        if (actualT3xPath.find(".t3x") == std::string::npos) {
-            actualT3xPath += ".t3x";
-        }
-        
-        FILE* f = fopen(actualT3xPath.c_str(), "rb");
-        if (f) {
-            rawTex = new C3D_Tex();
-            memset(rawTex, 0, sizeof(C3D_Tex));
-            Tex3DS_Texture t3x = Tex3DS_TextureImportStdio(f, rawTex, nullptr, false);
-            if (t3x) {
-                const Tex3DS_SubTexture* sub = Tex3DS_GetSubTexture(t3x, 0);
-                rawSub = new Tex3DS_SubTexture();
-                if (sub) {
-                    *rawSub = *sub;
-                } else {
-                    rawSub->width = rawTex->width;
-                    rawSub->height = rawTex->height;
-                    rawSub->left = 0.0f;
-                    rawSub->top = 1.0f;
-                    rawSub->right = 1.0f;
-                    rawSub->bottom = 0.0f;
-                }
-                mainImage.tex = rawTex;
-                mainImage.subtex = rawSub;
-                Tex3DS_TextureFree(t3x);
-            } else {
-                delete rawTex;
-                rawTex = nullptr;
-            }
-            fclose(f);
-        }
-        
-        if (!mainImage.tex) {
-            std::string rawPath = t3xPath;
-            size_t lastDot = rawPath.find_last_of(".");
-            if (lastDot != std::string::npos) rawPath = rawPath.substr(0, lastDot) + ".rawtex";
-            
-            std::string searchKey = "images/";
-            size_t imgPos = rawPath.find(searchKey);
-            if (imgPos != std::string::npos) {
-                std::string logicalPath = rawPath.substr(imgPos);
-                std::string modPath = ModHandler::get().getModPath(logicalPath);
-                if (!modPath.empty()) rawPath = modPath;
-            }
+        std::string actualPath = t3xPath;
 
-            if (Paths::fileExists(rawPath)) {
-                FILE* f = fopen(rawPath.c_str(), "rb");
-                if (f) {
-                    RawTexHeader header;
-                    if (fread(&header, sizeof(RawTexHeader), 1, f) == 1 && strncmp(header.magic, "RWTX", 4) == 0) {
-                        rawTex = new C3D_Tex();
-                        memset(rawTex, 0, sizeof(C3D_Tex));
-                        if (!C3D_TexInit(rawTex, header.width, header.height, GPU_RGBA8)) {
+        std::string rawPath = "";
+        if (actualPath.find(".rawtex") != std::string::npos) {
+            rawPath = actualPath;
+        } else {
+            size_t lastDot = actualPath.find_last_of(".");
+            std::string base = (lastDot != std::string::npos) ? actualPath.substr(0, lastDot) : actualPath;
+            std::string candidate = base + ".rawtex";
+            if (Paths::fileExists(candidate)) rawPath = candidate;
+        }
+
+        std::string t3xFile = "";
+        if (actualPath.find(".t3x") != std::string::npos) {
+            t3xFile = actualPath;
+        } else if (actualPath.find(".rawtex") == std::string::npos && actualPath.find(".png") == std::string::npos) {
+            std::string candidate = actualPath + ".t3x";
+            if (Paths::fileExists(candidate)) t3xFile = candidate;
+        }
+
+        if (!t3xFile.empty() && Paths::fileExists(t3xFile)) {
+            FILE* f = fopen(t3xFile.c_str(), "rb");
+            if (f) {
+                rawTex = new C3D_Tex();
+                memset(rawTex, 0, sizeof(C3D_Tex));
+                Tex3DS_Texture t3x = Tex3DS_TextureImportStdio(f, rawTex, nullptr, false);
+                if (t3x) {
+                    const Tex3DS_SubTexture* sub = Tex3DS_GetSubTexture(t3x, 0);
+                    rawSub = new Tex3DS_SubTexture();
+                    if (sub) {
+                        *rawSub = *sub;
+                    } else {
+                        rawSub->width = rawTex->width;
+                        rawSub->height = rawTex->height;
+                        rawSub->left = 0.0f;
+                        rawSub->top = 1.0f;
+                        rawSub->right = 1.0f;
+                        rawSub->bottom = 0.0f;
+                    }
+                    mainImage.tex = rawTex;
+                    mainImage.subtex = rawSub;
+                    Tex3DS_TextureFree(t3x);
+                } else {
+                    delete rawTex;
+                    rawTex = nullptr;
+                }
+                fclose(f);
+            }
+        }
+
+        if (!mainImage.tex && !rawPath.empty() && Paths::fileExists(rawPath)) {
+            FILE* f = fopen(rawPath.c_str(), "rb");
+            if (f) {
+                RawTexHeader header;
+                if (fread(&header, sizeof(RawTexHeader), 1, f) == 1 && strncmp(header.magic, "RWTX", 4) == 0) {
+                    rawTex = new C3D_Tex();
+                    memset(rawTex, 0, sizeof(C3D_Tex));
+                    if (!C3D_TexInit(rawTex, header.width, header.height, GPU_RGBA8)) {
+                        delete rawTex;
+                        rawTex = nullptr;
+                        printf("\x1b[16;1HERROR: VRAM Full. Cannot load %s\x1b[K\n", rawPath.c_str());
+                    } else {
+                        size_t dataSize = (size_t)header.width * header.height * 4;
+                        void* data = linearAlloc(dataSize);
+                        if (data) {
+                            fread(data, dataSize, 1, f);
+                            C3D_TexUpload(rawTex, data);
+                            C3D_TexFlush(rawTex);
+                            linearFree(data);
+                            
+                            rawSub = new Tex3DS_SubTexture();
+                            rawSub->width = header.origW;
+                            rawSub->height = header.origH;
+                            rawSub->left = 0.0f;
+                            rawSub->top = 1.0f;
+                            rawSub->right = (float)header.origW / header.width;
+                            rawSub->bottom = 1.0f - ((float)header.origH / header.height);
+                            
+                            mainImage.tex = rawTex;
+                            mainImage.subtex = rawSub;
+                        } else {
                             delete rawTex;
                             rawTex = nullptr;
-                            printf("\x1b[16;1HERROR: VRAM Full. Cannot load %s\x1b[K\n", rawPath.c_str());
-                        } else {
-                            size_t dataSize = (size_t)header.width * header.height * 4;
-                            void* data = linearAlloc(dataSize);
-                            if (data) {
-                                fread(data, dataSize, 1, f);
-                                C3D_TexUpload(rawTex, data);
-                                C3D_TexFlush(rawTex);
-                                linearFree(data);
-                                
-                                rawSub = new Tex3DS_SubTexture();
-                                rawSub->width = header.origW;
-                                rawSub->height = header.origH;
-                                rawSub->left = 0.0f;
-                                rawSub->top = 1.0f;
-                                rawSub->right = (float)header.origW / header.width;
-                                rawSub->bottom = 1.0f - ((float)header.origH / header.height);
-                                
-                                mainImage.tex = rawTex;
-                                mainImage.subtex = rawSub;
-                            } else {
-                                delete rawTex;
-                                rawTex = nullptr;
-                            }
                         }
                     }
-                    fclose(f);
+                }
+                fclose(f);
+            }
+        }
+
+        if (!mainImage.tex) {
+            std::string pngPath = "";
+            if (actualPath.find(".png") != std::string::npos) {
+                pngPath = actualPath;
+            } else {
+                size_t lastDot = actualPath.find_last_of(".");
+                std::string base = (lastDot != std::string::npos) ? actualPath.substr(0, lastDot) : actualPath;
+                std::string candidate = base + ".png";
+                if (Paths::fileExists(candidate)) pngPath = candidate;
+            }
+
+            if (!pngPath.empty() && Paths::fileExists(pngPath)) {
+                C3D_Tex* tex = nullptr;
+                Tex3DS_SubTexture* sub = nullptr;
+                if (TextureLoader::loadPng(pngPath, &tex, &sub)) {
+                    rawTex = tex;
+                    rawSub = sub;
+                    mainImage.tex = rawTex;
+                    mainImage.subtex = rawSub;
                 }
             }
         }

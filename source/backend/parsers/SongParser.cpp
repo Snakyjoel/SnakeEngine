@@ -44,11 +44,14 @@ SongData SongParser::loadJson(const std::string& path) {
     SongData data;
     Conductor::bpmChangeMap.clear();
     
+
     json_t *root;
     json_error_t error;
     
     root = json_load_file(path.c_str(), 0, &error);
-    if(!root) return data;
+    if(!root) {
+        return data;
+    }
     
     // Compatibility: Try to get "song" object, but fallback to root if not found
     json_t *songObj = json_object_get(root, "song");
@@ -85,6 +88,7 @@ SongData SongParser::loadJson(const std::string& path) {
     
     json_t *stg = json_object_get(songObj, "stage");
     if(stg && json_is_string(stg)) stage = json_string_value(stg);
+    
     
     float rootBpm = 100.0f;
     json_t *bpmJson = json_object_get(songObj, "bpm");

@@ -1,5 +1,6 @@
 #include "RamTestState.hpp"
 #include "../backend/AudioEngine.hpp"
+#include "../backend/Macros.hpp"
 #include "../debug/DebugMenuState.hpp"
 #include <malloc.h>
 #include <string.h>
@@ -63,7 +64,7 @@ void RamTestState::update(float dt) {
         allocateRAM(10 * 1024 * 1024);
     }
     if (kDown & KEY_B) {
-        AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
         freeAll();
         switchState(new DebugMenuState());
     }
@@ -107,12 +108,14 @@ void RamTestState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     AddTextCentered("A: +3 MB   X: +5 MB   Y: +10 MB", 200, 205, 0.45f, 1.0f, CWhite, 380.0f);
     AddText("B: Back", 200, 220, 0.4f, true, 1.0f, CGray, 380.0f);
 
-    C2D_SceneBegin(bottom);
-    C2D_TargetClear(bottom, C2D_Color32(40, 40, 40, 255));
-    if (bottomBGSheet && bottomBG.tex) {
-        drawCenteredBG(bottomBG, 320.0f, 240.0f, 0.1f);
+    if (!g_isRightEye && bottom) {
+        C2D_SceneBegin(bottom);
+        C2D_TargetClear(bottom, C2D_Color32(40, 40, 40, 255));
+        if (bottomBGSheet && bottomBG.tex) {
+            drawCenteredBG(bottomBG, 320.0f, 240.0f, 0.1f);
+        }
+        C2D_Flush();
     }
-    C2D_Flush();
 }
 
 void RamTestState::exitState() {

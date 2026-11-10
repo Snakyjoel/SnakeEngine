@@ -184,6 +184,7 @@ static void forEachObject(const std::string& arr, std::function<void(const std::
 // ─────────────────────────────────────────────────────────────────────────────
 
 int SpritemapSymbol::duration() const {
+    if (cachedDuration >= 0) return cachedDuration;
     int maxDur = 0;
     for (const auto& layer : layers) {
         for (const auto& kf : layer.keyframes) {
@@ -191,19 +192,19 @@ int SpritemapSymbol::duration() const {
             if (end > maxDur) maxDur = end;
         }
     }
+    cachedDuration = maxDur;
     return maxDur;
 }
 
 const SpritemapKeyframe* SpritemapSymbol::getKeyframe(int layerIdx, int frame) const {
     if (layerIdx < 0 || layerIdx >= (int)layers.size()) return nullptr;
     const auto& layer = layers[layerIdx];
-    const SpritemapKeyframe* active = nullptr;
     for (const auto& kf : layer.keyframes) {
         if (frame >= kf.index && frame < kf.index + kf.duration) {
-            active = &kf;
+            return &kf;
         }
     }
-    return active;
+    return nullptr;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -411,6 +412,12 @@ bool SpritemapParser::parse(const std::string& atlasJsonPath,
         printf("[JSON] parseAnimation failed!\n");
     } else {
         printf("[JSON] parseAnimation succeeded\n");
+    }
+
+    if (atlasOk && animOk) {
+        for (auto& pair : out.symbols) {
+            pair.second.duration();
+        }
     }
 
     return atlasOk && animOk;

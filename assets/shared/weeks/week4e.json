@@ -8,21 +8,29 @@
 	"songs": [
 		[
 			"Satin Panties Erect",
-			"mom",
+			"mompixel",
 			[
 				252,
 				150,
 				215
-			]
+			],
+			{
+				"erect": 11,
+				"nightmare": 12
+			}
 		],
 		[
 			"High Erect",
-			"mom",
+			"mompixel",
 			[
 				252,
 				150,
 				215
-			]
+			],
+			{
+				"erect": 8,
+				"nightmare": 9
+			}
 		]
 	],
 	"hideStoryMode": true,
@@ -31,5 +39,9 @@
 		"bf",
 		"gf"
 	],
-	"weekName": "Week 4 Erect"
+	"weekName": "Week 4 Erect",
+	"songAlbum": {
+		"Satin Panties Erect": "expansion1",
+		"High Erect": "volume3"
+	}
 }

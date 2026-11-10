@@ -1,6 +1,7 @@
 #include "MusicBeatState.hpp"
 #include "AudioEngine.hpp"
 #include "SparrowParser.hpp"
+#include "Macros.hpp"
 #include <cstdlib>
 
 struct TransitionSticker {
@@ -18,16 +19,17 @@ static int lastTopCount = 0;
 static int lastBottomCount = 0;
 
 static const std::string stickerSounds[] = {
-    "romfs:/preload/sounds/stickers/keyClick1.ogg",
-    "romfs:/preload/sounds/stickers/keyClick2.ogg",
-    "romfs:/preload/sounds/stickers/keyClick3.ogg",
-    "romfs:/preload/sounds/stickers/keyClick4.ogg",
-    "romfs:/preload/sounds/stickers/keyClick5.ogg",
-    "romfs:/preload/sounds/stickers/keyClick7.ogg",
-    "romfs:/preload/sounds/stickers/keyClick8.ogg",
-    "romfs:/preload/sounds/stickers/keyClick9.ogg"
+    "romfs:/preload/sounds/stickers/keyClick1.adp",
+    "romfs:/preload/sounds/stickers/keyClick2.adp",
+    "romfs:/preload/sounds/stickers/keyClick3.adp",
+    "romfs:/preload/sounds/stickers/keyClick4.adp",
+    "romfs:/preload/sounds/stickers/keyClick5.adp",
+    "romfs:/preload/sounds/stickers/keyClick7.adp",
+    "romfs:/preload/sounds/stickers/keyClick8.adp",
+    "romfs:/preload/sounds/stickers/keyClick9.adp"
 };
 
+MusicBeatState* MusicBeatState::currentState = nullptr;
 MusicBeatState* MusicBeatState::nextState    = nullptr;
 TransitionPhase  MusicBeatState::transPhase  = TransitionPhase::NONE;
 float            MusicBeatState::transProgress = 0.0f;
@@ -41,6 +43,10 @@ void MusicBeatState::switchState(MusicBeatState* newState) {
         delete nextState;
         nextState = newState;
         return;
+    }
+
+    if ((newState && !newState->hasTransitions()) || (currentState && !currentState->hasTransitions())) {
+        skipTransition = true;
     }
 
     nextState    = newState;
@@ -206,7 +212,7 @@ void MusicBeatState::drawStickerTransition(C3D_RenderTarget* top, C3D_RenderTarg
         }
     }
 
-    if (bottom) {
+    if (!g_isRightEye && bottom) {
         C2D_SceneBegin(bottom);
         for (int i = 0; i < showBottom; ++i) {
             const auto& s = bottomStickers[i];

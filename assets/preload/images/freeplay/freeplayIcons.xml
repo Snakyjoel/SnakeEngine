@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.2 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="freeplayIcons.png" width="151" height="151">
+  <SubTexture name="bfpixel" x="44" y="44" width="28" height="42" rotated="true"  frameX="-0" frameY="-0" frameWidth="42" frameHeight="28"/>
+  <SubTexture name="dadpixel" x="115" y="34" width="33" height="31" rotated="true"  frameX="-0" frameY="-0" frameWidth="34" frameHeight="33"/>
+  <SubTexture name="darnellpixel" x="0" y="86"  width="38" height="37" frameX="-0" frameY="-0" frameWidth="38" frameHeight="37"/>
+  <SubTexture name="gfpixel" x="38" y="86"  width="38" height="37" frameX="-0" frameY="-0" frameWidth="38" frameHeight="37"/>
+  <SubTexture name="loading" x="0" y="123"  width="28" height="28" frameX="-0" frameY="-0" frameWidth="28" frameHeight="28"/>
+  <SubTexture name="mompixel" x="0" y="44" width="44" height="42" rotated="true"  frameX="-0" frameY="-0" frameWidth="43" frameHeight="44"/>
+  <SubTexture name="monsterpixel" x="90" y="0" width="25" height="38" rotated="true"  frameX="-0" frameY="-0" frameWidth="38" frameHeight="25"/>
+  <SubTexture name="parents-christmaspixel" x="0" y="0"  width="57" height="44" frameX="-0" frameY="-0" frameWidth="57" frameHeight="44"/>
+  <SubTexture name="picopixel" x="114" y="65"  width="33" height="29" frameX="-0" frameY="-0" frameWidth="33" frameHeight="29"/>
+  <SubTexture name="placeholder" x="28" y="123"  width="28" height="28" frameX="-0" frameY="-0" frameWidth="28" frameHeight="28"/>
+  <SubTexture name="senpaipixel" x="115" y="0"  width="36" height="34" frameX="-0" frameY="-0" frameWidth="36" frameHeight="34"/>
+  <SubTexture name="spiritpixel" x="76" y="79" width="38" height="37" rotated="true"  frameX="-0" frameY="-0" frameWidth="38" frameHeight="38"/>
+  <SubTexture name="spookypixel" x="57" y="0" width="33" height="40" rotated="true"  frameX="-0" frameY="-0" frameWidth="40" frameHeight="33"/>
+  <SubTexture name="sserafim-kazuhapixel" x="72" y="40"  width="37" height="39" frameX="-0" frameY="-0" frameWidth="38" frameHeight="39"/>
+  <SubTexture name="tankmanpixel" x="114" y="94"  width="32" height="26" frameX="-0" frameY="-0" frameWidth="32" frameHeight="26"/>
+</TextureAtlas>

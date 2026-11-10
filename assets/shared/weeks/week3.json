@@ -7,7 +7,12 @@
 				148,
 				22,
 				83
-			]
+			],
+			{
+				"easy": 1,
+				"normal": 2,
+				"hard": 2
+			}
 		],
 		[
 			"Philly Nice",
@@ -16,7 +21,12 @@
 				148,
 				22,
 				83
-			]
+			],
+			{
+				"easy": 1,
+				"normal": 2,
+				"hard": 3
+			}
 		],
 		[
 			"Blammed",
@@ -25,7 +35,12 @@
 				148,
 				22,
 				83
-			]
+			],
+			{
+				"easy": 1,
+				"normal": 2,
+				"hard": 3
+			}
 		]
 	],
 	"weekCharacters": [

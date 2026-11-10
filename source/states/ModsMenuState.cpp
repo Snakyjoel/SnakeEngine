@@ -146,7 +146,39 @@ void ModsMenuState::init() {
     }
 
     lastSelectedCheck = -1;
+    cacheDisplayInfo();
     updateIconWindow();
+}
+
+void ModsMenuState::cacheDisplayInfo() {
+    auto& mods = getActiveList();
+    int totalItems = (int)mods.size() + 1;
+    cachedDisplayInfo.resize(totalItems);
+
+    for (int i = 0; i < totalItems; i++) {
+        bool isDefaultItem = (i == (int)mods.size());
+        std::string name = isDefaultItem ? "base game" : mods[i].name;
+        std::string desc = isDefaultItem ? "default game content" : mods[i].description;
+
+        if (desc.empty()) desc = "No description available.";
+        if (desc.length() > 40) {
+            desc = desc.substr(0, 40) + "...";
+        }
+
+        cachedDisplayInfo[i].name = name;
+        cachedDisplayInfo[i].desc = desc;
+
+        if (vcrFont && vcrFontBuf) {
+            C2D_Text tempNameText;
+            C2D_TextFontParse(&tempNameText, vcrFont, vcrFontBuf, name.c_str());
+            C2D_TextOptimize(&tempNameText);
+            float tw = 0.0f, th = 0.0f;
+            C2D_TextGetDimensions(&tempNameText, 0.52f, 0.52f, &tw, &th);
+            cachedDisplayInfo[i].nameWidth = tw;
+        } else {
+            cachedDisplayInfo[i].nameWidth = (float)name.length() * 8.0f;
+        }
+    }
 }
 
 static void freeIconEntry(ModIconEntry& entry) {
@@ -412,22 +444,22 @@ void ModsMenuState::update(float dt) {
     if (currentState == STATE_CONVERT_MENU) {
         if (kDown & KEY_B) {
             currentState = STATE_IDLE;
-            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
         }
         
         if (kDown & (KEY_DUP | KEY_CPAD_UP)) {
             subSelected--;
             if (subSelected < 0) subSelected = 2;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         }
         if (kDown & (KEY_DDOWN | KEY_CPAD_DOWN)) {
             subSelected++;
             if (subSelected > 2) subSelected = 0;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         }
 
         if (kDown & KEY_A) {
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
             if (subSelected != 2) { // 2 is Convert Videos (postponed)
                 startConversion();
             }
@@ -440,7 +472,7 @@ void ModsMenuState::update(float dt) {
                 int clickedIdx = (int)std::round(approxIdx);
                 if (clickedIdx >= 0 && clickedIdx <= 2) {
                     subSelected = clickedIdx;
-                    AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                    AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                     if (subSelected != 2) {
                         startConversion();
                     }
@@ -456,21 +488,23 @@ void ModsMenuState::update(float dt) {
         curSelected--;
         if (curSelected < 0) curSelected = totalItems - 1;
         textScrollTime = 0.0f;
-        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
     }
     if (kDown & (KEY_DDOWN | KEY_CPAD_DOWN)) {
         curSelected++;
         if (curSelected >= totalItems) curSelected = 0;
         textScrollTime = 0.0f;
-        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
     }
 
     if (keyJustPressed(KEY_B)) {
-        AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
         ModHandler::get().saveConfig();
         WeekData::weeksLoaded.clear();
         WeekData::weeksList.clear();
         switchState(new MainMenuState());
+        return;
+
     }
 
     // Toggle active state for SD mods (Default content item at mods.size() cannot be disabled)
@@ -478,7 +512,8 @@ void ModsMenuState::update(float dt) {
         if (curSelected >= 0 && curSelected < (int)mods.size()) {
             mods[curSelected].active = !mods[curSelected].active;
             ModHandler::get().saveConfig();
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+
+            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
             touchedBtnIdx = 5;
             btnAnimTimer = 0.15f;
         }
@@ -489,9 +524,10 @@ void ModsMenuState::update(float dt) {
         if (curSelected > 0 && curSelected < (int)mods.size()) {
             ModHandler::get().reorderMod(curSelected, curSelected - 1);
             curSelected--;
+            cacheDisplayInfo();
             reloadIcons();
             updateIconWindow();
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             touchedBtnIdx = 2;
             btnAnimTimer = 0.15f;
         }
@@ -524,7 +560,7 @@ void ModsMenuState::update(float dt) {
             touchedBtnIdx = 0;
             btnAnimTimer = 0.15f;
             if (curSelected >= 0 && curSelected < (int)mods.size()) {
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                 currentState = STATE_CONVERT_MENU;
                 subSelected = 0;
                 lerpSubSelected = 0.0f;
@@ -536,7 +572,7 @@ void ModsMenuState::update(float dt) {
         if (isTouched(doneFrame, 160.0f, 100.0f)) {
             touchedBtnIdx = 1;
             btnAnimTimer = 0.15f;
-            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
             ModHandler::get().saveConfig();
             switchState(new MainMenuState());
             return;
@@ -549,9 +585,10 @@ void ModsMenuState::update(float dt) {
             if (curSelected > 0 && curSelected < (int)mods.size()) {
                 ModHandler::get().reorderMod(curSelected, curSelected - 1);
                 curSelected--;
+                cacheDisplayInfo();
                 reloadIcons();
                 updateIconWindow();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             }
         }
         else if (isTouched(downFrame, 123.0f, 180.0f)) { // DOWN
@@ -560,9 +597,10 @@ void ModsMenuState::update(float dt) {
             if (curSelected < (int)mods.size() - 1) {
                 ModHandler::get().reorderMod(curSelected, curSelected + 1);
                 curSelected++;
+                cacheDisplayInfo();
                 reloadIcons();
                 updateIconWindow();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             }
         }
         else if (isTouched(topFrame, 196.0f, 180.0f)) { // TOP
@@ -571,9 +609,10 @@ void ModsMenuState::update(float dt) {
             if (curSelected > 0 && curSelected < (int)mods.size()) {
                 ModHandler::get().reorderMod(curSelected, 0);
                 curSelected = 0;
+                cacheDisplayInfo();
                 reloadIcons();
                 updateIconWindow();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             }
         }
         else if (isTouched(toggleFrame, 270.0f, 180.0f)) { // ON/OFF toggle
@@ -582,7 +621,8 @@ void ModsMenuState::update(float dt) {
             if (curSelected < (int)mods.size()) {
                 mods[curSelected].active = !mods[curSelected].active;
                 ModHandler::get().saveConfig();
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
             }
         }
     }
@@ -633,8 +673,10 @@ void ModsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         C2D_DrawRectSolid(bx, by, 0.5f, bw, bh, C2D_Color32(60, 60, 60, 255));
         C2D_DrawRectSolid(bx, by, 0.51f, bw * conversionProgress, bh, CYellow);
         
-        C2D_SceneBegin(bottom);
-        C2D_TargetClear(bottom, C2D_Color32(0x46, 0x38, 0x4B, 255));
+        if (!g_isRightEye && bottom) {
+            C2D_SceneBegin(bottom);
+            C2D_TargetClear(bottom, C2D_Color32(0x46, 0x38, 0x4B, 255));
+        }
         return;
     }
 
@@ -674,9 +716,9 @@ void ModsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         // Scissor mask: items are rendered ONLY inside the container box
         setScissorBox(containerX, containerY, containerW, containerH);
 
-        float itemHeight = 48.0f; // Exact height of 48x48 icon
-        float itemSpacing = 54.0f; // 48px height + 6px gap
-        float startY = containerY + 6.0f; // 42.0f - matches scrollbar top sbY exactly!
+        float itemHeight = 48.0f;
+        float itemSpacing = 54.0f;
+        float startY = containerY + 6.0f;
 
         for (int i = 0; i < totalItems; i++) {
             float dist = ((float)i - lerpSelected);
@@ -732,13 +774,10 @@ void ModsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             }
 
             // Text (Name and Description)
-            std::string name = isDefaultItem ? "base game" : mods[i].name;
-            std::string desc = isDefaultItem ? "default game content" : mods[i].description;
-
-            if (desc.empty()) desc = "No description available.";
-            if (desc.length() > 40) {
-                desc = desc.substr(0, 40) + "...";
-            }
+            const auto& info = cachedDisplayInfo[i];
+            const std::string& name = info.name;
+            const std::string& desc = info.desc;
+            float tw = info.nameWidth;
 
             u32 nameColor = isActive ? CWhite : C2D_Color32(130, 130, 130, 255);
             u32 descColor = isActive ? C2D_Color32(0xCD, 0xCD, 0xCE, 255) : C2D_Color32(0x7D, 0x7D, 0x7E, 255);
@@ -747,17 +786,10 @@ void ModsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             float nameBoxY = itemY + 4.0f;
             float nameBoxW = itemW - 54.0f;
 
-            // Measure unscaled title width
-            C2D_Text tempNameText;
-            C2D_TextFontParse(&tempNameText, vcrFont, vcrFontBuf, name.c_str());
-            C2D_TextOptimize(&tempNameText);
-            float tw = 0.0f, th = 0.0f;
-            C2D_TextGetDimensions(&tempNameText, 0.52f, 0.52f, &tw, &th);
-
-            // Scissor mask for the name box intersected with outer container bounds so text never overflows card or container
-            setScissorBoxClipped(nameBoxX, nameBoxY - 2.0f, nameBoxW, 20.0f, containerX, containerY, containerW, containerH);
-
             if (isSelected && tw > nameBoxW) {
+                // Scissor mask for scrolling title intersected with outer container bounds
+                setScissorBoxClipped(nameBoxX, nameBoxY - 2.0f, nameBoxW, 20.0f, containerX, containerY, containerW, containerH);
+
                 float speed = 35.0f;
                 float totalDist = tw + 40.0f;
                 float scrollOffset = fmodf(textScrollTime * speed, totalDist);
@@ -765,12 +797,12 @@ void ModsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
 
                 AddText(name, drawX, nameBoxY, 0.52f, false, 0.0f, nameColor, 0.0f);
                 AddText(name, drawX + totalDist, nameBoxY, 0.52f, false, 0.0f, nameColor, 0.0f);
+
+                // Restore outer container scissor box only when clipped
+                setScissorBox(containerX, containerY, containerW, containerH);
             } else {
                 AddText(name, nameBoxX, nameBoxY, 0.52f, false, 0.0f, nameColor, 0.0f);
             }
-
-            // Restore outer container scissor box
-            setScissorBox(containerX, containerY, containerW, containerH);
 
             // Render description text without black borders
             AddText(desc, nameBoxX, itemY + 26.0f, 0.38f, false, 0.0f, descColor, nameBoxW);
@@ -781,8 +813,9 @@ void ModsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         AddText("NO MODS DETECTED", 200, 120, 0.7f, true, 0.0f, CWhite, 0.0f);
     }
 
-    C2D_SceneBegin(bottom);
-    C2D_TargetClear(bottom, C2D_Color32(0x46, 0x38, 0x4B, 255));
+    if (!g_isRightEye && bottom) {
+        C2D_SceneBegin(bottom);
+        C2D_TargetClear(bottom, C2D_Color32(0x46, 0x38, 0x4B, 255));
 
     if (currentState == STATE_CONVERT_MENU) {
         std::vector<std::string> opts = {"Convert Images", "Convert Audio", "Convert Videos"};
@@ -837,9 +870,12 @@ void ModsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         drawAnimatedBtn(topFrame, 4, 196.0f, 180.0f, bottomBtnsTint);
         drawAnimatedBtn(toggleFrame, 5, 270.0f, 180.0f, bottomBtnsTint);
     }
+    }
 }
 
 void ModsMenuState::exitState() {
+    WeekData::weeksLoaded.clear();
+    WeekData::weeksList.clear();
     ModHandler::get().saveConfig();
     reloadIcons();
 

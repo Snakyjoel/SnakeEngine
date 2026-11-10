@@ -1,6 +1,7 @@
 #include "AssetConverterState.hpp"
 #include "ModsMenuState.hpp"
 #include "../backend/AudioEngine.hpp"
+#include "../backend/Macros.hpp"
 #include "AdpcmEncoder.hpp"
 #include "../backend/codecs/AdpcmDecoder.hpp"
 #include <sys/stat.h>
@@ -103,6 +104,8 @@ AssetConverterState::AssetConverterState(const std::string& startDir, bool audio
 
 AssetConverterState::~AssetConverterState() {
     closeImagePreview();
+    stopAudioSample();
+    cleanUpAudioConversion(false);
 }
 
 void AssetConverterState::init() {
@@ -341,79 +344,75 @@ void AssetConverterState::openImagePreview(const std::string& fullPath, const st
             fclose(f);
         }
     } else if (lower.find(".png") != std::string::npos || lower.find(".jpg") != std::string::npos || lower.find(".jpeg") != std::string::npos) {
-        FILE* f = fopen(fullPath.c_str(), "rb");
-        if (f) {
-            fseek(f, 0, SEEK_END);
-            size_t size = ftell(f);
-            fseek(f, 0, SEEK_SET);
-            unsigned char* fileData = (unsigned char*)malloc(size);
-            if (fileData) {
-                fread(fileData, 1, size, f);
-                fclose(f);
+        int w = 0, h = 0, c = 0;
+        unsigned char* data = stbi_load(fullPath.c_str(), &w, &h, &c, 4);
+        if (data && w > 0 && h > 0) {
+            int maxDim = std::max(w, h);
+            float scale = 1.0f;
+            int scaledW = w;
+            int scaledH = h;
+            if (maxDim > 1024) {
+                scale = 1024.0f / maxDim;
+                scaledW = (int)(w * scale);
+                scaledH = (int)(h * scale);
+            }
+            if (scaledW < 1) scaledW = 1;
+            if (scaledH < 1) scaledH = 1;
 
-                int w = 0, h = 0, c = 0;
-                unsigned char* data = stbi_load_from_memory(fileData, size, &w, &h, &c, 4);
-                free(fileData);
+            int pw = 1, ph = 1;
+            while (pw < scaledW && pw < 1024) pw *= 2;
+            while (ph < scaledH && ph < 1024) ph *= 2;
+            if (pw < scaledW) pw = 1024;
+            if (ph < scaledH) ph = 1024;
 
-                if (data) {
-                    int maxDim = std::max(w, h);
-                    float scale = 1.0f;
-                    int scaledW = w;
-                    int scaledH = h;
-                    if (maxDim > 1024) {
-                        scale = 1024.0f / maxDim;
-                        scaledW = (int)(w * scale);
-                        scaledH = (int)(h * scale);
-                    }
-                    int pw = 1, ph = 1;
-                    while (pw < scaledW) pw *= 2;
-                    while (ph < scaledH) ph *= 2;
+            viewTex = new C3D_Tex();
+            if (C3D_TexInit(viewTex, pw, ph, GPU_RGBA8)) {
+                C3D_TexSetFilter(viewTex, GPU_LINEAR, GPU_LINEAR);
+                uint32_t* swizzled = (uint32_t*)linearAlloc((size_t)pw * ph * 4);
+                if (swizzled) {
+                    memset(swizzled, 0, (size_t)pw * ph * 4);
+                    for (int y = 0; y < scaledH; y++) {
+                        for (int x = 0; x < scaledW; x++) {
+                            int origX = (int)(x / scale);
+                            int origY = (int)(y / scale);
+                            if (origX >= w) origX = w - 1;
+                            if (origY >= h) origY = h - 1;
 
-                    viewTex = new C3D_Tex();
-                    if (C3D_TexInit(viewTex, pw, ph, GPU_RGBA8)) {
-                        C3D_TexSetFilter(viewTex, GPU_LINEAR, GPU_LINEAR);
-                        uint32_t* swizzled = (uint32_t*)linearAlloc(pw * ph * 4);
-                        if (swizzled) {
-                            memset(swizzled, 0, pw * ph * 4);
-                            for (int y = 0; y < scaledH; y++) {
-                                for (int x = 0; x < scaledW; x++) {
-                                    int origX = (int)(x / scale);
-                                    int origY = (int)(y / scale);
-                                    if (origX >= w) origX = w - 1;
-                                    if (origY >= h) origY = h - 1;
+                            int src = (origY * w + origX) * 4;
+                            uint32_t px = (data[src] << 24) | (data[src+1] << 16) | (data[src+2] << 8) | data[src+3];
 
-                                    int src = (origY * w + origX) * 4;
-                                    uint32_t px = (data[src] << 24) | (data[src+1] << 16) | (data[src+2] << 8) | data[src+3];
+                            uint32_t i = (x & 7) | ((y & 7) << 8);
+                            i = (i ^ (i << 2)) & 0x1313; i = (i ^ (i << 1)) & 0x1515;
+                            uint32_t tx = x >> 3; uint32_t ty = y >> 3;
+                            uint32_t tile_start = (ty * (pw >> 3) + tx) << 6;
+                            uint32_t local_idx = (i & 0xFF) | (((i >> 8) & 0xFF) << 1);
 
-                                    uint32_t i = (x & 7) | ((y & 7) << 8);
-                                    i = (i ^ (i << 2)) & 0x1313; i = (i ^ (i << 1)) & 0x1515;
-                                    uint32_t tx = x >> 3; uint32_t ty = y >> 3;
-                                    uint32_t tile_start = (ty * (pw >> 3) + tx) << 6;
-                                    uint32_t local_idx = (i & 0xFF) | (((i >> 8) & 0xFF) << 1);
-
-                                    swizzled[tile_start + local_idx] = px;
-                                }
-                            }
-                            C3D_TexUpload(viewTex, swizzled);
-                            C3D_TexFlush(viewTex);
-                            linearFree(swizzled);
-
-                            viewSubtex = new Tex3DS_SubTexture();
-                            viewSubtex->width = scaledW; viewSubtex->height = scaledH;
-                            viewSubtex->left = 0.0f; viewSubtex->top = 1.0f;
-                            viewSubtex->right = (float)scaledW / pw;
-                            viewSubtex->bottom = 1.0f - ((float)scaledH / ph);
-
-                            viewImg = {viewTex, viewSubtex};
-                            previewW = w;
-                            previewH = h;
+                            swizzled[tile_start + local_idx] = px;
                         }
                     }
-                    stbi_image_free(data);
+                    C3D_TexUpload(viewTex, swizzled);
+                    C3D_TexFlush(viewTex);
+                    linearFree(swizzled);
+
+                    viewSubtex = new Tex3DS_SubTexture();
+                    viewSubtex->width = scaledW; viewSubtex->height = scaledH;
+                    viewSubtex->left = 0.0f; viewSubtex->top = 1.0f;
+                    viewSubtex->right = (float)scaledW / pw;
+                    viewSubtex->bottom = 1.0f - ((float)scaledH / ph);
+
+                    viewImg = {viewTex, viewSubtex};
+                    previewW = w;
+                    previewH = h;
+                } else {
+                    C3D_TexDelete(viewTex);
+                    delete viewTex;
+                    viewTex = nullptr;
                 }
             } else {
-                fclose(f);
+                delete viewTex;
+                viewTex = nullptr;
             }
+            stbi_image_free(data);
         }
     }
 }
@@ -449,13 +448,13 @@ void AssetConverterState::update(float dt) {
         audioAnimTimer += dt;
         if (kDown & KEY_B) {
             closeAudioPreview();
-            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
             return;
         }
 
         if (kDown & (KEY_A | KEY_SELECT)) {
             playAudioSample(audioPreviewFullPath, globalFormat);
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         }
 
         if (kDown & (KEY_X | KEY_Y | KEY_R)) {
@@ -467,18 +466,18 @@ void AssetConverterState::update(float dt) {
             int tx = touch.px;
             int ty = touch.py;
             if (tx >= 10 && tx <= 310 && ty >= 112 && ty <= 146) {
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                 startConversionMode(ConversionMode::SINGLE);
                 return;
             }
             if (tx >= 10 && tx <= 310 && ty >= 152 && ty <= 186) {
                 playAudioSample(audioPreviewFullPath, globalFormat);
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
                 return;
             }
             if (tx >= 10 && tx <= 310 && ty >= 192 && ty <= 226) {
                 closeAudioPreview();
-                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
                 return;
             }
         }
@@ -488,7 +487,7 @@ void AssetConverterState::update(float dt) {
     if (isPreviewing) {
         if (kDown & KEY_B) {
             closeImagePreview();
-            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
             return;
         }
 
@@ -512,18 +511,18 @@ void AssetConverterState::update(float dt) {
             int ty = touch.py;
             if (tx >= 10 && tx <= 310 && ty >= 112 && ty <= 146) {
                 closeImagePreview();
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                 startConversionMode(ConversionMode::SINGLE);
                 return;
             }
             if (tx >= 10 && tx <= 310 && ty >= 152 && ty <= 186) {
                 previewPanX = 0; previewPanY = 0; previewZoom = 1.0f;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
                 return;
             }
             if (tx >= 10 && tx <= 310 && ty >= 192 && ty <= 226) {
                 closeImagePreview();
-                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
                 return;
             }
         }
@@ -535,23 +534,23 @@ void AssetConverterState::update(float dt) {
         int ty = touch.py;
 
         if (tx >= 8 && tx <= 156 && ty >= 28 && ty <= 64) {
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
             startConversionMode(ConversionMode::ALL);
             return;
         }
         if (tx >= 164 && tx <= 312 && ty >= 28 && ty <= 64) {
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
             startConversionMode(ConversionMode::FOLDER);
             return;
         }
         if (tx >= 8 && tx <= 156 && ty >= 70 && ty <= 106) {
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
             startConversionMode(ConversionMode::SELECTED);
             return;
         }
         if (tx >= 164 && tx <= 312 && ty >= 70 && ty <= 106) {
             if (!files.empty() && files[curSelected].isConvertible) {
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                 startConversionMode(ConversionMode::SINGLE);
             }
             return;
@@ -559,7 +558,7 @@ void AssetConverterState::update(float dt) {
         if (tx >= 8 && tx <= 156 && ty >= 112 && ty <= 146) {
             if (!files.empty() && files[curSelected].isConvertible) {
                 files[curSelected].isSelected = !files[curSelected].isSelected;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             }
             return;
         }
@@ -572,13 +571,13 @@ void AssetConverterState::update(float dt) {
                 }
             }
             selectAll(anyUnselected);
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             return;
         }
         if (tx >= 8 && tx <= 312 && ty >= 152 && ty <= 186) {
             globalFormat = (globalFormat + 1) % 3;
             for (auto& f : files) f.imageFormat = globalFormat;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             return;
         }
         if (tx >= 8 && tx <= 312 && ty >= 192 && ty <= 228) {
@@ -593,7 +592,7 @@ void AssetConverterState::update(float dt) {
                     loadDirectory(currentDir);
                 }
             }
-            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
             return;
         }
     }
@@ -603,9 +602,9 @@ void AssetConverterState::update(float dt) {
             if (files[curSelected].isDirectory) {
                 currentDir += files[curSelected].name + "/";
                 loadDirectory(currentDir);
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
             } else if (files[curSelected].isConvertible) {
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                 if (isAudioMode) {
                     openAudioPreview(currentDir + files[curSelected].name, files[curSelected].name);
                 } else {
@@ -635,7 +634,7 @@ void AssetConverterState::update(float dt) {
     if (kDown & KEY_L) {
         if (!files.empty() && files[curSelected].isConvertible) {
             files[curSelected].isSelected = !files[curSelected].isSelected;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         }
     }
 
@@ -648,26 +647,26 @@ void AssetConverterState::update(float dt) {
             }
         }
         selectAll(anyUnselected);
-        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
     }
 
     if (!files.empty()) {
         if (kDown & (KEY_DUP | KEY_CPAD_UP)) {
             curSelected--;
             if (curSelected < 0) curSelected = (int)files.size() - 1;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         }
         if (kDown & (KEY_DDOWN | KEY_CPAD_DOWN)) {
             curSelected++;
             if (curSelected >= (int)files.size()) curSelected = 0;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         }
     }
 
     if (keyJustPressed(KEY_B)) {
         if (currentDir == rootDir) {
             switchState(new ModsMenuState());
-            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
         } else {
             std::string path = currentDir;
             path.pop_back();
@@ -675,7 +674,7 @@ void AssetConverterState::update(float dt) {
             if (lastSlash != std::string::npos) {
                 currentDir = path.substr(0, lastSlash + 1);
                 loadDirectory(currentDir);
-                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
             }
         }
     }
@@ -785,31 +784,33 @@ void AssetConverterState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
         C2D_DrawRectSolid(0, 218, 0.81f, 400, 1, C2D_Color32(0, 100, 180, 200));
         drawText("[ A / SELECT: RESTART AUDIO | R: CONVERT | B: CLOSE PLAYER ]", 200, 229, 0.35f, true, C2D_Color32(190, 200, 215, 220), 0.85f);
 
-        C2D_SceneBegin(bottom);
-        C2D_TargetClear(bottom, C2D_Color32(18, 18, 22, 255));
+        if (!g_isRightEye && bottom) {
+            C2D_SceneBegin(bottom);
+            C2D_TargetClear(bottom, C2D_Color32(18, 18, 22, 255));
 
-        C2D_DrawRectSolid(0, 0, 0.8f, 320, 22, C2D_Color32(10, 10, 16, 245));
-        C2D_DrawRectSolid(0, 21, 0.81f, 320, 1, C2D_Color32(0, 210, 255, 255));
-        drawText("AUDIO PLAYER CONTROLS", 160, 11, 0.38f, true, CWhite, 0.85f);
+            C2D_DrawRectSolid(0, 0, 0.8f, 320, 22, C2D_Color32(10, 10, 16, 245));
+            C2D_DrawRectSolid(0, 21, 0.81f, 320, 1, C2D_Color32(0, 210, 255, 255));
+            drawText("AUDIO PLAYER CONTROLS", 160, 11, 0.38f, true, CWhite, 0.85f);
 
-        C2D_DrawRectSolid(10, 28, 0.4f, 300, 78, C2D_Color32(25, 25, 32, 255));
-        C2D_DrawLine(10, 28, C2D_Color32(60, 62, 78, 255), 310, 28, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
-        C2D_DrawLine(10, 28, C2D_Color32(60, 62, 78, 255), 10, 106, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
-        C2D_DrawLine(310, 28, C2D_Color32(60, 62, 78, 255), 310, 106, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
-        C2D_DrawLine(10, 106, C2D_Color32(60, 62, 78, 255), 310, 106, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
+            C2D_DrawRectSolid(10, 28, 0.4f, 300, 78, C2D_Color32(25, 25, 32, 255));
+            C2D_DrawLine(10, 28, C2D_Color32(60, 62, 78, 255), 310, 28, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
+            C2D_DrawLine(10, 28, C2D_Color32(60, 62, 78, 255), 10, 106, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
+            C2D_DrawLine(310, 28, C2D_Color32(60, 62, 78, 255), 310, 106, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
+            C2D_DrawLine(10, 106, C2D_Color32(60, 62, 78, 255), 310, 106, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
 
-        drawText("Track File: " + audioPreviewFileName, 20, 35, 0.36f, false, C2D_Color32(0, 210, 255, 255), 0.85f, 280.0f);
-        
-        std::string hzStr = "Target Sample Rate: 44.1 kHz (Original)";
-        if (globalFormat == 1) hzStr = "Target Sample Rate: 22.05 kHz (Half Rate)";
-        if (globalFormat == 2) hzStr = "Target Sample Rate: 11.025 kHz (Low Memory)";
-        drawText(hzStr, 20, 56, 0.34f, false, C2D_Color32(190, 200, 215, 255), 0.85f);
-        
-        drawText("Status: PLAYING AUDIO SAMPLE...", 20, 77, 0.34f, false, C2D_Color32(80, 240, 120, 255), 0.85f);
+            drawText("Track File: " + audioPreviewFileName, 20, 35, 0.36f, false, C2D_Color32(0, 210, 255, 255), 0.85f, 280.0f);
+            
+            std::string hzStr = "Target Sample Rate: 44.1 kHz (Original)";
+            if (globalFormat == 1) hzStr = "Target Sample Rate: 22.05 kHz (Half Rate)";
+            if (globalFormat == 2) hzStr = "Target Sample Rate: 11.025 kHz (Low Memory)";
+            drawText(hzStr, 20, 56, 0.34f, false, C2D_Color32(190, 200, 215, 255), 0.85f);
+            
+            drawText("Status: PLAYING AUDIO SAMPLE...", 20, 77, 0.34f, false, C2D_Color32(80, 240, 120, 255), 0.85f);
 
-        drawStyledButton(10, 112, 300, 34, "CONVERT THIS AUDIO", "[ R / TOUCH ]", C2D_Color32(180, 80, 20, 255), C2D_Color32(120, 50, 12, 255), C2D_Color32(230, 110, 30, 255));
-        drawStyledButton(10, 152, 300, 34, "RESTART AUDIO SAMPLE", "[ SELECT / TOUCH ]", C2D_Color32(48, 50, 64, 255), C2D_Color32(32, 34, 46, 255), C2D_Color32(60, 62, 78, 255));
-        drawStyledButton(10, 192, 300, 34, "CLOSE PLAYER", "[ B / TOUCH ]", C2D_Color32(140, 30, 30, 255), C2D_Color32(95, 20, 20, 255), C2D_Color32(200, 50, 50, 255));
+            drawStyledButton(10, 112, 300, 34, "CONVERT THIS AUDIO", "[ R / TOUCH ]", C2D_Color32(180, 80, 20, 255), C2D_Color32(120, 50, 12, 255), C2D_Color32(230, 110, 30, 255));
+            drawStyledButton(10, 152, 300, 34, "RESTART AUDIO SAMPLE", "[ SELECT / TOUCH ]", C2D_Color32(48, 50, 64, 255), C2D_Color32(32, 34, 46, 255), C2D_Color32(60, 62, 78, 255));
+            drawStyledButton(10, 192, 300, 34, "CLOSE PLAYER", "[ B / TOUCH ]", C2D_Color32(140, 30, 30, 255), C2D_Color32(95, 20, 20, 255), C2D_Color32(200, 50, 50, 255));
+        }
         return;
     }
 
@@ -841,30 +842,32 @@ void AssetConverterState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
         std::string zoomStr = "Zoom: " + std::to_string((int)(previewZoom * 100)) + "%  |  [ D-PAD: PAN | L/R: ZOOM | B: CLOSE ]";
         drawText(zoomStr, 200, 229, 0.35f, true, C2D_Color32(190, 200, 215, 220), 0.85f);
 
-        C2D_SceneBegin(bottom);
-        C2D_TargetClear(bottom, C2D_Color32(18, 18, 22, 255));
+        if (!g_isRightEye && bottom) {
+            C2D_SceneBegin(bottom);
+            C2D_TargetClear(bottom, C2D_Color32(18, 18, 22, 255));
 
-        C2D_DrawRectSolid(0, 0, 0.8f, 320, 22, C2D_Color32(10, 10, 16, 245));
-        C2D_DrawRectSolid(0, 21, 0.81f, 320, 1, C2D_Color32(0, 210, 255, 255));
-        drawText("IMAGE PREVIEW CONTROLS", 160, 11, 0.38f, true, CWhite, 0.85f);
+            C2D_DrawRectSolid(0, 0, 0.8f, 320, 22, C2D_Color32(10, 10, 16, 245));
+            C2D_DrawRectSolid(0, 21, 0.81f, 320, 1, C2D_Color32(0, 210, 255, 255));
+            drawText("IMAGE PREVIEW CONTROLS", 160, 11, 0.38f, true, CWhite, 0.85f);
 
-        C2D_DrawRectSolid(10, 28, 0.4f, 300, 78, C2D_Color32(25, 25, 32, 255));
-        C2D_DrawLine(10, 28, C2D_Color32(60, 62, 78, 255), 310, 28, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
-        C2D_DrawLine(10, 28, C2D_Color32(60, 62, 78, 255), 10, 106, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
-        C2D_DrawLine(310, 28, C2D_Color32(60, 62, 78, 255), 310, 106, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
-        C2D_DrawLine(10, 106, C2D_Color32(60, 62, 78, 255), 310, 106, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
+            C2D_DrawRectSolid(10, 28, 0.4f, 300, 78, C2D_Color32(25, 25, 32, 255));
+            C2D_DrawLine(10, 28, C2D_Color32(60, 62, 78, 255), 310, 28, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
+            C2D_DrawLine(10, 28, C2D_Color32(60, 62, 78, 255), 10, 106, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
+            C2D_DrawLine(310, 28, C2D_Color32(60, 62, 78, 255), 310, 106, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
+            C2D_DrawLine(10, 106, C2D_Color32(60, 62, 78, 255), 310, 106, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
 
-        drawText("File: " + previewFileName, 20, 35, 0.36f, false, C2D_Color32(0, 210, 255, 255), 0.85f, 280.0f);
-        drawText("Original Resolution: " + std::to_string(previewW) + " x " + std::to_string(previewH) + " px", 20, 56, 0.34f, false, C2D_Color32(190, 200, 215, 255), 0.85f);
-        
-        std::string fmtStr = "Target Format: RGBA8";
-        if (globalFormat == 1) fmtStr = "Target Format: RGBA4444";
-        if (globalFormat == 2) fmtStr = "Target Format: RGB565";
-        drawText(fmtStr, 20, 77, 0.34f, false, CYellow, 0.85f);
+            drawText("File: " + previewFileName, 20, 35, 0.36f, false, C2D_Color32(0, 210, 255, 255), 0.85f, 280.0f);
+            drawText("Original Resolution: " + std::to_string(previewW) + " x " + std::to_string(previewH) + " px", 20, 56, 0.34f, false, C2D_Color32(190, 200, 215, 255), 0.85f);
+            
+            std::string fmtStr = "Target Format: RGBA8";
+            if (globalFormat == 1) fmtStr = "Target Format: RGBA4444";
+            if (globalFormat == 2) fmtStr = "Target Format: RGB565";
+            drawText(fmtStr, 20, 77, 0.34f, false, CYellow, 0.85f);
 
-        drawStyledButton(10, 112, 300, 34, "CONVERT THIS IMAGE", "[ R / TOUCH ]", C2D_Color32(180, 80, 20, 255), C2D_Color32(120, 50, 12, 255), C2D_Color32(230, 110, 30, 255));
-        drawStyledButton(10, 152, 300, 34, "RESET ZOOM & PAN", "[ SELECT / TOUCH ]", C2D_Color32(48, 50, 64, 255), C2D_Color32(32, 34, 46, 255), C2D_Color32(60, 62, 78, 255));
-        drawStyledButton(10, 192, 300, 34, "CLOSE PREVIEW", "[ B / TOUCH ]", C2D_Color32(140, 30, 30, 255), C2D_Color32(95, 20, 20, 255), C2D_Color32(200, 50, 50, 255));
+            drawStyledButton(10, 112, 300, 34, "CONVERT THIS IMAGE", "[ R / TOUCH ]", C2D_Color32(180, 80, 20, 255), C2D_Color32(120, 50, 12, 255), C2D_Color32(230, 110, 30, 255));
+            drawStyledButton(10, 152, 300, 34, "RESET ZOOM & PAN", "[ SELECT / TOUCH ]", C2D_Color32(48, 50, 64, 255), C2D_Color32(32, 34, 46, 255), C2D_Color32(60, 62, 78, 255));
+            drawStyledButton(10, 192, 300, 34, "CLOSE PREVIEW", "[ B / TOUCH ]", C2D_Color32(140, 30, 30, 255), C2D_Color32(95, 20, 20, 255), C2D_Color32(200, 50, 50, 255));
+        }
         return;
     }
 
@@ -946,52 +949,54 @@ void AssetConverterState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
         C2D_DrawRectSolid(0, 218, 0.81f, 400, 1, C2D_Color32(180, 100, 0, 200));
         drawText("[ DO NOT POWER OFF THE SYSTEM OR REMOVE SD CARD ]", 200, 229, 0.34f, true, C2D_Color32(255, 170, 0, 255), 0.85f);
 
-        C2D_SceneBegin(bottom);
-        C2D_TargetClear(bottom, C2D_Color32(18, 18, 22, 255));
+        if (!g_isRightEye && bottom) {
+            C2D_SceneBegin(bottom);
+            C2D_TargetClear(bottom, C2D_Color32(18, 18, 22, 255));
 
-        C2D_DrawRectSolid(0, 0, 0.8f, 320, 22, C2D_Color32(10, 10, 16, 245));
-        C2D_DrawRectSolid(0, 21, 0.81f, 320, 1, C2D_Color32(0, 210, 255, 255));
-        drawText("CONVERSION BATCH DETAILS", 160, 11, 0.38f, true, CWhite, 0.85f);
+            C2D_DrawRectSolid(0, 0, 0.8f, 320, 22, C2D_Color32(10, 10, 16, 245));
+            C2D_DrawRectSolid(0, 21, 0.81f, 320, 1, C2D_Color32(0, 210, 255, 255));
+            drawText("CONVERSION BATCH DETAILS", 160, 11, 0.38f, true, CWhite, 0.85f);
 
-        float bCardX = 16.0f, bCardY = 32.0f, bCardW = 288.0f, bCardH = 192.0f;
-        C2D_DrawRectSolid(bCardX, bCardY, 0.3f, bCardW, bCardH, C2D_Color32(25, 27, 36, 255));
-        C2D_DrawLine(bCardX, bCardY, C2D_Color32(60, 62, 78, 255), bCardX + bCardW, bCardY, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
-        C2D_DrawLine(bCardX, bCardY, C2D_Color32(60, 62, 78, 255), bCardX, bCardY + bCardH, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
-        C2D_DrawLine(bCardX + bCardW, bCardY, C2D_Color32(60, 62, 78, 255), bCardX + bCardW, bCardY + bCardH, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
-        C2D_DrawLine(bCardX, bCardY + bCardH, C2D_Color32(60, 62, 78, 255), bCardX + bCardW, bCardY + bCardH, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
+            float bCardX = 16.0f, bCardY = 32.0f, bCardW = 288.0f, bCardH = 192.0f;
+            C2D_DrawRectSolid(bCardX, bCardY, 0.3f, bCardW, bCardH, C2D_Color32(25, 27, 36, 255));
+            C2D_DrawLine(bCardX, bCardY, C2D_Color32(60, 62, 78, 255), bCardX + bCardW, bCardY, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
+            C2D_DrawLine(bCardX, bCardY, C2D_Color32(60, 62, 78, 255), bCardX, bCardY + bCardH, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
+            C2D_DrawLine(bCardX + bCardW, bCardY, C2D_Color32(60, 62, 78, 255), bCardX + bCardW, bCardY + bCardH, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
+            C2D_DrawLine(bCardX, bCardY + bCardH, C2D_Color32(60, 62, 78, 255), bCardX + bCardW, bCardY + bCardH, C2D_Color32(60, 62, 78, 255), 1.0f, 0.42f);
 
-        if (isAudioMode) {
-            std::string fmtName = "44.1 kHz (Original Quality)";
-            if (globalFormat == 1) fmtName = "22.05 kHz (Half Rate)";
-            if (globalFormat == 2) fmtName = "11.025 kHz (Low Memory)";
+            if (isAudioMode) {
+                std::string fmtName = "44.1 kHz (Original Quality)";
+                if (globalFormat == 1) fmtName = "22.05 kHz (Half Rate)";
+                if (globalFormat == 2) fmtName = "11.025 kHz (Low Memory)";
 
-            drawText("Audio Sample Rate:", bCardX + 16.0f, bCardY + 14.0f, 0.34f, false, C2D_Color32(150, 160, 180, 255), 0.85f);
-            drawText(fmtName, bCardX + 16.0f, bCardY + 32.0f, 0.38f, false, C2D_Color32(0, 210, 255, 255), 0.85f);
+                drawText("Audio Sample Rate:", bCardX + 16.0f, bCardY + 14.0f, 0.34f, false, C2D_Color32(150, 160, 180, 255), 0.85f);
+                drawText(fmtName, bCardX + 16.0f, bCardY + 32.0f, 0.38f, false, C2D_Color32(0, 210, 255, 255), 0.85f);
 
-            drawText("Codec Type:", bCardX + 16.0f, bCardY + 56.0f, 0.34f, false, C2D_Color32(150, 160, 180, 255), 0.85f);
-            drawText("SADP (Ima ADPCM) / WAV", bCardX + 16.0f, bCardY + 74.0f, 0.36f, false, CYellow, 0.85f);
-        } else {
-            std::string fmtName = "RGBA8 (32-bit High Quality)";
-            if (globalFormat == 1) fmtName = "RGBA4444 (16-bit Alpha)";
-            if (globalFormat == 2) fmtName = "RGB565 (16-bit Fast)";
+                drawText("Codec Type:", bCardX + 16.0f, bCardY + 56.0f, 0.34f, false, C2D_Color32(150, 160, 180, 255), 0.85f);
+                drawText("SADP (Ima ADPCM) / WAV", bCardX + 16.0f, bCardY + 74.0f, 0.36f, false, CYellow, 0.85f);
+            } else {
+                std::string fmtName = "RGBA8 (32-bit High Quality)";
+                if (globalFormat == 1) fmtName = "RGBA4444 (16-bit Alpha)";
+                if (globalFormat == 2) fmtName = "RGB565 (16-bit Fast)";
 
-            drawText("Target Format:", bCardX + 16.0f, bCardY + 14.0f, 0.34f, false, C2D_Color32(150, 160, 180, 255), 0.85f);
-            drawText(fmtName, bCardX + 16.0f, bCardY + 32.0f, 0.38f, false, C2D_Color32(0, 210, 255, 255), 0.85f);
+                drawText("Target Format:", bCardX + 16.0f, bCardY + 14.0f, 0.34f, false, C2D_Color32(150, 160, 180, 255), 0.85f);
+                drawText(fmtName, bCardX + 16.0f, bCardY + 32.0f, 0.38f, false, C2D_Color32(0, 210, 255, 255), 0.85f);
 
-            drawText("Texture Limit:", bCardX + 16.0f, bCardY + 56.0f, 0.34f, false, C2D_Color32(150, 160, 180, 255), 0.85f);
-            drawText("1024 x 1024 px (Hardware Safe)", bCardX + 16.0f, bCardY + 74.0f, 0.36f, false, CYellow, 0.85f);
+                drawText("Texture Limit:", bCardX + 16.0f, bCardY + 56.0f, 0.34f, false, C2D_Color32(150, 160, 180, 255), 0.85f);
+                drawText("1024 x 1024 px (Hardware Safe)", bCardX + 16.0f, bCardY + 74.0f, 0.36f, false, CYellow, 0.85f);
+            }
+
+            drawText("Working Folder:", bCardX + 16.0f, bCardY + 98.0f, 0.34f, false, C2D_Color32(150, 160, 180, 255), 0.85f);
+            drawText(currentDir, bCardX + 16.0f, bCardY + 116.0f, 0.34f, false, CWhite, 0.85f, bCardW - 32.0f);
+
+            C2D_DrawRectSolid(bCardX + 12.0f, bCardY + 144.0f, 0.4f, bCardW - 24.0f, 36.0f, C2D_Color32(16, 45, 30, 255));
+            C2D_DrawLine(bCardX + 12.0f, bCardY + 144.0f, C2D_Color32(30, 120, 70, 255), bCardX + bCardW - 12.0f, bCardY + 144.0f, C2D_Color32(30, 120, 70, 255), 1.0f, 0.45f);
+            C2D_DrawLine(bCardX + 12.0f, bCardY + 144.0f, C2D_Color32(30, 120, 70, 255), bCardX + 12.0f, bCardY + 180.0f, C2D_Color32(30, 120, 70, 255), 1.0f, 0.45f);
+            C2D_DrawLine(bCardX + bCardW - 12.0f, bCardY + 144.0f, C2D_Color32(30, 120, 70, 255), bCardX + bCardW - 12.0f, bCardY + 180.0f, C2D_Color32(30, 120, 70, 255), 1.0f, 0.45f);
+            C2D_DrawLine(bCardX + 12.0f, bCardY + 180.0f, C2D_Color32(30, 120, 70, 255), bCardX + bCardW - 12.0f, bCardY + 180.0f, C2D_Color32(30, 120, 70, 255), 1.0f, 0.45f);
+
+            drawText("ENCODING DATA IN PROGRESS...", bCardX + bCardW * 0.5f, bCardY + 162.0f, 0.36f, true, C2D_Color32(80, 240, 120, 255), 0.85f);
         }
-
-        drawText("Working Folder:", bCardX + 16.0f, bCardY + 98.0f, 0.34f, false, C2D_Color32(150, 160, 180, 255), 0.85f);
-        drawText(currentDir, bCardX + 16.0f, bCardY + 116.0f, 0.34f, false, CWhite, 0.85f, bCardW - 32.0f);
-
-        C2D_DrawRectSolid(bCardX + 12.0f, bCardY + 144.0f, 0.4f, bCardW - 24.0f, 36.0f, C2D_Color32(16, 45, 30, 255));
-        C2D_DrawLine(bCardX + 12.0f, bCardY + 144.0f, C2D_Color32(30, 120, 70, 255), bCardX + bCardW - 12.0f, bCardY + 144.0f, C2D_Color32(30, 120, 70, 255), 1.0f, 0.45f);
-        C2D_DrawLine(bCardX + 12.0f, bCardY + 144.0f, C2D_Color32(30, 120, 70, 255), bCardX + 12.0f, bCardY + 180.0f, C2D_Color32(30, 120, 70, 255), 1.0f, 0.45f);
-        C2D_DrawLine(bCardX + bCardW - 12.0f, bCardY + 144.0f, C2D_Color32(30, 120, 70, 255), bCardX + bCardW - 12.0f, bCardY + 180.0f, C2D_Color32(30, 120, 70, 255), 1.0f, 0.45f);
-        C2D_DrawLine(bCardX + 12.0f, bCardY + 180.0f, C2D_Color32(30, 120, 70, 255), bCardX + bCardW - 12.0f, bCardY + 180.0f, C2D_Color32(30, 120, 70, 255), 1.0f, 0.45f);
-
-        drawText("ENCODING DATA IN PROGRESS...", bCardX + bCardW * 0.5f, bCardY + 162.0f, 0.36f, true, C2D_Color32(80, 240, 120, 255), 0.85f);
         return;
     }
 
@@ -1076,40 +1081,43 @@ void AssetConverterState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) 
     }
 
     // Bottom Screen Action Dashboard
-    C2D_SceneBegin(bottom);
-    C2D_TargetClear(bottom, C2D_Color32(18, 18, 22, 255));
-    
-    C2D_DrawRectSolid(0, 0, 0.8f, 320, 22, C2D_Color32(10, 10, 16, 245));
-    C2D_DrawRectSolid(0, 21, 0.81f, 320, 1, C2D_Color32(0, 210, 255, 255));
-    drawText(isAudioMode ? "AUDIO CONVERSION CONTROLS" : "IMAGE CONVERSION CONTROLS", 160, 11, 0.38f, true, CWhite, 0.85f);
+    if (!g_isRightEye && bottom) {
+        C2D_SceneBegin(bottom);
+        C2D_TargetClear(bottom, C2D_Color32(18, 18, 22, 255));
+        
+        C2D_DrawRectSolid(0, 0, 0.8f, 320, 22, C2D_Color32(10, 10, 16, 245));
+        C2D_DrawRectSolid(0, 21, 0.81f, 320, 1, C2D_Color32(0, 210, 255, 255));
+        drawText(isAudioMode ? "AUDIO CONVERSION CONTROLS" : "IMAGE CONVERSION CONTROLS", 160, 11, 0.38f, true, CWhite, 0.85f);
 
-    drawStyledButton(8, 28, 148, 36, "CONVERT ALL", "[ TOUCH ]", C2D_Color32(34, 110, 50, 255), C2D_Color32(22, 75, 34, 255), C2D_Color32(45, 160, 70, 255));
-    drawStyledButton(164, 28, 148, 36, "CONVERT FOLDER", "[ Y BUTTON ]", C2D_Color32(20, 100, 160, 255), C2D_Color32(12, 65, 110, 255), C2D_Color32(30, 150, 220, 255));
+        drawStyledButton(8, 28, 148, 36, "CONVERT ALL", "[ TOUCH ]", C2D_Color32(34, 110, 50, 255), C2D_Color32(22, 75, 34, 255), C2D_Color32(45, 160, 70, 255));
+        drawStyledButton(164, 28, 148, 36, "CONVERT FOLDER", "[ Y BUTTON ]", C2D_Color32(20, 100, 160, 255), C2D_Color32(12, 65, 110, 255), C2D_Color32(30, 150, 220, 255));
 
-    drawStyledButton(8, 70, 148, 36, "CONVERT SELECTED", "[ X BUTTON ]", C2D_Color32(110, 40, 140, 255), C2D_Color32(75, 25, 95, 255), C2D_Color32(160, 60, 200, 255));
-    drawStyledButton(164, 70, 148, 36, isAudioMode ? "CONVERT THIS AUDIO" : "CONVERT THIS IMAGE", "[ R BUTTON ]", C2D_Color32(180, 80, 20, 255), C2D_Color32(120, 50, 12, 255), C2D_Color32(230, 110, 30, 255));
+        drawStyledButton(8, 70, 148, 36, "CONVERT SELECTED", "[ X BUTTON ]", C2D_Color32(110, 40, 140, 255), C2D_Color32(75, 25, 95, 255), C2D_Color32(160, 60, 200, 255));
+        drawStyledButton(164, 70, 148, 36, isAudioMode ? "CONVERT THIS AUDIO" : "CONVERT THIS IMAGE", "[ R BUTTON ]", C2D_Color32(180, 80, 20, 255), C2D_Color32(120, 50, 12, 255), C2D_Color32(230, 110, 30, 255));
 
-    drawStyledButton(8, 112, 148, 34, isAudioMode ? "MARK AUDIO" : "MARK IMAGE", "[ L BUTTON ]", C2D_Color32(48, 50, 64, 255), C2D_Color32(32, 34, 46, 255), C2D_Color32(60, 62, 78, 255));
-    drawStyledButton(164, 112, 148, 34, isAudioMode ? "MARK ALL AUDIO" : "MARK ALL IMAGES", "[ SELECT ]", C2D_Color32(48, 50, 64, 255), C2D_Color32(32, 34, 46, 255), C2D_Color32(60, 62, 78, 255));
+        drawStyledButton(8, 112, 148, 34, isAudioMode ? "MARK AUDIO" : "MARK IMAGE", "[ L BUTTON ]", C2D_Color32(48, 50, 64, 255), C2D_Color32(32, 34, 46, 255), C2D_Color32(60, 62, 78, 255));
+        drawStyledButton(164, 112, 148, 34, isAudioMode ? "MARK ALL AUDIO" : "MARK ALL IMAGES", "[ SELECT ]", C2D_Color32(48, 50, 64, 255), C2D_Color32(32, 34, 46, 255), C2D_Color32(60, 62, 78, 255));
 
-    std::string fmtStr = "";
-    if (isAudioMode) {
-        if (globalFormat == 0) fmtStr = "SAMPLE RATE: 44.1 kHz (HIGH QUALITY)";
-        else if (globalFormat == 1) fmtStr = "SAMPLE RATE: 22.05 kHz (BALANCED)";
-        else fmtStr = "SAMPLE RATE: 11.025 kHz (LOW MEMORY)";
-    } else {
-        if (globalFormat == 0) fmtStr = "FORMAT: RGBA8 (HIGH QUALITY)";
-        else if (globalFormat == 1) fmtStr = "FORMAT: RGBA4444 (16-BIT ALPHA)";
-        else fmtStr = "FORMAT: RGB565 (16-BIT FAST)";
+        std::string fmtStr = "";
+        if (isAudioMode) {
+            if (globalFormat == 0) fmtStr = "SAMPLE RATE: 44.1 kHz (HIGH QUALITY)";
+            else if (globalFormat == 1) fmtStr = "SAMPLE RATE: 22.05 kHz (BALANCED)";
+            else fmtStr = "SAMPLE RATE: 11.025 kHz (LOW MEMORY)";
+        } else {
+            if (globalFormat == 0) fmtStr = "FORMAT: RGBA8 (HIGH QUALITY)";
+            else if (globalFormat == 1) fmtStr = "FORMAT: RGBA4444 (16-BIT ALPHA)";
+            else fmtStr = "FORMAT: RGB565 (16-BIT FAST)";
+        }
+        drawStyledButton(8, 152, 304, 34, fmtStr, "[ TOUCH / PRESS SELECT TO TOGGLE ]", C2D_Color32(35, 45, 55, 255), C2D_Color32(22, 30, 38, 255), C2D_Color32(0, 180, 220, 255));
+
+        drawStyledButton(8, 192, 304, 36, "BACK TO MODS MENU", "[ B BUTTON ]", C2D_Color32(140, 30, 30, 255), C2D_Color32(95, 20, 20, 255), C2D_Color32(200, 50, 50, 255));
     }
-    drawStyledButton(8, 152, 304, 34, fmtStr, "[ TOUCH / PRESS SELECT TO TOGGLE ]", C2D_Color32(35, 45, 55, 255), C2D_Color32(22, 30, 38, 255), C2D_Color32(0, 180, 220, 255));
-
-    drawStyledButton(8, 192, 304, 36, "BACK TO MODS MENU", "[ B BUTTON ]", C2D_Color32(140, 30, 30, 255), C2D_Color32(95, 20, 20, 255), C2D_Color32(200, 50, 50, 255));
 }
 
 void AssetConverterState::exitState() {
     closeImagePreview();
     stopAudioSample();
+    cleanUpAudioConversion(false);
     if (converterTextBuf) { C2D_TextBufDelete(converterTextBuf); converterTextBuf = nullptr; }
 }
 
@@ -1135,13 +1143,16 @@ static void init_crc32() {
     crc32_init = true;
 }
 
-static uint32_t calculate_crc32(const uint8_t* buf, size_t len) {
+static uint32_t update_crc32(uint32_t c, const uint8_t* buf, size_t len) {
     if (!crc32_init) init_crc32();
-    uint32_t c = 0xFFFFFFFFL;
     for (size_t i = 0; i < len; i++) {
         c = crc32_table[(c ^ buf[i]) & 0xFF] ^ (c >> 8);
     }
-    return c ^ 0xFFFFFFFFL;
+    return c;
+}
+
+static uint32_t calculate_crc32(const uint8_t* buf, size_t len) {
+    return update_crc32(0xFFFFFFFFL, buf, len) ^ 0xFFFFFFFFL;
 }
 
 static uint32_t calculate_adler32(const uint8_t* buf, size_t len) {
@@ -1155,6 +1166,7 @@ static uint32_t calculate_adler32(const uint8_t* buf, size_t len) {
 }
 
 static bool savePngFile(const std::string& path, int w, int h, const uint8_t* rgba) {
+    if (!rgba || w <= 0 || h <= 0) return false;
     FILE* f = fopen(path.c_str(), "wb");
     if (!f) return false;
 
@@ -1192,47 +1204,56 @@ static bool savePngFile(const std::string& path, int w, int h, const uint8_t* rg
 
     uint32_t adler = calculate_adler32(rawData, rawDataSize);
 
-    std::vector<uint8_t> zlibStream;
-    zlibStream.push_back(0x78); zlibStream.push_back(0x01);
+    size_t numBlocks = (rawDataSize + 65534) / 65535;
+    if (numBlocks == 0) numBlocks = 1;
+    uint32_t idatLen = 2 + (uint32_t)(numBlocks * 5) + (uint32_t)rawDataSize + 4;
+    uint32_t idatLenBE = ((idatLen >> 24) & 0xFF) | ((idatLen >> 8) & 0xFF00) | ((idatLen << 8) & 0xFF0000) | ((idatLen << 24) & 0xFF000000);
+    fwrite(&idatLenBE, 4, 1, f);
+
+    uint32_t idatCrc = update_crc32(0xFFFFFFFFL, (const uint8_t*)"IDAT", 4);
+    fwrite("IDAT", 1, 4, f);
+
+    const uint8_t zlibHdr[2] = { 0x78, 0x01 };
+    fwrite(zlibHdr, 1, 2, f);
+    idatCrc = update_crc32(idatCrc, zlibHdr, 2);
 
     size_t bytesLeft = rawDataSize;
     size_t offset = 0;
-
     while (bytesLeft > 0) {
         uint16_t blockSize = (bytesLeft > 65535) ? 65535 : (uint16_t)bytesLeft;
         bool isFinal = (bytesLeft == blockSize);
-        
-        zlibStream.push_back(isFinal ? 0x01 : 0x00);
-        zlibStream.push_back(blockSize & 0xFF);
-        zlibStream.push_back((blockSize >> 8) & 0xFF);
-        
         uint16_t nlen = ~blockSize;
-        zlibStream.push_back(nlen & 0xFF);
-        zlibStream.push_back((nlen >> 8) & 0xFF);
 
-        zlibStream.insert(zlibStream.end(), rawData + offset, rawData + offset + blockSize);
+        uint8_t blkHdr[5] = {
+            (uint8_t)(isFinal ? 0x01 : 0x00),
+            (uint8_t)(blockSize & 0xFF),
+            (uint8_t)((blockSize >> 8) & 0xFF),
+            (uint8_t)(nlen & 0xFF),
+            (uint8_t)((nlen >> 8) & 0xFF)
+        };
+        fwrite(blkHdr, 1, 5, f);
+        idatCrc = update_crc32(idatCrc, blkHdr, 5);
+
+        fwrite(rawData + offset, 1, blockSize, f);
+        idatCrc = update_crc32(idatCrc, rawData + offset, blockSize);
+
         offset += blockSize;
         bytesLeft -= blockSize;
     }
 
     free(rawData);
 
-    zlibStream.push_back((adler >> 24) & 0xFF);
-    zlibStream.push_back((adler >> 16) & 0xFF);
-    zlibStream.push_back((adler >> 8) & 0xFF);
-    zlibStream.push_back(adler & 0xFF);
+    uint8_t adlerBuf[4] = {
+        (uint8_t)((adler >> 24) & 0xFF),
+        (uint8_t)((adler >> 16) & 0xFF),
+        (uint8_t)((adler >> 8) & 0xFF),
+        (uint8_t)(adler & 0xFF)
+    };
+    fwrite(adlerBuf, 1, 4, f);
+    idatCrc = update_crc32(idatCrc, adlerBuf, 4);
 
-    uint32_t idatLen = (uint32_t)zlibStream.size();
-    uint32_t idatLenBE = ((idatLen >> 24) & 0xFF) | ((idatLen >> 8) & 0xFF00) | ((idatLen << 8) & 0xFF0000) | ((idatLen << 24) & 0xFF000000);
-    fwrite(&idatLenBE, 4, 1, f);
-
-    std::vector<uint8_t> idatChunkBuf;
-    idatChunkBuf.push_back('I'); idatChunkBuf.push_back('D'); idatChunkBuf.push_back('A'); idatChunkBuf.push_back('T');
-    idatChunkBuf.insert(idatChunkBuf.end(), zlibStream.begin(), zlibStream.end());
-    fwrite(idatChunkBuf.data(), 1, idatChunkBuf.size(), f);
-
-    uint32_t idatCrc = calculate_crc32(idatChunkBuf.data(), idatChunkBuf.size());
-    uint32_t idatCrcBE = ((idatCrc >> 24) & 0xFF) | ((idatCrc >> 8) & 0xFF00) | ((idatCrc << 8) & 0xFF0000) | ((idatCrc << 24) & 0xFF000000);
+    uint32_t idatCrcFinal = idatCrc ^ 0xFFFFFFFFL;
+    uint32_t idatCrcBE = ((idatCrcFinal >> 24) & 0xFF) | ((idatCrcFinal >> 8) & 0xFF00) | ((idatCrcFinal << 8) & 0xFF0000) | ((idatCrcFinal << 24) & 0xFF000000);
     fwrite(&idatCrcBE, 4, 1, f);
 
     const uint8_t iendChunk[12] = { 0x00, 0x00, 0x00, 0x00, 'I', 'E', 'N', 'D', 0xAE, 0x42, 0x60, 0x82 };
@@ -1485,7 +1506,102 @@ static bool convertAdpToWav(const std::string& adpPath, const std::string& wavPa
     return true;
 }
 
-static bool convertWavToAdp(const std::string& wavPath, const std::string& adpPath, int globalFormat) {
+void AssetConverterState::cleanUpAudioConversion(bool success) {
+    if (convStatePtr) {
+        delete (AdpcmEncoder::State*)convStatePtr;
+        convStatePtr = nullptr;
+    }
+    if (convVfPtr) {
+        ov_clear((OggVorbis_File*)convVfPtr);
+        free(convVfPtr);
+        convVfPtr = nullptr;
+        convFIn = nullptr;
+    } else if (convFIn) {
+        fclose(convFIn);
+        convFIn = nullptr;
+    }
+    if (convFOut) {
+        fclose(convFOut);
+        convFOut = nullptr;
+        if (!success && !convCurrentOutPath.empty()) {
+            remove(convCurrentOutPath.c_str());
+        }
+    }
+    isAudioPhase = false;
+    isAudioWavPhase = false;
+    convCurrentInPath = "";
+    convCurrentOutPath = "";
+}
+
+bool AssetConverterState::startOggConversion(const std::string& fullPath, const std::string& outPath, int fmt) {
+    cleanUpAudioConversion(false);
+
+    FILE* fIn = fopen(fullPath.c_str(), "rb");
+    if (!fIn) return false;
+
+    OggVorbis_File* vf = (OggVorbis_File*)malloc(sizeof(OggVorbis_File));
+    if (!vf) {
+        fclose(fIn);
+        return false;
+    }
+    memset(vf, 0, sizeof(OggVorbis_File));
+
+    if (ov_open_callbacks(fIn, vf, NULL, 0, s_convVorbisCallbacks) != 0) {
+        free(vf);
+        fclose(fIn);
+        return false;
+    }
+
+    vorbis_info* vi = ov_info(vf, -1);
+    if (!vi || vi->channels <= 0 || vi->channels > 2 || vi->rate <= 0) {
+        ov_clear(vf);
+        free(vf);
+        return false;
+    }
+
+    int origRate = vi->rate;
+    int targetRate = origRate;
+    if (fmt == 1) targetRate = 22050;
+    else if (fmt == 2) targetRate = 11025;
+
+    float step = (targetRate < origRate) ? ((float)origRate / targetRate) : 1.0f;
+    long totalOrigSamples = (long)ov_pcm_total(vf, -1);
+    uint32_t totalSamples = (totalOrigSamples > 0) ? (uint32_t)(totalOrigSamples / step) : 0;
+
+    FILE* fOut = fopen(outPath.c_str(), "wb");
+    if (!fOut) {
+        ov_clear(vf);
+        free(vf);
+        return false;
+    }
+
+    AdpcmEncoder::Header header;
+    memset(&header, 0, sizeof(header));
+    memcpy(header.magic, "SADP", 4);
+    header.sampleRate = targetRate;
+    header.numSamples = totalSamples;
+    header.channels = 1;
+    fwrite(&header, sizeof(header), 1, fOut);
+
+    convFIn = nullptr;
+    convFOut = fOut;
+    convVfPtr = vf;
+    convChannels = vi->channels;
+    convTargetRate = targetRate;
+    convStep = step;
+    convTotalSamples = totalSamples;
+    convSamplesProcessed = 0;
+    convCurrentInPath = fullPath;
+    convCurrentOutPath = outPath;
+    convStatePtr = new AdpcmEncoder::State();
+    isAudioPhase = true;
+    isAudioWavPhase = false;
+    return true;
+}
+
+bool AssetConverterState::startWavConversion(const std::string& wavPath, const std::string& adpPath, int fmt) {
+    cleanUpAudioConversion(false);
+
     FILE* fIn = fopen(wavPath.c_str(), "rb");
     if (!fIn) return false;
 
@@ -1524,14 +1640,16 @@ static bool convertWavToAdp(const std::string& wavPath, const std::string& adpPa
             foundFmt = true;
         } else if (memcmp(chunkId, "data", 4) == 0) {
             dataOffset = ftell(fIn);
-            totalSamples = chunkSize / (channels * (bitDepth / 8));
+            if (channels > 0 && bitDepth > 0) {
+                totalSamples = chunkSize / (channels * (bitDepth / 8));
+            }
             foundData = true;
         } else {
             fseek(fIn, chunkSize, SEEK_CUR);
         }
     }
 
-    if (!foundFmt || !foundData || bitDepth != 16) {
+    if (!foundFmt || !foundData || bitDepth != 16 || channels <= 0 || channels > 2 || origRate <= 0) {
         fclose(fIn);
         return false;
     }
@@ -1539,8 +1657,8 @@ static bool convertWavToAdp(const std::string& wavPath, const std::string& adpPa
     fseek(fIn, dataOffset, SEEK_SET);
 
     int targetRate = origRate;
-    if (globalFormat == 1) targetRate = 22050;
-    if (globalFormat == 2) targetRate = 11025;
+    if (fmt == 1) targetRate = 22050;
+    else if (fmt == 2) targetRate = 11025;
     float step = (targetRate < origRate) ? ((float)origRate / targetRate) : 1.0f;
 
     FILE* fOut = fopen(adpPath.c_str(), "wb");
@@ -1553,70 +1671,200 @@ static bool convertWavToAdp(const std::string& wavPath, const std::string& adpPa
     memset(&header, 0, sizeof(header));
     memcpy(header.magic, "SADP", 4);
     header.sampleRate = targetRate;
-    header.numSamples = 0;
+    header.numSamples = (totalSamples > 0) ? (uint32_t)(totalSamples / step) : 0;
     header.channels = 1;
     fwrite(&header, sizeof(header), 1, fOut);
 
-    AdpcmEncoder::State encState;
-    const int IN_BUF_SAMPLES = 4096;
-    int16_t* pcmBuf = (int16_t*)malloc(IN_BUF_SAMPLES * channels * sizeof(int16_t));
-    int16_t* monoBuf = (int16_t*)malloc(IN_BUF_SAMPLES * sizeof(int16_t));
-    uint8_t* adpcmOut = (uint8_t*)malloc(IN_BUF_SAMPLES);
+    convFIn = fIn;
+    convFOut = fOut;
+    convVfPtr = nullptr;
+    convChannels = channels;
+    convTargetRate = targetRate;
+    convStep = step;
+    convWavDataOffset = dataOffset;
+    convWavTotalSamples = totalSamples;
+    convWavSamplesReadTotal = 0;
+    convTotalSamples = header.numSamples;
+    convSamplesProcessed = 0;
+    convCurrentInPath = wavPath;
+    convCurrentOutPath = adpPath;
+    convStatePtr = new AdpcmEncoder::State();
+    isAudioPhase = true;
+    isAudioWavPhase = true;
+    return true;
+}
 
-    uint32_t totalEncodedSamples = 0;
-    uint32_t samplesReadTotal = 0;
-
-    if (pcmBuf && monoBuf && adpcmOut) {
-        while (samplesReadTotal < totalSamples) {
-            uint32_t toRead = std::min((uint32_t)IN_BUF_SAMPLES, totalSamples - samplesReadTotal);
-            if (toRead == 0) break;
-            
-            size_t bytesRead = fread(pcmBuf, 1, toRead * channels * sizeof(int16_t), fIn);
-            if (bytesRead == 0) break;
-
-            int samplesRead = bytesRead / (channels * sizeof(int16_t));
-            samplesReadTotal += samplesRead;
-            int newSamples = (int)(samplesRead / step);
-
-            for (int i = 0; i < newSamples; i++) {
-                int srcIdx = (int)(i * step);
-                if (srcIdx >= samplesRead) srcIdx = samplesRead - 1;
-                if (channels == 2) {
-                    monoBuf[i] = (int16_t)(((int32_t)pcmBuf[srcIdx*2] + (int32_t)pcmBuf[srcIdx*2+1]) / 2);
-                } else {
-                    monoBuf[i] = pcmBuf[srcIdx];
-                }
-            }
-
-            size_t outBytes = AdpcmEncoder::encodeIMABuf(monoBuf, newSamples, encState, adpcmOut);
-            if (outBytes > 0) {
-                fwrite(adpcmOut, 1, outBytes, fOut);
-                totalEncodedSamples += newSamples;
-            }
-        }
-
-        if (encState.hasPending) {
-            uint8_t lastByte = encState.pendingNibble;
-            fwrite(&lastByte, 1, 1, fOut);
-        }
-
-        fseek(fOut, 0, SEEK_SET);
-        header.numSamples = totalEncodedSamples;
-        fwrite(&header, sizeof(header), 1, fOut);
+bool AssetConverterState::processAudioChunk() {
+    if (!isAudioPhase || !convStatePtr || !convFOut) {
+        cleanUpAudioConversion(false);
+        return false;
     }
 
-    if (pcmBuf) free(pcmBuf);
-    if (monoBuf) free(monoBuf);
-    if (adpcmOut) free(adpcmOut);
-    fclose(fIn);
-    fclose(fOut);
+    AdpcmEncoder::State* state = (AdpcmEncoder::State*)convStatePtr;
 
-    remove(wavPath.c_str());
+    if (isAudioWavPhase) {
+        if (!convFIn) {
+            cleanUpAudioConversion(false);
+            return false;
+        }
+
+        const uint32_t SAMPLES_PER_TICK = 8192;
+        int16_t pcmBuf[8192 * 2];
+        int16_t monoBuf[8192];
+        uint8_t adpcmOut[8192];
+
+        uint32_t remainingInFile = (convWavTotalSamples > convWavSamplesReadTotal) ? (convWavTotalSamples - convWavSamplesReadTotal) : 0;
+        uint32_t toRead = std::min(SAMPLES_PER_TICK, remainingInFile);
+
+        if (toRead == 0) {
+            if (state->hasPending) {
+                uint8_t lastByte = state->pendingNibble;
+                fwrite(&lastByte, 1, 1, convFOut);
+            }
+            fseek(convFOut, 0, SEEK_SET);
+            AdpcmEncoder::Header header;
+            memset(&header, 0, sizeof(header));
+            memcpy(header.magic, "SADP", 4);
+            header.sampleRate = convTargetRate;
+            header.numSamples = convSamplesProcessed;
+            header.channels = 1;
+            fwrite(&header, sizeof(header), 1, convFOut);
+
+            std::string inPath = convCurrentInPath;
+            cleanUpAudioConversion(true);
+            remove(inPath.c_str());
+            currentConvertIdx++;
+            return false;
+        }
+
+        size_t bytesRead = fread(pcmBuf, 1, toRead * convChannels * sizeof(int16_t), convFIn);
+        if (bytesRead == 0) {
+            if (state->hasPending) {
+                uint8_t lastByte = state->pendingNibble;
+                fwrite(&lastByte, 1, 1, convFOut);
+            }
+            fseek(convFOut, 0, SEEK_SET);
+            AdpcmEncoder::Header header;
+            memset(&header, 0, sizeof(header));
+            memcpy(header.magic, "SADP", 4);
+            header.sampleRate = convTargetRate;
+            header.numSamples = convSamplesProcessed;
+            header.channels = 1;
+            fwrite(&header, sizeof(header), 1, convFOut);
+
+            std::string inPath = convCurrentInPath;
+            cleanUpAudioConversion(true);
+            remove(inPath.c_str());
+            currentConvertIdx++;
+            return false;
+        }
+
+        int samplesRead = (int)(bytesRead / (convChannels * sizeof(int16_t)));
+        convWavSamplesReadTotal += samplesRead;
+        int newSamples = (int)(samplesRead / convStep);
+        if (newSamples > 8192) newSamples = 8192;
+
+        for (int i = 0; i < newSamples; i++) {
+            int srcIdx = (int)(i * convStep);
+            if (srcIdx >= samplesRead) srcIdx = samplesRead - 1;
+            if (convChannels == 2) {
+                monoBuf[i] = (int16_t)(((int32_t)pcmBuf[srcIdx * 2] + (int32_t)pcmBuf[srcIdx * 2 + 1]) / 2);
+            } else {
+                monoBuf[i] = pcmBuf[srcIdx];
+            }
+        }
+
+        size_t outBytes = AdpcmEncoder::encodeIMABuf(monoBuf, newSamples, *state, adpcmOut);
+        if (outBytes > 0) {
+            fwrite(adpcmOut, 1, outBytes, convFOut);
+            convSamplesProcessed += newSamples;
+        }
+
+        float fileProgress = (convWavTotalSamples > 0) ? (float)convWavSamplesReadTotal / convWavTotalSamples : 0.0f;
+        fileProgress = std::max(0.0f, std::min(1.0f, fileProgress));
+        if (!convertQueue.empty()) {
+            conversionProgress = ((float)currentConvertIdx + fileProgress) / (float)convertQueue.size();
+        }
+        std::string filename = convCurrentInPath.substr(rootDir.size());
+        conversionStatus = "Encoding WAV (" + std::to_string((int)(fileProgress * 100)) + "%): " + filename;
+        return true;
+    }
+
+    if (!convVfPtr) {
+        cleanUpAudioConversion(false);
+        return false;
+    }
+
+    OggVorbis_File* vf = (OggVorbis_File*)convVfPtr;
+    const int SAMPLES_PER_TICK = 8192;
+    int16_t pcmBuf[8192 * 2];
+    int16_t monoBuf[8192];
+    uint8_t adpcmOut[8192];
+
+    int bitstream = 0;
+    long readBytes = ov_read(vf, (char*)pcmBuf, SAMPLES_PER_TICK * convChannels * sizeof(int16_t), &bitstream);
+
+    if (readBytes < 0) {
+        if (readBytes == OV_HOLE) {
+            return true;
+        }
+        readBytes = 0;
+    }
+
+    if (readBytes == 0) {
+        if (state->hasPending) {
+            uint8_t lastByte = state->pendingNibble;
+            fwrite(&lastByte, 1, 1, convFOut);
+        }
+        fseek(convFOut, 0, SEEK_SET);
+        AdpcmEncoder::Header header;
+        memset(&header, 0, sizeof(header));
+        memcpy(header.magic, "SADP", 4);
+        header.sampleRate = convTargetRate;
+        header.numSamples = convSamplesProcessed;
+        header.channels = 1;
+        fwrite(&header, sizeof(header), 1, convFOut);
+
+        std::string inPath = convCurrentInPath;
+        cleanUpAudioConversion(true);
+        remove(inPath.c_str());
+        currentConvertIdx++;
+        return false;
+    }
+
+    int samplesRead = (int)(readBytes / (convChannels * sizeof(int16_t)));
+    int newSamples = (int)(samplesRead / convStep);
+    if (newSamples > 8192) newSamples = 8192;
+
+    for (int i = 0; i < newSamples; i++) {
+        int srcIdx = (int)(i * convStep);
+        if (srcIdx >= samplesRead) srcIdx = samplesRead - 1;
+        if (convChannels == 2) {
+            monoBuf[i] = (int16_t)(((int32_t)pcmBuf[srcIdx * 2] + (int32_t)pcmBuf[srcIdx * 2 + 1]) / 2);
+        } else {
+            monoBuf[i] = pcmBuf[srcIdx];
+        }
+    }
+
+    size_t outBytes = AdpcmEncoder::encodeIMABuf(monoBuf, newSamples, *state, adpcmOut);
+    if (outBytes > 0) {
+        fwrite(adpcmOut, 1, outBytes, convFOut);
+        convSamplesProcessed += newSamples;
+    }
+
+    float fileProgress = (convTotalSamples > 0) ? (float)convSamplesProcessed / convTotalSamples : 0.0f;
+    fileProgress = std::max(0.0f, std::min(1.0f, fileProgress));
+    if (!convertQueue.empty()) {
+        conversionProgress = ((float)currentConvertIdx + fileProgress) / (float)convertQueue.size();
+    }
+    std::string filename = convCurrentInPath.substr(rootDir.size());
+    conversionStatus = "Encoding Audio (" + std::to_string((int)(fileProgress * 100)) + "%): " + filename;
     return true;
 }
 
 void AssetConverterState::startConversionMode(ConversionMode mode) {
     stopAudioSample();
+    cleanUpAudioConversion(false);
     std::string activeAudioPath = audioPreviewFullPath;
     closeAudioPreview();
     closeImagePreview();
@@ -1693,6 +1941,11 @@ void AssetConverterState::startConversionMode(ConversionMode mode) {
 }
 
 void AssetConverterState::processConversion() {
+    if (isAudioPhase) {
+        processAudioChunk();
+        return;
+    }
+
     if (currentConvertIdx >= (int)convertQueue.size()) {
         isConverting = false;
         for (auto& f : files) f.isSelected = false;
@@ -1708,138 +1961,71 @@ void AssetConverterState::processConversion() {
     conversionStatus = "Processing: " + file;
     conversionProgress = (float)currentConvertIdx / convertQueue.size();
 
-    if (Paths::fileExists(fullPath)) {
-        if (lowerFile.find(".ogg") != std::string::npos) {
-            std::string baseWithoutExt = fullPath.substr(0, fullPath.find_last_of("."));
-            std::string outPath = baseWithoutExt + ".adp";
-            conversionStatus = "Encoding Audio (ADP): " + file;
+    if (!Paths::fileExists(fullPath)) {
+        currentConvertIdx++;
+        return;
+    }
 
-            FILE* fIn = fopen(fullPath.c_str(), "rb");
-            if (fIn) {
-                OggVorbis_File vf;
-                memset(&vf, 0, sizeof(OggVorbis_File));
-                if (ov_open_callbacks(fIn, &vf, NULL, 0, s_convVorbisCallbacks) == 0) {
-                    vorbis_info* vi = ov_info(&vf, -1);
-                    int origRate = vi->rate;
-                    int channels = vi->channels;
+    if (lowerFile.find(".ogg") != std::string::npos) {
+        std::string baseWithoutExt = fullPath.substr(0, fullPath.find_last_of("."));
+        std::string outPath = baseWithoutExt + ".adp";
+        int fmt = globalFormat;
+        auto it = customSettings.find(fullPath);
+        if (it != customSettings.end()) fmt = it->second.second;
 
-                    int targetRate = origRate;
-                    if (globalFormat == 1) targetRate = 22050;
-                    if (globalFormat == 2) targetRate = 11025;
-
-                    float step = (targetRate < origRate) ? ((float)origRate / targetRate) : 1.0f;
-
-                    FILE* fOut = fopen(outPath.c_str(), "wb");
-                    if (fOut) {
-                        AdpcmEncoder::Header header;
-                        memset(&header, 0, sizeof(header));
-                        memcpy(header.magic, "SADP", 4);
-                        header.sampleRate = targetRate;
-                        header.numSamples = 0;
-                        header.channels = 1;
-                        fwrite(&header, sizeof(header), 1, fOut);
-
-                        AdpcmEncoder::State encState;
-                        const int IN_BUF_SAMPLES = 4096;
-                        int16_t* pcmBuf = (int16_t*)malloc(IN_BUF_SAMPLES * channels * sizeof(int16_t));
-                        int16_t* monoBuf = (int16_t*)malloc(IN_BUF_SAMPLES * sizeof(int16_t));
-                        uint8_t* adpcmOut = (uint8_t*)malloc(IN_BUF_SAMPLES);
-
-                        uint32_t totalEncodedSamples = 0;
-
-                        if (pcmBuf && monoBuf && adpcmOut) {
-                            int bitstream = 0;
-                            while (true) {
-                                long readBytes = ov_read(&vf, (char*)pcmBuf, IN_BUF_SAMPLES * channels * sizeof(int16_t), &bitstream);
-                                if (readBytes < 0) {
-                                    if (readBytes == OV_HOLE) continue;
-                                    break;
-                                }
-                                if (readBytes == 0) break;
-
-                                int samplesRead = readBytes / (channels * sizeof(int16_t));
-                                int newSamples = (int)(samplesRead / step);
-
-                                for (int i = 0; i < newSamples; i++) {
-                                    int srcIdx = (int)(i * step);
-                                    if (srcIdx >= samplesRead) srcIdx = samplesRead - 1;
-                                    if (channels == 2) {
-                                        monoBuf[i] = (int16_t)(((int32_t)pcmBuf[srcIdx*2] + (int32_t)pcmBuf[srcIdx*2+1]) / 2);
-                                    } else {
-                                        monoBuf[i] = pcmBuf[srcIdx];
-                                    }
-                                }
-
-                                size_t outBytes = AdpcmEncoder::encodeIMABuf(monoBuf, newSamples, encState, adpcmOut);
-                                if (outBytes > 0) {
-                                    fwrite(adpcmOut, 1, outBytes, fOut);
-                                    totalEncodedSamples += newSamples;
-                                }
-                            }
-
-                            if (encState.hasPending) {
-                                uint8_t lastByte = encState.pendingNibble;
-                                fwrite(&lastByte, 1, 1, fOut);
-                            }
-
-                            fseek(fOut, 0, SEEK_SET);
-                            header.numSamples = totalEncodedSamples;
-                            fwrite(&header, sizeof(header), 1, fOut);
-                        }
-
-                        if (pcmBuf) free(pcmBuf);
-                        if (monoBuf) free(monoBuf);
-                        if (adpcmOut) free(adpcmOut);
-                        fclose(fOut);
-                        ov_clear(&vf);
-                        remove(fullPath.c_str());
-                    } else {
-                        ov_clear(&vf);
-                    }
-                } else {
-                    fclose(fIn);
-                }
-            }
+        conversionStatus = "Opening Audio: " + file;
+        if (!startOggConversion(fullPath, outPath, fmt)) {
             currentConvertIdx++;
-        } else if (lowerFile.find(".wav") != std::string::npos) {
-            std::string baseWithoutExt = fullPath.substr(0, fullPath.find_last_of("."));
-            std::string outPath = baseWithoutExt + ".adp";
-            conversionStatus = "Encoding Audio (ADP): " + file;
-            convertWavToAdp(fullPath, outPath, globalFormat);
-            currentConvertIdx++;
-        } else if (lowerFile.find(".adp") != std::string::npos) {
-            std::string baseWithoutExt = fullPath.substr(0, fullPath.find_last_of("."));
-            std::string outPath = baseWithoutExt + ".wav";
-            conversionStatus = "Deconverting ADP -> WAV: " + file;
-            convertAdpToWav(fullPath, outPath);
-            currentConvertIdx++;
-        } else if (lowerFile.find(".rawtex") != std::string::npos) {
-            std::string baseWithoutExt = fullPath.substr(0, fullPath.find_last_of("."));
-            std::string outPath = baseWithoutExt + ".png";
-            conversionStatus = "Deconverting RAW -> PNG: " + file;
-            convertRawTexToPng(fullPath, outPath);
-            currentConvertIdx++;
-        } else if (lowerFile.find(".t3x") != std::string::npos) {
-            std::string baseWithoutExt = fullPath.substr(0, fullPath.find_last_of("."));
-            std::string outPath = baseWithoutExt + ".png";
-            conversionStatus = "Deconverting T3X -> PNG: " + file;
-            convertT3XToPng(fullPath, outPath);
-            currentConvertIdx++;
-        } else if (lowerFile.find(".png") != std::string::npos || lowerFile.find(".jpg") != std::string::npos || lowerFile.find(".jpeg") != std::string::npos) {
-            std::string baseWithoutExt = fullPath.substr(0, fullPath.find_last_of("."));
-            std::string outPath = baseWithoutExt + ".rawtex";
-            conversionStatus = "Converting PNG -> RAW: " + file;
-            
-            int w = 0, h = 0, c = 0;
-            unsigned char* data = stbi_load(fullPath.c_str(), &w, &h, &c, 4);
+        }
+        return;
+    } else if (lowerFile.find(".wav") != std::string::npos) {
+        std::string baseWithoutExt = fullPath.substr(0, fullPath.find_last_of("."));
+        std::string outPath = baseWithoutExt + ".adp";
+        int fmt = globalFormat;
+        auto it = customSettings.find(fullPath);
+        if (it != customSettings.end()) fmt = it->second.second;
 
-            if (data) {
-                if (w > maxTextureSize || h > maxTextureSize) {
-                    float scaleFactor = (w > h) ? ((float)maxTextureSize / w) : ((float)maxTextureSize / h);
-                    int newW = (int)(w * scaleFactor);
-                    int newH = (int)(h * scaleFactor);
+        conversionStatus = "Opening WAV: " + file;
+        if (!startWavConversion(fullPath, outPath, fmt)) {
+            currentConvertIdx++;
+        }
+        return;
+    } else if (lowerFile.find(".adp") != std::string::npos) {
+        std::string baseWithoutExt = fullPath.substr(0, fullPath.find_last_of("."));
+        std::string outPath = baseWithoutExt + ".wav";
+        conversionStatus = "Deconverting ADP -> WAV: " + file;
+        convertAdpToWav(fullPath, outPath);
+        currentConvertIdx++;
+    } else if (lowerFile.find(".rawtex") != std::string::npos) {
+        std::string baseWithoutExt = fullPath.substr(0, fullPath.find_last_of("."));
+        std::string outPath = baseWithoutExt + ".png";
+        conversionStatus = "Deconverting RAW -> PNG: " + file;
+        convertRawTexToPng(fullPath, outPath);
+        currentConvertIdx++;
+    } else if (lowerFile.find(".t3x") != std::string::npos) {
+        std::string baseWithoutExt = fullPath.substr(0, fullPath.find_last_of("."));
+        std::string outPath = baseWithoutExt + ".png";
+        conversionStatus = "Deconverting T3X -> PNG: " + file;
+        convertT3XToPng(fullPath, outPath);
+        currentConvertIdx++;
+    } else if (lowerFile.find(".png") != std::string::npos || lowerFile.find(".jpg") != std::string::npos || lowerFile.find(".jpeg") != std::string::npos) {
+        std::string baseWithoutExt = fullPath.substr(0, fullPath.find_last_of("."));
+        std::string outPath = baseWithoutExt + ".rawtex";
+        conversionStatus = "Converting PNG -> RAW: " + file;
+        
+        int w = 0, h = 0, c = 0;
+        unsigned char* data = stbi_load(fullPath.c_str(), &w, &h, &c, 4);
 
-                    unsigned char* resizedData = (unsigned char*)malloc(newW * newH * 4);
+        if (data && w > 0 && h > 0) {
+            if (w > maxTextureSize || h > maxTextureSize) {
+                float scaleFactor = (w > h) ? ((float)maxTextureSize / w) : ((float)maxTextureSize / h);
+                int newW = (int)(w * scaleFactor);
+                int newH = (int)(h * scaleFactor);
+                if (newW < 1) newW = 1;
+                if (newH < 1) newH = 1;
+
+                unsigned char* resizedData = (unsigned char*)malloc((size_t)newW * newH * 4);
+                if (resizedData) {
                     for (int ry = 0; ry < newH; ry++) {
                         for (int rx = 0; rx < newW; rx++) {
                             int sx = (int)(rx / scaleFactor);
@@ -1867,138 +2053,94 @@ void AssetConverterState::processConversion() {
                         }
                     }
                 }
+            }
 
-                int pw = 1, ph = 1;
-                while(pw < w) pw *= 2;
-                while(ph < h) ph *= 2;
+            int pw = 1, ph = 1;
+            while (pw < w && pw < maxTextureSize) pw *= 2;
+            while (ph < h && ph < maxTextureSize) ph *= 2;
+            if (pw < w) pw = maxTextureSize;
+            if (ph < h) ph = maxTextureSize;
+
+            int imgFormat = globalFormat;
+            auto it = customSettings.find(fullPath);
+            if (it != customSettings.end()) imgFormat = it->second.first;
+
+            size_t bytesPerPixel = (imgFormat == 0) ? 4 : 2;
+            size_t swizzleSize = (size_t)pw * ph * bytesPerPixel;
+            uint8_t* swizzled = (uint8_t*)malloc(swizzleSize);
+
+            if (swizzled) {
+                memset(swizzled, 0, swizzleSize);
+
+                if (imgFormat == 0) { // RGBA8
+                    uint32_t* swizzled32 = (uint32_t*)swizzled;
+                    for (int y = 0; y < h; y++) {
+                        for (int x = 0; x < w; x++) {
+                            int src = (y * w + x) * 4;
+                            uint32_t px = (data[src] << 24) | (data[src + 1] << 16) | (data[src + 2] << 8) | data[src + 3];
+                            uint32_t i = (x & 7) | ((y & 7) << 8);
+                            i = (i ^ (i << 2)) & 0x1313; i = (i ^ (i << 1)) & 0x1515;
+                            uint32_t tx = x >> 3; uint32_t ty = y >> 3;
+                            uint32_t tile_start = (ty * (pw >> 3) + tx) << 6;
+                            uint32_t local_idx = (i & 0xFF) | (((i >> 8) & 0xFF) << 1);
+                            swizzled32[tile_start + local_idx] = px;
+                        }
+                    }
+                } else if (imgFormat == 1) { // RGBA4444
+                    uint16_t* swizzled16 = (uint16_t*)swizzled;
+                    for (int y = 0; y < h; y++) {
+                        for (int x = 0; x < w; x++) {
+                            int src = (y * w + x) * 4;
+                            uint16_t px = ((data[src] >> 4) << 12) | ((data[src + 1] >> 4) << 8) | ((data[src + 2] >> 4) << 4) | (data[src + 3] >> 4);
+                            uint32_t i = (x & 7) | ((y & 7) << 8);
+                            i = (i ^ (i << 2)) & 0x1313; i = (i ^ (i << 1)) & 0x1515;
+                            uint32_t tx = x >> 3; uint32_t ty = y >> 3;
+                            uint32_t tile_start = (ty * (pw >> 3) + tx) << 5;
+                            uint32_t local_idx = (i & 0xFF) | (((i >> 8) & 0xFF) << 1);
+                            swizzled16[tile_start + (local_idx >> 1)] = px;
+                        }
+                    }
+                } else if (imgFormat == 2) { // RGB565
+                    uint16_t* swizzled16 = (uint16_t*)swizzled;
+                    for (int y = 0; y < h; y++) {
+                        for (int x = 0; x < w; x++) {
+                            int src = (y * w + x) * 4;
+                            uint16_t px = ((data[src] >> 3) << 11) | ((data[src + 1] >> 2) << 5) | (data[src + 2] >> 3);
+                            uint32_t i = (x & 7) | ((y & 7) << 8);
+                            i = (i ^ (i << 2)) & 0x1313; i = (i ^ (i << 1)) & 0x1515;
+                            uint32_t tx = x >> 3; uint32_t ty = y >> 3;
+                            uint32_t tile_start = (ty * (pw >> 3) + tx) << 5;
+                            uint32_t local_idx = (i & 0xFF) | (((i >> 8) & 0xFF) << 1);
+                            swizzled16[tile_start + (local_idx >> 1)] = px;
+                        }
+                    }
+                }
 
                 FILE* fOut = fopen(outPath.c_str(), "wb");
                 if (fOut) {
-                    int imgFormat = globalFormat;
-                    auto it = customSettings.find(fullPath);
-                    if (it != customSettings.end()) imgFormat = it->second.first;
-                    
                     RawTexHeader header;
                     if (imgFormat == 0) memcpy(header.magic, "RWTX", 4);
                     else if (imgFormat == 1) memcpy(header.magic, "RWT4", 4);
                     else if (imgFormat == 2) memcpy(header.magic, "RWT5", 4);
-                    
+
                     header.width = pw; header.height = ph;
                     header.origW = w; header.origH = h;
                     fwrite(&header, sizeof(RawTexHeader), 1, fOut);
-                    
-                    if (imgFormat == 0) { // RGBA8
-                        uint32_t* swizzled = (uint32_t*)linearAlloc(pw * ph * 4);
-                        if (swizzled) {
-                            memset(swizzled, 0, pw * ph * 4);
-                            for(int y=0; y<h; y++) {
-                                for(int x=0; x<w; x++) {
-                                    int src = (y*w+x)*4;
-                                    uint32_t px = (data[src]<<24)|(data[src+1]<<16)|(data[src+2]<<8)|data[src+3];
-                                    uint32_t i = (x & 7) | ((y & 7) << 8);
-                                    i = (i ^ (i << 2)) & 0x1313; i = (i ^ (i << 1)) & 0x1515;
-                                    uint32_t tx = x >> 3; uint32_t ty = y >> 3;
-                                    uint32_t tile_start = (ty * (pw >> 3) + tx) << 6;
-                                    uint32_t local_idx = (i & 0xFF) | (((i >> 8) & 0xFF) << 1);
-                                    swizzled[tile_start + local_idx] = px;
-                                }
-                            }
-                            fwrite(swizzled, pw * ph * 4, 1, fOut);
-                            linearFree(swizzled);
-                        }
-                    } else if (imgFormat == 1) { // RGBA4444
-                        uint16_t* swizzled = (uint16_t*)linearAlloc(pw * ph * 2);
-                        if (swizzled) {
-                            memset(swizzled, 0, pw * ph * 2);
-                            for(int y=0; y<h; y++) {
-                                for(int x=0; x<w; x++) {
-                                    int src = (y*w+x)*4;
-                                    uint16_t px = ((data[src]>>4)<<12) | ((data[src+1]>>4)<<8) | ((data[src+2]>>4)<<4) | (data[src+3]>>4);
-                                    uint32_t i = (x & 7) | ((y & 7) << 8);
-                                    i = (i ^ (i << 2)) & 0x1313; i = (i ^ (i << 1)) & 0x1515;
-                                    uint32_t tx = x >> 3; uint32_t ty = y >> 3;
-                                    uint32_t tile_start = (ty * (pw >> 3) + tx) << 5;
-                                    uint32_t local_idx = (i & 0xFF) | (((i >> 8) & 0xFF) << 1);
-                                    swizzled[tile_start + (local_idx>>1)] = px;
-                                }
-                            }
-                            fwrite(swizzled, pw * ph * 2, 1, fOut);
-                            linearFree(swizzled);
-                        }
-                    } else if (imgFormat == 2) { // RGB565
-                        uint16_t* swizzled = (uint16_t*)linearAlloc(pw * ph * 2);
-                        if (swizzled) {
-                            memset(swizzled, 0, pw * ph * 2);
-                            for(int y=0; y<h; y++) {
-                                for(int x=0; x<w; x++) {
-                                    int src = (y*w+x)*4;
-                                    uint16_t px = ((data[src]>>3)<<11) | ((data[src+1]>>2)<<5) | (data[src+2]>>3);
-                                    uint32_t i = (x & 7) | ((y & 7) << 8);
-                                    i = (i ^ (i << 2)) & 0x1313; i = (i ^ (i << 1)) & 0x1515;
-                                    uint32_t tx = x >> 3; uint32_t ty = y >> 3;
-                                    uint32_t tile_start = (ty * (pw >> 3) + tx) << 5;
-                                    uint32_t local_idx = (i & 0xFF) | (((i >> 8) & 0xFF) << 1);
-                                    swizzled[tile_start + (local_idx>>1)] = px;
-                                }
-                            }
-                            fwrite(swizzled, pw * ph * 2, 1, fOut);
-                            linearFree(swizzled);
-                        }
-                    }
+
+                    size_t written = fwrite(swizzled, 1, swizzleSize, fOut);
                     fclose(fOut);
-                    remove(fullPath.c_str());
-                }
-                stbi_image_free(data);
-            }
-            currentConvertIdx++;
-        } else if (lowerFile.find(".ogg") != std::string::npos) {
-            std::string outPath = currentDir + file.substr(0, file.find_last_of(".")) + ".adp";
-            conversionStatus = "Opening Audio: " + file;
 
-            convFIn = fopen(fullPath.c_str(), "rb");
-            if (convFIn) {
-                OggVorbis_File* vf = (OggVorbis_File*)malloc(sizeof(OggVorbis_File));
-                memset(vf, 0, sizeof(OggVorbis_File));
-                if (ov_open_callbacks(convFIn, vf, NULL, 0, s_convVorbisCallbacks) == 0) {
-                    vorbis_info* vi = ov_info(vf, -1);
-                    convChannels = vi->channels;
-                    
-                    int origRate = vi->rate;
-                    int targetRate = origRate;
-                    auto it = customSettings.find(fullPath);
-                    if (it != customSettings.end()) {
-                        if (it->second.second == 1) targetRate = 22050;
-                        if (it->second.second == 2) targetRate = 11025;
-                    }
-                    float step = 1.0f;
-                    if (targetRate < origRate) step = (float)origRate / targetRate;
-                    
-                    long totalOrigSamples = (long)ov_pcm_total(vf, -1);
-                    convTotalSamples = (uint32_t)(totalOrigSamples / step);
-                    
-                    convFOut = fopen(outPath.c_str(), "wb");
-                    if (convFOut && convTotalSamples > 0) {
-                        AdpcmEncoder::Header header;
-                        memset(&header, 0, sizeof(header));
-                        memcpy(header.magic, "SADP", 4);
-                        header.sampleRate = targetRate;
-                        header.numSamples = convTotalSamples;
-                        header.channels = 1;
-                        fwrite(&header, sizeof(header), 1, convFOut);
-
-                        convVfPtr = vf;
-                        convStatePtr = new AdpcmEncoder::State();
-                        convSamplesProcessed = 0;
-                        isAudioPhase = true;
-                        return;
+                    if (written == swizzleSize) {
+                        remove(fullPath.c_str());
+                    } else {
+                        remove(outPath.c_str());
                     }
                 }
-                if (vf) { ov_clear(vf); free(vf); }
+                free(swizzled);
             }
-            currentConvertIdx++;
-        } else {
-            currentConvertIdx++;
+            stbi_image_free(data);
         }
+        currentConvertIdx++;
     } else {
         currentConvertIdx++;
     }

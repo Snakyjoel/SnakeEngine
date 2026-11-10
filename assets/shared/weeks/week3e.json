@@ -13,32 +13,45 @@
 	"songs": [
 		[
 			"Pico Erect",
-			"pico",
+			"picopixel",
 			[
 				148,
 				22,
 				83
-			]
+			],
+			{
+				"erect": 9,
+				"nightmare": 10
+			}
 		],
 		[
 			"Philly Nice Erect",
-			"pico",
+			"picopixel",
 			[
 				148,
 				22,
 				83
-			]
+			],
+			{
+				"erect": 8,
+				"nightmare": 9
+			}
 		],
 		[
 			"Blammed Erect",
-			"pico",
+			"picopixel",
 			[
 				148,
 				22,
 				83
-			]
+			],
+			{
+				"erect": 11,
+				"nightmare": 12
+			}
 		]
 	],
 	"hideStoryMode": true,
-	"weekName": "Week 3 Erect"
+	"weekName": "Week 3 Erect",
+	"album": "volume3"
 }

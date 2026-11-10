@@ -5,7 +5,6 @@
 #include "../objects/AccuracyDisplay.hpp"
 #include <vector>
 #include <string>
-#include <map>
 #include <deque>
 #include <unordered_map>
 #include <unordered_set>
@@ -22,9 +21,10 @@ public:
         AsyncLoadRequest::Type type;
         int         weekIndex = -1;
         std::string resolvedPath;
-        void*       buffer    = nullptr;
-        size_t      size      = 0;
     };
+
+    StoryMenuState();
+    ~StoryMenuState() override;
 
     void init() override;
     void update(float dt) override;
@@ -46,10 +46,8 @@ private:
 
     std::string pendingDiffSuffix;
     std::string pendingIntroVideo;
-    bool        pendingIsMod    = false;
-    std::string pendingModFolder;
 
-    // ── Background loading thread ──────────────────────────────────────────
+    // Background loading thread
     Thread     loadThread    = nullptr;
     LightLock  loadLock;
     LightEvent loadEvent;
@@ -69,13 +67,13 @@ private:
     std::string     activeDiffName;
     bool            activeDiffPathExists = false;
 
+    std::unordered_map<std::string, bool> bannerExistsCache;
     bool weekBannerFileExists(const std::string& weekName);
 
     float loadingAngle      = 0.0f;
     int   lastSelectedCheck = -1;
     int   lastDiffCheck     = -1;
     bool  isFirstDiffLoad   = true;
-    // ──────────────────────────────────────────────────────────────────────
 
     // Touch
     bool touchActive = false;
@@ -84,7 +82,6 @@ private:
     float lastTouchY = 0.0f;
     float touchStartLerp = 0.0f;
     float scrollVelocity = 0.0f;
-    float touchHoldTime = 0.0f;
 
     C2D_SpriteSheet tracksSheet = nullptr;
     C2D_Image       tracksImg   = {};
@@ -101,10 +98,23 @@ private:
 
     C2D_Font vcrFont = nullptr;
     C2D_TextBuf vcrFontBuf = nullptr;
-    float drawWrappedText(const std::string& text, float x, float y, float scale, float wrapWidth, u32 color);
 
-    void updateText();
+    struct CachedSongLine {
+        std::string text;
+        float y;
+    };
+    std::vector<CachedSongLine> cachedSongLines;
+    std::vector<std::string>    cachedWeekDisplayNames;
+    std::vector<bool>           cachedWeekLocked;
+    std::string                 cachedStoryName;
+    std::string                 cachedScoreStr;
+    std::string                 cachedUpperDiffStr;
+
+    void updateSongList();
+    void updateHeaderInfo();
+
     void updateDifficulties();
+    bool weekIsLocked(const std::string& weekName);
 
     // Async loading
     static void threadMain(void* arg);

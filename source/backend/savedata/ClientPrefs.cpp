@@ -51,6 +51,7 @@ float ClientPrefs::noteUnderlayAlpha = 0.0f;
 bool ClientPrefs::opponentUnderlay = true;
 bool ClientPrefs::acceptedEgg = false;
 bool ClientPrefs::eggInteractionOccurred = false;
+bool ClientPrefs::inEggDuel = false;
 int ClientPrefs::fpsLimit = 60;
 
 unsigned int ClientPrefs::noteKeys[4][2] = {
@@ -256,6 +257,9 @@ void ClientPrefs::loadSettings() {
     val = json_object_get(root, "eggInteractionOccurred");
     if (val && json_is_boolean(val)) eggInteractionOccurred = json_is_true(val);
 
+    val = json_object_get(root, "inEggDuel");
+    if (val && json_is_boolean(val)) inEggDuel = json_is_true(val);
+
     val = json_object_get(root, "fpsLimit");
     if (val && json_is_integer(val)) fpsLimit = (int)json_integer_value(val);
     
@@ -313,6 +317,7 @@ void ClientPrefs::saveSettings() {
     json_object_set_new(root, "opponentUnderlay", opponentUnderlay ? json_true() : json_false());
     json_object_set_new(root, "acceptedEgg", acceptedEgg ? json_true() : json_false());
     json_object_set_new(root, "eggInteractionOccurred", eggInteractionOccurred ? json_true() : json_false());
+    json_object_set_new(root, "inEggDuel", inEggDuel ? json_true() : json_false());
     json_object_set_new(root, "fpsLimit", json_integer(fpsLimit));
 
     

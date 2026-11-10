@@ -1,3 +1,4 @@
+//I need to recode this bullshit
 #pragma once
 #include "../backend/MusicBeatState.hpp"
 #include "Achievements.hpp"
@@ -19,6 +20,7 @@ public:
 private:
     bool isStoryMode;
     bool fromDebug = false;
+    bool isExiting = false;
     std::string name;
     std::string difficulty;
 

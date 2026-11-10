@@ -2,6 +2,7 @@
 #include "MainMenuState.hpp"
 #include "PlayState.hpp"
 #include "../backend/AudioEngine.hpp"
+#include "../backend/Macros.hpp"
 #include <math.h>
 #include <sstream>
 #include <fstream>
@@ -16,6 +17,7 @@ bool OptionsMenuState::onPlayState = false;
 bool OptionsMenuState::isStoryMode = false;
 std::string OptionsMenuState::songName = "";
 std::string OptionsMenuState::difficultyName = "";
+std::string OptionsMenuState::modDir = "";
 WeekData OptionsMenuState::storyWeek = WeekData();
 int OptionsMenuState::storySongIdx = 0;
 
@@ -620,7 +622,7 @@ void OptionsMenuState::update(float dt) {
     // MAIN
     if (menuState == STATE_MAIN) {
         if (keyJustPressed(KEY_B)) {
-            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
             OptionManager::get().saveValues();
             if (onPlayState) {
                 onPlayState = false;
@@ -628,25 +630,26 @@ void OptionsMenuState::update(float dt) {
                 if (isStoryMode) {
                     switchState(new PlayState(storyWeek, storySongIdx, difficultyName));
                 } else {
-                    switchState(new PlayState(songName, difficultyName));
+                    switchState(new PlayState(songName, difficultyName, modDir));
                 }
             } else {
                 switchState(new MainMenuState());
             }
             return;
         }
+        if (categories.empty()) return;
         if (kDown & (KEY_DUP | KEY_CPAD_UP)) {
             curSelected--;
             if (curSelected < 0) curSelected = (int)categories.size() - 1;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         }
         if (kDown & (KEY_DDOWN | KEY_CPAD_DOWN)) {
             curSelected++;
             if (curSelected >= (int)categories.size()) curSelected = 0;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         }
         if (kDown & (KEY_A | KEY_START)) {
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
             OptionCategory* cat = OptionManager::get().getCategory(curSelected);
             if (cat) {
                 if (cat->type == OptionType::ACTION_CATEGORY) {
@@ -662,11 +665,11 @@ void OptionsMenuState::update(float dt) {
                         lerpSelected = 0.0f;
                     } else if (cat->action == "resetToDefaults") {
                         OptionManager::get().resetToDefaults();
-                        AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+                        AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
                     } else if (cat->action == "eraseSaveData") {
                         Highscores::reset();
                         Achievements::resetAchievements();
-                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                     }
                 } else {
                     activeCategoryIndex = curSelected;
@@ -692,22 +695,23 @@ void OptionsMenuState::update(float dt) {
         int numOpts = (int)cat->options.size();
 
         if (keyJustPressed(KEY_B)) {
-            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
             OptionManager::get().saveValues();
             menuState = STATE_MAIN;
             curSelected = activeCategoryIndex;
             lerpSelected = (float)curSelected;
             return;
         }
+        if (categories.empty()) return;
         if (kDown & (KEY_DUP | KEY_CPAD_UP)) {
             curSelected--;
             if (curSelected < 0) curSelected = numOpts - 1;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         }
         if (kDown & (KEY_DDOWN | KEY_CPAD_DOWN)) {
             curSelected++;
             if (curSelected >= numOpts) curSelected = 0;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
         }
 
         OptionItem& opt = cat->options[curSelected];
@@ -719,7 +723,7 @@ void OptionsMenuState::update(float dt) {
                 if (opt.modFolder.empty()) OptionManager::get().setInt(opt.id, opt.intVal);
                 else OptionManager::get().setModInt(opt.modFolder, opt.id, opt.intVal);
                 OptionManager::get().syncToClientPrefs();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             } else if (opt.type == OptionType::FLOAT) {
                 opt.floatVal -= opt.step;
                 if (opt.floatVal < opt.minVal - 0.001f) opt.floatVal = opt.maxVal;
@@ -727,7 +731,7 @@ void OptionsMenuState::update(float dt) {
                 if (opt.modFolder.empty()) OptionManager::get().setFloat(opt.id, opt.floatVal);
                 else OptionManager::get().setModFloat(opt.modFolder, opt.id, opt.floatVal);
                 OptionManager::get().syncToClientPrefs();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             } else if (opt.type == OptionType::STRING_LIST && !opt.stringOptions.empty()) {
                 int curIdx = 0;
                 for (int k = 0; k < (int)opt.stringOptions.size(); k++) {
@@ -738,7 +742,7 @@ void OptionsMenuState::update(float dt) {
                 if (opt.modFolder.empty()) OptionManager::get().setString(opt.id, opt.stringVal);
                 else OptionManager::get().setModString(opt.modFolder, opt.id, opt.stringVal);
                 OptionManager::get().syncToClientPrefs();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             }
         }
 
@@ -749,7 +753,7 @@ void OptionsMenuState::update(float dt) {
                 if (opt.modFolder.empty()) OptionManager::get().setInt(opt.id, opt.intVal);
                 else OptionManager::get().setModInt(opt.modFolder, opt.id, opt.intVal);
                 OptionManager::get().syncToClientPrefs();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             } else if (opt.type == OptionType::FLOAT) {
                 opt.floatVal += opt.step;
                 if (opt.floatVal > opt.maxVal + 0.001f) opt.floatVal = opt.minVal;
@@ -757,7 +761,7 @@ void OptionsMenuState::update(float dt) {
                 if (opt.modFolder.empty()) OptionManager::get().setFloat(opt.id, opt.floatVal);
                 else OptionManager::get().setModFloat(opt.modFolder, opt.id, opt.floatVal);
                 OptionManager::get().syncToClientPrefs();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             } else if (opt.type == OptionType::STRING_LIST && !opt.stringOptions.empty()) {
                 int curIdx = 0;
                 for (int k = 0; k < (int)opt.stringOptions.size(); k++) {
@@ -768,12 +772,12 @@ void OptionsMenuState::update(float dt) {
                 if (opt.modFolder.empty()) OptionManager::get().setString(opt.id, opt.stringVal);
                 else OptionManager::get().setModString(opt.modFolder, opt.id, opt.stringVal);
                 OptionManager::get().syncToClientPrefs();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             }
         }
 
         if (kDown & (KEY_A | KEY_START)) {
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
             if (opt.type == OptionType::BOOL) {
                 opt.boolVal = !opt.boolVal;
                 triggerCheckbox(curSelected, opt.boolVal);
@@ -810,7 +814,7 @@ void OptionsMenuState::update(float dt) {
 
         if (!isBinding) {
             if (keyJustPressed(KEY_B)) {
-                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
                 OptionManager::get().saveValues();
                 menuState = STATE_MAIN; curSelected = 0; lerpSelected = 0.0f;
                 return;
@@ -827,7 +831,7 @@ void OptionsMenuState::update(float dt) {
                 } else {
                     curSelected -= 1;
                 }
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             }
             if (kDown & (KEY_DDOWN | KEY_CPAD_DOWN)) {
                 if (curSelected < 8) {
@@ -842,18 +846,18 @@ void OptionsMenuState::update(float dt) {
                         curSelected = 0;
                     }
                 }
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             }
             if (kDown & (KEY_DLEFT | KEY_CPAD_LEFT)) {
                 if (curSelected < 8 && curSelected % 2 == 1) {
                     curSelected--;
-                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
                 }
             }
             if (kDown & (KEY_DRIGHT | KEY_CPAD_RIGHT)) {
                 if (curSelected < 8 && curSelected % 2 == 0) {
                     curSelected++;
-                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
                 }
             }
             if (kDown & (KEY_A | KEY_START)) {
@@ -865,12 +869,12 @@ void OptionsMenuState::update(float dt) {
                     bindingLane = 4 + (curSelected - 8);
                     bindingIdx  = 0;
                 }
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
             }
         } else {
             if (keyJustPressed(KEY_START) || keyJustPressed(KEY_SELECT)) {
                 isBinding = false;
-                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
                 return;
             }
             static const unsigned int ALLOWED_KEYS[] = {
@@ -889,7 +893,7 @@ void OptionsMenuState::update(float dt) {
                         }
                     }
                     isBinding = false;
-                    AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                    AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                     break;
                 }
             }
@@ -899,7 +903,7 @@ void OptionsMenuState::update(float dt) {
     // NOTE COLORS
     else if (menuState == STATE_NOTE_COLORS) {
         if (keyJustPressed(KEY_B)) {
-            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
             OptionManager::get().saveValues();
             ClientPrefs::saveSettings();
             menuState = STATE_MAIN; curSelected = 0; lerpSelected = 0.0f;
@@ -909,13 +913,13 @@ void OptionsMenuState::update(float dt) {
         if (kDown & (KEY_DLEFT | KEY_CPAD_LEFT)) {
             colorNoteSelected--;
             if (colorNoteSelected < 0) colorNoteSelected = 3;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             rgbToHsv(ClientPrefs::noteColors[colorNoteSelected][0], ClientPrefs::noteColors[colorNoteSelected][1], ClientPrefs::noteColors[colorNoteSelected][2], currentHue, currentSat, currentVal);
         }
         if (kDown & (KEY_DRIGHT | KEY_CPAD_RIGHT)) {
             colorNoteSelected++;
             if (colorNoteSelected > 3) colorNoteSelected = 0;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
             rgbToHsv(ClientPrefs::noteColors[colorNoteSelected][0], ClientPrefs::noteColors[colorNoteSelected][1], ClientPrefs::noteColors[colorNoteSelected][2], currentHue, currentSat, currentVal);
         }
 
@@ -928,7 +932,7 @@ void OptionsMenuState::update(float dt) {
             ClientPrefs::noteColors[colorNoteSelected][1] = FAST_COLORS[colorNoteSelected][1];
             ClientPrefs::noteColors[colorNoteSelected][2] = FAST_COLORS[colorNoteSelected][2];
             rgbToHsv(ClientPrefs::noteColors[colorNoteSelected][0], ClientPrefs::noteColors[colorNoteSelected][1], ClientPrefs::noteColors[colorNoteSelected][2], currentHue, currentSat, currentVal);
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
         }
         
         u32 kHeld = hidKeysHeld();
@@ -943,7 +947,7 @@ void OptionsMenuState::update(float dt) {
                 copiedColor[1] = ClientPrefs::noteColors[colorNoteSelected][1];
                 copiedColor[2] = ClientPrefs::noteColors[colorNoteSelected][2];
                 hasCopiedColor = true;
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
             }
             // Paste button: pasteY = 65 + 50.4 + 10 ≈ 125, h=50.4
             else if (touch.px >= 262 && touch.px <= 309 && touch.py >= 125 && touch.py <= 175) {
@@ -952,9 +956,9 @@ void OptionsMenuState::update(float dt) {
                     ClientPrefs::noteColors[colorNoteSelected][1] = copiedColor[1];
                     ClientPrefs::noteColors[colorNoteSelected][2] = copiedColor[2];
                     rgbToHsv(copiedColor[0], copiedColor[1], copiedColor[2], currentHue, currentSat, currentVal);
-                    AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                    AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                 } else {
-                    AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+                    AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
                 }
             }
         }
@@ -1142,8 +1146,9 @@ void OptionsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         ButtonPrompt::drawPrompt("b", "Back", 8.0f, 205.0f, 0.70f, 1.0f);
     }
 
-    C2D_SceneBegin(bottom);
-    C2D_TargetClear(bottom, C2D_Color32(182, 91, 138, 255));
+    if (!g_isRightEye && bottom) {
+        C2D_SceneBegin(bottom);
+        C2D_TargetClear(bottom, C2D_Color32(182, 91, 138, 255));
     drawBG(bottomBG, bottomBGSheet != nullptr, 320.0f, 240.0f);
 
     if (menuState == STATE_MAIN) {
@@ -1387,16 +1392,17 @@ void OptionsMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             C2D_DrawImageAt(img, btnX, pasteY, 0.5f, tintPtr, btnScale, btnScale);
         }
     }
+    }
 }
 
 void OptionsMenuState::exitState() {
     OptionManager::get().saveValues();
     ClientPrefs::saveSettings();
-    if (bgSheet) C2D_SpriteSheetFree(bgSheet);
-    if (bottomBGSheet) C2D_SpriteSheetFree(bottomBGSheet);
-    if (noteSheetNormal) C2D_SpriteSheetFree(noteSheetNormal);
-    if (noteSheetFast) C2D_SpriteSheetFree(noteSheetFast);
-    if (colorWheelSheet) C2D_SpriteSheetFree(colorWheelSheet);
-    if (copyPasteSheet) C2D_SpriteSheetFree(copyPasteSheet);
-    if (vcrFontBuf) C2D_TextBufDelete(vcrFontBuf);
+    if (bgSheet) { C2D_SpriteSheetFree(bgSheet); bgSheet = nullptr; }
+    if (bottomBGSheet) { C2D_SpriteSheetFree(bottomBGSheet); bottomBGSheet = nullptr; }
+    if (noteSheetNormal) { C2D_SpriteSheetFree(noteSheetNormal); noteSheetNormal = nullptr; }
+    if (noteSheetFast) { C2D_SpriteSheetFree(noteSheetFast); noteSheetFast = nullptr; }
+    if (colorWheelSheet) { C2D_SpriteSheetFree(colorWheelSheet); colorWheelSheet = nullptr; }
+    if (copyPasteSheet) { C2D_SpriteSheetFree(copyPasteSheet); copyPasteSheet = nullptr; }
+    if (vcrFontBuf) { C2D_TextBufDelete(vcrFontBuf); vcrFontBuf = nullptr; }
 }

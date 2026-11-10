@@ -11,7 +11,7 @@
 #include <map>
 #include <citro2d.h>
 
-// Stores a 128x64 health-icon spritesheet split into normal/losing halves
+// Stores a health-icon spritesheet split into normal/losing halves
 struct HealthIconData {
     C2D_SpriteSheet sheet = nullptr;  // kept alive so tex/UV stay valid
     C3D_Tex tex;
@@ -88,6 +88,7 @@ class PlayState : public MusicBeatState {
     friend class MemoryDebugState;
 public:
     static PlayState* instance; // Quick global access for Lua logic
+    static int blueBalls;
     InGameVideoPlayer* inGameVideo = nullptr;
     void startVideo(const std::string& name, bool inFrontOfHUD = true, bool loop = false);
     void stopVideo();
@@ -108,7 +109,7 @@ public:
     float camX = 0.0f;
     float camY = 0.0f;
 
-    PlayState(const std::string& songName = "test", const std::string& difficulty = "");
+    PlayState(const std::string& songName = "test", const std::string& difficulty = "", const std::string& modDir = "");
     PlayState(const WeekData& week, int songIdx, const std::string& difficulty = "");
 
     void init() override;
@@ -120,7 +121,7 @@ public:
 
 
 
-    // === PUBLIC for Lua (getProperty / setProperty) ===
+    // PUBLIC for Lua (getProperty / setProperty)
     std::vector<Note> songNotes;
     float playerX;
     float spacing;
@@ -178,10 +179,6 @@ public:
     static int campaignTotalNotes;
     static int campaignMaxCombo;
     
-    std::vector<int> keysUsed;
-    bool bfWentIdle = false;
-    float currentHoldTime[4] = {0, 0, 0, 0};
-    float maxHoldTime = 0.0f;
     float health = 1.0f;
     double songLength = 0;
     float camZoom = 1.0f;
@@ -200,6 +197,7 @@ public:
 
     std::string curSong;
     std::string currentDifficulty;
+    std::string modDirectory = "";
     Character* bf = nullptr;
     Character* dad = nullptr;
     Character* gf = nullptr;
@@ -214,9 +212,7 @@ public:
     float camFollowY = 0.0f;
     bool autoIconPosition = true;
     bool camFollowLocked = false;
-    // legacyPositioning: Si es true, usa el origin en top-left (viejo SnakeEngine). 
-    // Si es false, usa center pivot (HaxeFlixel).
-    bool legacyPositioning = false;
+    bool legacyPositioning = false; // Who is this
     float lockedCamX = 0.0f;
     float lockedCamY = 0.0f;
     float iconP1X = 0.0f;
@@ -319,7 +315,7 @@ public:
     bool timeBarBGFlipY = false;
     bool timeBarBGAntialiasing = true;
 
-    // IconP1 (mostly exists, let's add missing ones)
+    // IconP1
     float iconP1ScaleX = 1.0f;
     float iconP1ScaleY = 1.0f;
     u32 iconP1Color = 0xFFFFFFFF;
@@ -328,7 +324,7 @@ public:
     bool iconP1FlipY = false;
     bool iconP1Antialiasing = true;
 
-    // IconP2 (mostly exists, let's add missing ones)
+    // IconP2
     float iconP2ScaleX = 1.0f;
     float iconP2ScaleY = 1.0f;
     u32 iconP2Color = 0xFFFFFFFF;
@@ -524,10 +520,6 @@ private:
     int receptorActiveSlot[8];
     float receptorAnimTime[8];
     
-    float pOffsetX, pOffsetY;
-
-
-    float eOffsetX, eOffsetY;
     
     bool startTimerActive;
     int countdownTick;
@@ -606,6 +598,5 @@ private:
     C2D_Font vcrFont;
 
     void loadHealthIcon(HealthIconData& icon, const std::string& name);
-    void drawText(C2D_Text* textObj, float x, float y, float scale, bool centered = true, float maxWidth = 0.0f);
 };
 

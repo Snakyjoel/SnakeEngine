@@ -1,0 +1,36 @@
+{"ATLAS": {"SPRITES":[
+	{"SPRITE" : {"name": "0000","x":383,"y":642,"w":220,"h":227,"rotated": false}},
+	{"SPRITE" : {"name": "0001","x":355,"y":214,"w":332,"h":189,"rotated": false}},
+	{"SPRITE" : {"name": "0002","x":776,"y":844,"w":187,"h":123,"rotated": false}},
+	{"SPRITE" : {"name": "0003","x":873,"y":178,"w":120,"h":197,"rotated": true}},
+	{"SPRITE" : {"name": "0004","x":1,"y":1,"w":352,"h":439,"rotated": true}},
+	{"SPRITE" : {"name": "0005","x":383,"y":405,"w":268,"h":235,"rotated": false}},
+	{"SPRITE" : {"name": "0006","x":653,"y":405,"w":235,"h":268,"rotated": true}},
+	{"SPRITE" : {"name": "0007","x":198,"y":839,"w":169,"h":165,"rotated": false}},
+	{"SPRITE" : {"name": "0008","x":605,"y":675,"w":167,"h":166,"rotated": false}},
+	{"SPRITE" : {"name": "0009","x":605,"y":844,"w":169,"h":163,"rotated": false}},
+	{"SPRITE" : {"name": "0010","x":774,"y":675,"w":165,"h":167,"rotated": true}},
+	{"SPRITE" : {"name": "0011","x":1,"y":839,"w":195,"h":157,"rotated": false}},
+	{"SPRITE" : {"name": "0012","x":1,"y":442,"w":380,"h":211,"rotated": false}},
+	{"SPRITE" : {"name": "0013","x":355,"y":1,"w":380,"h":211,"rotated": false}},
+	{"SPRITE" : {"name": "0014","x":1,"y":442,"w":380,"h":211,"rotated": false}},
+	{"SPRITE" : {"name": "0015","x":1,"y":442,"w":380,"h":211,"rotated": false}},
+	{"SPRITE" : {"name": "0016","x":689,"y":214,"w":182,"h":175,"rotated": false}},
+	{"SPRITE" : {"name": "0017","x":737,"y":1,"w":181,"h":175,"rotated": false}},
+	{"SPRITE" : {"name": "0018","x":182,"y":655,"w":173,"h":182,"rotated": true}},
+	{"SPRITE" : {"name": "0019","x":1,"y":655,"w":179,"h":176,"rotated": false}},
+	{"SPRITE" : {"name": "0020","x":890,"y":483,"w":57,"h":116,"rotated": true}},
+	{"SPRITE" : {"name": "0021","x":920,"y":1,"w":84,"h":104,"rotated": false}},
+	{"SPRITE" : {"name": "0022","x":369,"y":871,"w":104,"h":84,"rotated": true}},
+	{"SPRITE" : {"name": "0023","x":475,"y":871,"w":84,"h":104,"rotated": false}},
+	{"SPRITE" : {"name": "0024","x":890,"y":377,"w":84,"h":104,"rotated": false}}
+]},
+"meta": {
+"app": "Heroic Packer",
+"version": "0.1.5",
+"image": "spritemap1.png",
+"format": "RGBA8888",
+"size": {"w":1005,"h":1008},
+"resolution": "1"
+}
+}

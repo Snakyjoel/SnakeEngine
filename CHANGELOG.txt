@@ -1,3 +1,29 @@
+3.7.9
+- Fixed the scroll on the difficulty selector in freeplay
+- Added the "Random" song option in freeplay
+- Improved videos playback
+- Made Freeplay open seamlessly as a substate over Main Menu
+- Fixed Game Over screen freezing on death in PlayState
+- Fixed mod songs loading fallback assets on real hardware
+- Fixed infinite hang/freeze when exiting the game
+- Removed the logs of "cache_log.txt" and "snake_log.txt"
+- He is back
+- Added Conni to the credits (SORRY I FORGOT TO ADD YOU ON THE OLDER BUILD ;-;)
+- Full PNG support
+- Fixed a bug that prevented the week's banner from being found in the story menu
+- Optimized the load of icons, albums and difficulties on freeplay
+- The image, music, and video tests were removed (reason: unnecessary at this point)
+- Added stars in freeplay
+- You can now skip title screen timer
+- You can now assign a different album photo to each individual song
+- All songs already have their respective icon and album art in freeplay
+- Adjustments were made to several menus that could have caused issues such as memory overflow, softlocks, or crashes
+- You can no longer play a locked week
+- All the base game audio files are now in adp
+- The 3D effect has been optimized, and it no longer applies to the bottom screen.
+- Added bloom shader
+- The shaders got some optimizations
+
 v3.7.8
 (The list of changes is very long; I may have missed some changes that aren't listed.)
 - Game Over was finally added (Its freezed, I will fix it eventually)

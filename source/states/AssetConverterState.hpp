@@ -111,16 +111,28 @@ private:
     int currentConvertIdx = 0;
     ConversionMode currentMode = ConversionMode::ALL;
     
-    // Audio Conversion State
+    // Audio Conversion State (Time-sliced chunking)
     FILE* convFIn = nullptr;
     FILE* convFOut = nullptr;
     void* convVfPtr = nullptr;
     uint32_t convSamplesProcessed = 0;
     uint32_t convTotalSamples = 0;
     int convChannels = 0;
+    int convTargetRate = 0;
+    float convStep = 1.0f;
+    std::string convCurrentInPath = "";
+    std::string convCurrentOutPath = "";
     void* convStatePtr = nullptr;
     bool isAudioPhase = false;
+    bool isAudioWavPhase = false;
+    uint32_t convWavDataOffset = 0;
+    uint32_t convWavTotalSamples = 0;
+    uint32_t convWavSamplesReadTotal = 0;
 
     void startConversionMode(ConversionMode mode);
     void processConversion();
+    void cleanUpAudioConversion(bool success);
+    bool processAudioChunk();
+    bool startOggConversion(const std::string& fullPath, const std::string& outPath, int fmt);
+    bool startWavConversion(const std::string& fullPath, const std::string& outPath, int fmt);
 };

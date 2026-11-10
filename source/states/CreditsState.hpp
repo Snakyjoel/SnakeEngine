@@ -10,6 +10,13 @@ struct CreditEntry {
     bool isTitle = false;
     std::string text1; // For title, or name for entry
     std::string text2; // Description for entry
+    float height = 0.0f;
+    float t1Height = 0.0f;
+    float t2Height = 0.0f;
+    std::vector<std::string> t1LinesTop;
+    std::vector<std::string> t2LinesTop;
+    std::vector<std::string> t1LinesBottom;
+    std::vector<std::string> t2LinesBottom;
 };
 
 struct CreditsGroup {
@@ -19,6 +26,7 @@ struct CreditsGroup {
     std::string modFolder;
     std::string musicPath;
     std::vector<CreditEntry> entries;
+    std::vector<std::string> wrappedAlphabetName;
     
     // Mod icon loading
     C2D_Image modIcon = {nullptr, nullptr};
@@ -37,6 +45,8 @@ public:
 
 private:
     void drawScrollText(const std::string& text, float x, float y, float scale, bool centered, float border, u32 color, float wrapWidth = 0.0f);
+    void drawCachedLines(const std::vector<std::string>& lines, float x, float y, float scale, bool centered, float border, u32 color, float wrapWidth);
+    void prepareGroupCredits(CreditsGroup& group);
     void loadModIcon(CreditsGroup& group);
     void freeModIcon(CreditsGroup& group);
     void updateIconCache();
@@ -57,6 +67,15 @@ private:
     C2D_TextBuf quanticoFontBuf = nullptr;
     C2D_Font inconsolataFont = nullptr;
     C2D_TextBuf inconsolataFontBuf = nullptr;
+
+    // Static text cache for UI labels
+    C2D_Text textCreditsLetters[7];
+    bool textCreditsLettersInit = false;
+    C2D_Text marqueeTexts[4];
+    float marqueeWidths[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    bool marqueeTextsInit = false;
+    C2D_Text textMadeWith;
+    bool textMadeWithInit = false;
 
     float textScrollTime = 0.0f;
 

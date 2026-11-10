@@ -21,6 +21,7 @@ public:
     static void resume();
     static void update();
     static void exit();
+    static void shutdown();
     static double getSongPosition();
     static double getTotalTime();
     static bool isFinished();
@@ -51,6 +52,13 @@ public:
         int channels;
         int rate;
     };
+
+    struct SfxData {
+        int16_t* buffer;
+        uint32_t samplesPerChannel;
+        int channels;
+        int rate;
+    };
     static const std::map<std::string, SoundData>& getSoundCache() { return soundCache; }
 
 private:
@@ -75,12 +83,14 @@ private:
     static FILE* adpFile;
     static bool isAdp;
     static AdpcmDecoder::State adpState;
+    static AdpcmDecoder::State adpStateR;
     static uint32_t adpTotalSamples;
     static uint32_t adpSamplesRead;
 
     static FILE* vocalsAdpFile;
     static bool vocalsIsAdp;
     static AdpcmDecoder::State vocalsAdpState;
+    static AdpcmDecoder::State vocalsAdpStateR;
     static uint32_t vocalsAdpTotalSamples;
     static uint32_t vocalsAdpSamplesRead;
 
@@ -103,13 +113,7 @@ private:
     static double lastSampleTick;
     static double pauseOffset;
 
-    // SFX decoding data
-    struct SfxData {
-        int16_t* buffer;
-        uint32_t samplesPerChannel;
-        int channels;
-        int rate;
-    };
+
     static std::map<std::string, SoundData> soundCache;
     
     static SfxData missSfx[3];
@@ -161,6 +165,7 @@ private:
     static uint32_t        adpTotalSamples;
     static uint32_t        adpSamplesRead;
     static AdpcmDecoder::State adpDecState;
+    static AdpcmDecoder::State adpDecStateR;
 
     static bool            isWavMode;
     static FILE*           wavFile;

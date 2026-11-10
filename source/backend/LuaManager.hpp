@@ -28,6 +28,10 @@ public:
     bool callFunction(const std::string& funcName, const std::vector<std::string>& args = {});
     void syncGlobals();
     void setVar(const std::string& varName, const std::string& val);
+    size_t getMemoryUsed() const {
+        return L ? ((size_t)lua_gc(L, LUA_GCCOUNT, 0) * 1024 + (size_t)lua_gc(L, LUA_GCCOUNTB, 0)) : 0;
+    }
+    bool isOpen() const { return L != nullptr; }
 
 
     // Scaling to FunkinLua macros/systems

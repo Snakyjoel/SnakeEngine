@@ -8,6 +8,13 @@
 
 class MemoryDebugState {
 public:
+    enum class SortMode {
+        DEFAULT = 0,
+        SIZE_DESC,
+        NAME_ASC,
+        POOL
+    };
+
     MemoryDebugState();
     ~MemoryDebugState();
 
@@ -19,15 +26,30 @@ public:
 private:
     struct MemoryItem {
         std::string name;
-        u32 size;
-        bool isVram;
+        u32 size = 0;
+        bool isVram = false;
+        std::string category = "Other";
     };
+
+    struct FormattedItem {
+        std::string displayName;
+        std::string sizeStr;
+        std::string poolStr;
+    };
+
+    std::vector<MemoryItem> rawItems;
     std::vector<MemoryItem> memoryItems;
+    std::vector<FormattedItem> formattedItems;
+
     int memorySelection = 0;
     float memoryScrollLerp = 0.0f;
-    C2D_TextBuf memoryTextBuf = nullptr;
+    SortMode sortMode = SortMode::DEFAULT;
+
+    C2D_TextBuf dynamicTextBuf = nullptr;
 
     void gatherAllMemoryItems();
+    void applySort();
+    void rebuildFormattedCache();
 };
 
 #endif

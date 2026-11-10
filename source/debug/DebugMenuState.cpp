@@ -1,13 +1,9 @@
 #include "../debug/DebugMenuState.hpp"
 #include "RamTestState.hpp"
 #include "TitleState.hpp"
-#include "MusicPlayerState.hpp"
-#include "SnakyPlayerState.hpp"
-#include "ImageViewerState.hpp"
 #include "ResultState.hpp"
-#include "OutdatedState.hpp"
-#include "MainMenuState.hpp"
 #include "../editors/CharacterEditorState.hpp"
+#include "../backend/Macros.hpp"
 
 #include "../backend/AudioEngine.hpp"
 #include <math.h>
@@ -50,18 +46,12 @@ void DebugMenuState::init() {
     MusicPlayer::stop();
 
     menuItems.clear();
-    menuItems.push_back({"Music Player", "File Explorer & Music Player", 0});
-    menuItems.push_back({"Snaky Player", "Test Snaky video playback", 2});
-    menuItems.push_back({"Image Viewer", "View PNG and T3X images", 3});
     menuItems.push_back({"Result: PERFECT", "Test Result: PERFECT rank", 5});
     menuItems.push_back({"Result: EXCELLENT", "Test Result: EXCELLENT rank", 6});
     menuItems.push_back({"Result: GOOD", "Test Result: GOOD rank", 7});
     menuItems.push_back({"Result: GREAT", "Test Result: GREAT rank", 8});
     menuItems.push_back({"Result: LOSS", "Test Result: LOSS rank", 9});
     menuItems.push_back({"Character Editor", "Edit and test character offsets", 10});
-    menuItems.push_back({"Outdated: GameBanana", "Test OutdatedState (GameBanana)", 11});
-    menuItems.push_back({"Outdated: GameJolt", "Test OutdatedState (GameJolt)", 12});
-    menuItems.push_back({"Outdated: Tester", "Test OutdatedState (Tester version)", 13});
     menuItems.push_back({"RAM Test", "Verify available RAM", 14});
 }
 
@@ -71,7 +61,7 @@ void DebugMenuState::update(float dt) {
     u32 kDown = hidKeysDown();
 
     if (keyJustPressed(KEY_B)) {
-        AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
         switchState(new TitleState());
         return;
     }
@@ -79,30 +69,24 @@ void DebugMenuState::update(float dt) {
     if (kDown & (KEY_DUP | KEY_CPAD_UP)) {
         curSelected--;
         if (curSelected < 0) curSelected = (int)menuItems.size() - 1;
-        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
     }
     
     if (kDown & (KEY_DDOWN | KEY_CPAD_DOWN)) {
         curSelected++;
         if (curSelected >= (int)menuItems.size()) curSelected = 0;
-        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
     }
     
     if (kDown & (KEY_A | KEY_START)) {
-        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
         switch (menuItems[curSelected].id) {
-            case 0: switchState(new MusicPlayerState("sdmc:/")); break;
-            case 2: switchState(new SnakyPlayerState("")); break;
-            case 3: switchState(new ImageViewerState("")); break;
             case 5: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 100, 100, 0, 0, 0, 0, 1000000)); break;
             case 6: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 80, 85, 10, 1, 0, 0, 900000)); break;
             case 7: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 50, 50, 15, 0, 1, 0, 700000)); break;
             case 8: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 80, 75, 10, 1, 0, 0, 850000)); break;
             case 9: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 10, 10, 10, 5, 5, 20, 200000)); break;
             case 10: switchState(new CharacterEditorState()); break;
-            case 11: switchState(new OutdatedState(-1, "9.9.9", "gamebanana")); break;
-            case 12: switchState(new OutdatedState(-1, "9.9.9", "gamejolt")); break;
-            case 13: switchState(new OutdatedState(1, MainMenuState::version)); break;
             case 14: switchState(new RamTestState()); break;
         }
     }
@@ -122,21 +106,23 @@ void DebugMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
 
     AddText("B: Back to Title", 200, 220, 0.30f, true, 1.5f, CGray, 380.0f);
 
-    C2D_SceneBegin(bottom);
-    C2D_TargetClear(bottom, C2D_Color32(40, 40, 40, 255));
-    drawBG(bottomBG, bottomBGSheet != nullptr, 320.0f, 240.0f);
+    if (!g_isRightEye && bottom) {
+        C2D_SceneBegin(bottom);
+        C2D_TargetClear(bottom, C2D_Color32(40, 40, 40, 255));
+        drawBG(bottomBG, bottomBGSheet != nullptr, 320.0f, 240.0f);
 
-    for (int i = 0; i < (int)menuItems.size(); i++) {
-        bool sel = (i == curSelected);
-        float targetY = 110.0f + (i - lerpSelected) * 35.0f;
-        float targetX = 160.0f;
+        for (int i = 0; i < (int)menuItems.size(); i++) {
+            bool sel = (i == curSelected);
+            float targetY = 110.0f + (i - lerpSelected) * 35.0f;
+            float targetX = 160.0f;
 
-        if (targetY < -30.0f || targetY > 270.0f) continue;
+            if (targetY < -30.0f || targetY > 270.0f) continue;
 
-        std::string text = menuItems[i].name;
-        float scale = 1.2f;
-        u32 col = 0xFFFFFFFF;
-        Alphabet::draw(text, targetX, targetY, scale, sel ? 1.0f : 0.5f, true, col);
+            std::string text = menuItems[i].name;
+            float scale = 1.2f;
+            u32 col = 0xFFFFFFFF;
+            Alphabet::draw(text, targetX, targetY, scale, sel ? 1.0f : 0.5f, true, col);
+        }
     }
 }
 
@@ -181,5 +167,5 @@ void DebugMenuState::dumpFile(const std::string& path) {
     fclose(out);
     
     // Play a success sound
-    AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+    AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
 }

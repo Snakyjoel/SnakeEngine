@@ -15,6 +15,7 @@ static std::string s_onlineVersion = "";
 static std::string s_updateSource = "gamebanana";
 
 static Thread s_updateThread = nullptr;
+static volatile bool s_abortUpdateCheck = false;
 static u32* s_socBuffer = nullptr;
 #define SOC_ALIGN       0x1000
 #define SOC_BUFFERSIZE  0x100000 // 1MB buffer
@@ -75,6 +76,8 @@ static std::string httpFetch(const std::string& url, FILE* logFile) {
     Result ret = 0;
 
     while (redirectCount < 5) {
+        if (s_abortUpdateCheck) return "";
+
         if (logFile) {
             fprintf(logFile, "Opening HTTP context to: %s\n", currentUrl.c_str());
             fflush(logFile);
@@ -86,6 +89,11 @@ static std::string httpFetch(const std::string& url, FILE* logFile) {
             return "";
         }
 
+        if (s_abortUpdateCheck) {
+            httpcCloseContext(&context);
+            return "";
+        }
+
         httpcSetSSLOpt(&context, SSLCOPT_DisableVerify);
         httpcAddRequestHeaderField(&context, "User-Agent", "SnakeEngine-3DS");
         httpcSetKeepAlive(&context, HTTPC_KEEPALIVE_ENABLED);
@@ -93,6 +101,11 @@ static std::string httpFetch(const std::string& url, FILE* logFile) {
         ret = httpcBeginRequest(&context);
         if (R_FAILED(ret)) {
             if (logFile) fprintf(logFile, "Failed to begin request. Ret: 0x%08X\n", (unsigned int)ret);
+            httpcCloseContext(&context);
+            return "";
+        }
+
+        if (s_abortUpdateCheck) {
             httpcCloseContext(&context);
             return "";
         }
@@ -124,8 +137,8 @@ static std::string httpFetch(const std::string& url, FILE* logFile) {
         }
     }
 
-    if (!success) {
-        if (logFile) fprintf(logFile, "No success status code (%u)\n", (unsigned int)status);
+    if (!success || s_abortUpdateCheck) {
+        if (logFile && !s_abortUpdateCheck) fprintf(logFile, "No success status code (%u)\n", (unsigned int)status);
         httpcCloseContext(&context);
         return "";
     }
@@ -143,6 +156,10 @@ static std::string httpFetch(const std::string& url, FILE* logFile) {
     } else {
         char chunk[4096];
         while (true) {
+            if (s_abortUpdateCheck) {
+                httpcCloseContext(&context);
+                return "";
+            }
             u32 bytesRead = 0;
             Result downloadRet = httpcDownloadData(&context, (u8*)chunk, sizeof(chunk), &bytesRead);
             if (bytesRead > 0) {
@@ -221,6 +238,15 @@ static void updateCheckThreadFunc(void* arg) {
         return;
     }
 
+    if (s_abortUpdateCheck) {
+        free(s_socBuffer);
+        s_socBuffer = nullptr;
+        s_updateCheckDone = true;
+        s_updateCheckInProgress = false;
+        if (logFile) fclose(logFile);
+        return;
+    }
+
     Result socRes = socInit(s_socBuffer, SOC_BUFFERSIZE);
     if (R_FAILED(socRes)) {
         if (logFile) {
@@ -234,6 +260,16 @@ static void updateCheckThreadFunc(void* arg) {
         return;
     }
 
+    if (s_abortUpdateCheck) {
+        socExit();
+        free(s_socBuffer);
+        s_socBuffer = nullptr;
+        s_updateCheckDone = true;
+        s_updateCheckInProgress = false;
+        if (logFile) fclose(logFile);
+        return;
+    }
+
     if (logFile) {
         fprintf(logFile, "socInit initialized successfully. Starting httpc...\n");
         fflush(logFile);
@@ -243,19 +279,21 @@ static void updateCheckThreadFunc(void* arg) {
     if (R_FAILED(ret)) {
         if (logFile) fprintf(logFile, "httpcInit failed. Ret: 0x%08X\n", (unsigned int)ret);
     } else {
-        // Fetch GameBanana API (Tool 23841)
-        if (logFile) fprintf(logFile, "Fetching GameBanana API...\n");
-        std::string gbJson = httpFetch("https://api.gamebanana.com/Core/Item/Data?itemtype=Tool&itemid=23841&fields=name,Files().aFiles()", logFile);
-        if (!gbJson.empty()) {
-            std::string gbVer = parseGameBananaVersion(gbJson, logFile);
-            if (!gbVer.empty()) {
-                s_onlineVersion = gbVer;
-                s_updateSource = "gamebanana";
-                if (logFile) fprintf(logFile, "GameBanana Version parsed: %s\n", s_onlineVersion.c_str());
+        if (!s_abortUpdateCheck) {
+            // Fetch GameBanana API (Tool 23841)
+            if (logFile) fprintf(logFile, "Fetching GameBanana API...\n");
+            std::string gbJson = httpFetch("https://api.gamebanana.com/Core/Item/Data?itemtype=Tool&itemid=23841&fields=name,Files().aFiles()", logFile);
+            if (!gbJson.empty() && !s_abortUpdateCheck) {
+                std::string gbVer = parseGameBananaVersion(gbJson, logFile);
+                if (!gbVer.empty()) {
+                    s_onlineVersion = gbVer;
+                    s_updateSource = "gamebanana";
+                    if (logFile) fprintf(logFile, "GameBanana Version parsed: %s\n", s_onlineVersion.c_str());
+                }
             }
-        }
 
-        if (logFile) fprintf(logFile, "Final online version selected: %s\n", s_onlineVersion.c_str());
+            if (logFile) fprintf(logFile, "Final online version selected: %s\n", s_onlineVersion.c_str());
+        }
 
         httpcExit();
     }
@@ -277,8 +315,18 @@ static void updateCheckThreadFunc(void* arg) {
 
 void UpdateChecker::startCheck() {
     if (ClientPrefs::checkForUpdates && !s_updateCheckDone && !s_updateCheckInProgress) {
+        s_abortUpdateCheck = false;
         s_updateCheckInProgress = true;
-        s_updateThread = threadCreate(updateCheckThreadFunc, nullptr, 32 * 1024, 0x3F, -2, true);
+        s_updateThread = threadCreate(updateCheckThreadFunc, nullptr, 32 * 1024, 0x3F, -2, false);
+    }
+}
+
+void UpdateChecker::shutdown() {
+    s_abortUpdateCheck = true;
+    if (s_updateThread) {
+        threadJoin(s_updateThread, 1000000000ULL); // 1.0s safe timeout
+        threadFree(s_updateThread);
+        s_updateThread = nullptr;
     }
 }
 

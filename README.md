@@ -1,259 +1,129 @@
-# Snake Engine
+<p align="center"><img src="https://cdn.discordapp.com/attachments/1492889087449764051/1568993657007247400/Logo.png?ex=6af1d6b6&is=6af08536&hm=4f0691f3eea04523ce6cf6719813c71bc146e6490dab28538b7a8bf7706336bb" alt="Snake Engine Logo" width="900"></p>
 
-A Friday Night Funkin' engine tailored for the **Nintendo 3DS**, built natively in C++ with **devkitARM**, **libctru**, and **citro2d**.
+<h1 align="center">Friday Night Funkin': Snake Engine</h1>
 
-<p align="center">
-  <img src="art/Logo.png" alt="Snake Engine Logo" width="600"/>
-</p>
-
+<h2 align="center">An engine for the Nintendo 3DS</h2>
 
 ---
 
-## Psych Engine API Support
+# IMPORTANT
 
-Snake Engine includes support for the **Psych Engine Lua API**. This is not a 1:1 implementation and some functions may behave differently or not be available.
-
-<p align="left">
-  <img src="art/ModsMenu.png" alt="Mod Menu" width="800"/>
-</p>
-<p align="left">
-  <img src="art/ModPreview.png" alt="Sonic The Funk 3DS" width="800"/>
-</p>
-<p align="left">
-  <img src="art/ModPreview2.png" alt="Blueballed" width="800"/>
-</p>
+This engine uses some assets taken from other engines, such as [Psych Engine](https://github.com/ShadowMario/FNF-PsychEngine) and [Codename Engine](https://github.com/CodenameCrew/CodenameEngine); credit goes to them for the assets used.
 
 ---
 
-## ⚠️ Modding on 3DS — Read This First
+## What the hell is this
 
-Even though Snake Engine exposes part of the Psych Engine Lua API, **this is not a PC engine**. The 3DS hardware is significantly more constrained, and mods that work fine on PC may run poorly or crash here. Everything needs to be handled with care.
+Snake Engine is a full *Friday Night Funkin'* demake built from scratch in C++ (using tools such as devkitARM, libctru, citro2d, and several others) for the entire Nintendo 3DS family of systems—meaning, yes, it also runs on the original (OLD) 3DS.
 
-### 1. Use the right file formats
+Furthermore, you will be able to modify this engine in a way very similar to Psych Engine, as the Snake Engine API is quite similar to that of Psych Engine—though there are some differences, whether due to how the menus are structured or certain limitations.
 
-Avoid heavy formats like `.ogg`, `.png`, or `.mp4`. The 3DS has dedicated hardware for specific formats — use those instead:
+> [!NOTE]
+> There is more information further down.
 
-| Asset Type | ❌ Avoid | ✅ Use instead | Tool |
-|---|---|---|---|
-| Audio | `.ogg`, `.wav`, `.mp3` | `.adp` | [`convert_to_adp.py`](convert_to_adp.py) (uses `ffmpeg.exe` included in root) |
-| Images | `.png`, `.jpg` | `.t3x` / `rawtex` | [`tools/converters/convert_assets.py`](tools/converters/convert_assets.py) |
-| Video | `.mp4` | `.snaky` | [`SnakyVideoEncoder`](https://github.com/Snakyjoel/Snaky-Video-Encoder) |
+## (Some photos of the engine)
 
-### 2. Minimize draw calls — pack your sprites
+<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1568999751922352148/08.11.26_11.41.48.986.png?ex=6af1dc63&is=6af08ae3&hm=32223d088f9ca3290063dd14b86e6f65d1ddc5c4f5db62ee97f6a725b25551bd&" alt="Tttile" width="900">
 
-Avoid having many separate sprite files. If you can fit multiple sprites into a single spritesheet (atlas), do it. Every individual texture draw is a draw call, and the 3DS has a very limited budget for those. Packed atlases save draw calls **and** reduce RAM usage significantly.
+<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1568999752446509147/08.11.26_11.42.08.183.png?ex=6af1dc63&is=6af08ae3&hm=ae798b160ffa4c9fd806eaa9e4c8679505753ddcd960a34f8d923eea4f671d4e&" alt="Menu" width="900">
 
-### 3. Textures MUST be Power of Two — and max 1024×1024
+<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1568999752920727562/08.11.26_11.42.17.437.png?ex=6af1dc63&is=6af08ae3&hm=3555ae598336d8f84ab047384ebfd0153a82811ec63939d7079a3693e6e5e1dd&" alt="Story" width="900">
 
-The 3DS GPU **does not support Non-Power-of-Two (NPOT) textures**. All texture dimensions must be a power of two: `4, 8, 16, 32, 64, 128, 256, 512, 1024`.
+<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1568999753398751406/08.11.26_11.42.26.583.png?ex=6af1dc63&is=6af08ae3&hm=df7f2b343899f2c525a93f8ca5ccabac5317fd63f99403a0a4ad5b45658a7bb4&" alt="Freeplay" width="900">
 
-- ✅ `512×256` → uses **512×256** of VRAM
-- ❌ `513×257` → gets padded up to **1024×512** of VRAM — 4× the cost
+<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1569000801769095318/image.png?ex=6af1dd5d&is=6af08bdd&hm=16a47e448623b83ae101aa08b0830bbe8ab06a47ebc66084e7a24dc6ef54b012" alt="Mods" width="900">
 
-The maximum texture size is **1024×1024**. Anything larger will not work.
+<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1568999754879340544/08.11.26_11.43.06.647.png?ex=6af1dc64&is=6af08ae4&hm=771a65cee8058b29c5c6865ff0a0e762df8352c6073ea061e6e2281117b63872&" alt="Options" width="900">
 
-### 4. Keep Lua scripts lean
+<img src="https://cdn.discordapp.com/attachments/1410364088948621423/1568999755571536024/08.11.26_11.43.40.784.png?ex=6af1dc64&is=6af08ae4&hm=8b08e9c70c6eb305eeff0884aa4f1293a594a112193203b9c23c0d8ea522dc12&" alt="Game" width="900">
 
-The 3DS has very limited CPU time. Avoid heavy per-frame logic in Lua. Prefer `onCreate` / `onUpdate` patterns and cache values you'd otherwise recompute every frame.
+## HOW TO INSTALL
 
-### 5. Test frequently on hardware (or a close emulator)
+First, you need to download the CIA of your choice; there are two to pick from:
 
-Emulators like Citra/Lime3DS are convenient but may hide performance issues. Always validate your mod on real hardware or with the performance overlay enabled if possible.
+> [!NOTE]
+> Don't worry; the only difference is in the game assets—the way they function is the same in both.
+> 
+> And also... (Version 3.7.9 will be used as a reference)
 
+|  | Default | Lite |
+| --- | --- | --- |
+| Base game videos | ✅ | ❌ |
+| Size | 800 Mb approximate | 600 Mb approximate |
 
+Once you have downloaded the CIA file, you must copy the file to a folder on your console's SD card (the root directory or a folder dedicated to your CIA files is recommended). Use also a tool that allows you to install it on your console, such as [FBI](https://github.com/steveice10/FBI), [3dsDL](https://ankush.one/3dsDL/), [GodMode9](https://github.com/d0k3/GodMode9) or via a  [Custom Install](https://github.com/ihaveamac/custom-install)
 
-Mods are loaded from the SD card at runtime. To install a mod:
+**FBI:** Use the first option (SD) and navigate to the folder containing your CIA file. Once there, move your selection until it highlights the CIA file, then select it. After that, choose "Install CIA" or "Install and delete CIA." This may take some time, depending on your SD card, but once it’s finished, it will be installed on your console.
 
-1. Create a folder for your mod inside `sdmc:/SnakeEngine/mods/`.
-2. Place your mod files inside it.
+**3dsDL:** Select the "Files" option and navigate to the folder where your CIA file is located. Once you find it, select it and choose either "Install" or "Install and Delete File." After the process finishes, it will be installed on your console.
 
----
+**GM9 (GodMode9):** To install it using GM9, start with the console powered off. To enter GM9, hold down the Start button while turning on the console (keep holding Start). Once it powers on, it will boot into GM9.
 
-## Using Shaders
+In the GM9 menu, select the first option ([0:] SDCARD) and navigate to the folder containing your CIA file. Select the file, choose "CIA image options...", and then select "Install game image". Once the installation is complete, simply turn off or restart the console, and the game will be installed.
 
-Shaders are applied to cameras via Lua scripts using `setCameraShader`. Because 3DS shaders require hardware-compiled binaries, **you cannot add new shader source files** — only the pre-compiled shaders listed below are available.
+**CI (Custom Install):** If the first three options seem too slow, you can use CI, which reduces the wait time to just a few seconds. There are two methods for installing a CIA file using this tool, both of which are well-documented on its [GitHub page.](https://github.com/ihaveamac/custom-install)
 
-### Available Shaders
+## HOW TO INSTALL MODS
 
-| Name | Parameters | Description |
-|---|---|---|
-| `grayscale` | `strength` | Desaturates the image. |
-| `invert` | `strength` | Inverts colors. |
-| `sepia` | `strength` | Applies a warm sepia tone. |
-| `gameboy` | `strength` | Green-tinted Game Boy look. |
-| `virtualboy` | `strength` | Red-tinted Virtual Boy look. |
-| `saturation` | `amount` | Boosts or reduces color saturation. |
-| `chromatic` | `offset` | RGB color fringing effect. |
-| `wave` | `amplitude`, `frequency`, `speed` | Wavy distortion. |
-| `glitch` / `skew` | `intensity`, `speed`, `offset` | Horizontal glitch skew. |
-| `crt` | `strength` | CRT scanline overlay. |
-| `blur` | `radius` | Gaussian blur. |
-| `pixelate` | `size` | Pixelation effect. |
-| `tile` / `tiling` / `kaleidoscope` | `count` | Repeating tile mirror. |
-| `tint` | `r`, `g`, `b` | Flat color tint (0–255 per channel). |
-| `vignette` | `radius`, `softness` | Dark vignette border. |
-| `mirror` | `mode` | Horizontal/vertical mirror. |
-| `scanline_roll` | `density`, `speed` | Rolling scanline bands. |
-| `vhs` | `intensity` | VHS noise and color bleed. |
-| `color_depth` | `bits` | Color depth reduction. |
-| `scroll` / `infinite_scroll` | `speedX`, `speedY`, `scale` | Infinite scrolling parallax. |
-| `drugs` | `intensity`, `speed`, `hue` | Psychedelic rainbow distortion. |
-| `bw` / `black_white` | `threshold` | Black and white posterization. |
+To install mods, you must create a folder at: `*(your sd)*/SnakeEngine/mods`
 
-### Lua Usage
+They cannot be in a compressed format—such as .rar, .zip, or .7z—otherwise, the mod will not be detected.
 
-```lua
--- Apply a shader to a camera
-setCameraShader("camGame", "blur", 2.0)
-setCameraShader("camHUD",  "vignette", 0.6, 0.3)
+## HOW TO BUILD
 
--- Stack multiple shaders on the same camera
-setCameraShader("camGame", "chromatic", 1.5)
-setCameraShader("camGame", "crt", 0.8)
+**SETUP (PART 1):** Install devkitPro...
 
--- Update a specific parameter at runtime
-setShaderParam("camGame", "blur", 1, 4.0)
-
--- Remove a specific shader
-removeCameraShader("camGame", "blur")
-
--- Remove all shaders from a camera
-removeCameraShader("camGame")
-```
-
----
-
-## Setup — Building from Source
-
-### 1. Install devkitPro
-
-#### Windows
+**Windows:** 
 1. Download the official **devkitPro** Windows installer: [devkitPro Installer Releases](https://github.com/devkitPro/installer/releases).
+
 2. Run the installer and select the **3DS Development** workload (this installs `devkitARM`, `libctru`, `citro2d`, `citro3d`, `tex3ds`, etc.).
 
-#### Linux / macOS
+<br>
+
+**Linux/MacOS:**
+
 Follow the [devkitPro Pacman setup guide](https://devkitpro.org/wiki/devkitPro_pacman) for your distribution, then install the 3DS toolchain:
-```bash
-sudo dkp-pacman -S 3ds-dev
-```
+`sudo dkp-pacman -S 3ds-dev`
 
----
+<br>
+<br>
 
-### 2. Install Required 3DS Portlibs
+**SETUP (PART 2): Install required 3DS Portlibs...**
 
-Open your **devkitPro MSYS2** terminal (or system terminal on Linux) and run:
-
-```bash
-dkp-pacman -S 3ds-dev 3ds-liblua51 3ds-zlib 3ds-libogg 3ds-libvorbisidec 3ds-jansson
-```
+Open your **devkitPro MSYS2** terminal (or system terminal on Linux) and run: `dkp-pacman -S 3ds-dev 3ds-liblua51 3ds-zlib 3ds-libogg 3ds-libvorbisidec 3ds-jansson`
 
 *(Press `Y` to confirm the installation if prompted).*
 
----
+<br>
+<br>
 
-### 3. (Optional) Tools for Building `.cia` Files
+**SETUP (PART 3):** Tools for building the CIA file...
 
-If you want to build installable `.cia` packages:
-- Ensure `makerom` and `bannertool` are available in your `PATH` or in `/opt/devkitpro/tools/bin/`.
-- On Windows with devkitPro, these are typically bundled or can be installed via `dkp-pacman -S 3ds-tools`.
+You need to ensure `makerom` and `bannertool` are available in your `PATH` or in `/opt/devkitpro/tools/bin/`. On Windows with devkitPro, these are typically bundled or can be installed via `dkp-pacman -S 3ds-tools`.
 
----
+<br>
+<br>
 
-### 4. Verify Environment Variables
+**SETUP (FINAL PART):** Verify Environment Variables... *(This part is entirely optional, as it is only for verification purposes, but it is still recommended.)*
 
 Ensure the following environment variables are set in your environment:
 
 - `DEVKITPRO` = `/opt/devkitpro` (or `C:\devkitPro` on Windows)
 - `DEVKITARM` = `$DEVKITPRO/devkitARM` (or `C:\devkitPro\devkitARM`)
 
----
+## BUILDING
 
-## Building
+Open a terminal or PowerShell in the project's root directory and run the command of your choice:
 
-Open a terminal or PowerShell in the root directory of the project:
+| Command | Result |
+| --- | --- |
+| make | 3dsx |
+| make cia | .cia |
+| make cia-lite | .cia (Lite version) |
 
-### Standard Build (Outputs `.3dsx`)
-```bash
-make -j4
-```
-
-### Build Installable `.cia` Package
-```bash
-make cia
-```
-
-### Lite Build (No base game videos)
-```bash
-make LITE=1 -j4
-```
-
-### Clean Build
-```bash
-make clean
-```
+> [!WARNING]
+> This project was created with some help from AI tools (this doesn’t mean it’s "Vibecoded" in the sense of being entirely AI-produced; rather, there were parts where AI provided assistance. Im currently working on rewriting the code for the sections where AI was used).
 
 ---
 
-## Running on 3DS / Emulator
-
-- **Citra / Azahar / Lime3DS / etc**: Open `SnakeEngine.3dsx` directly from the project root.
-- **Real 3DS Hardware**: 
-  - Copy `SnakeEngine.3dsx` and `SnakeEngine.smdh` to `sdmc:/3ds/SnakeEngine/`.
-  - Launch using **Homebrew Launcher** (or install the generated `.cia` via **FBI** for example).
-
----
-
-## ❓ QnA
-
-### General
-
-**Q: What is Snake Engine?**
-A: It is a Friday Night Funkin engine and demake for the Nintendo 3DS/2DS and New Nintendo 3DS/2DS.
-
-**Q: What content will be included in the engine?**
-A: All the base game content—meaning all the songs and menus will be included in the engine (with the exception of debug menus, since the engine has its own).
-
-**Q: How do I install the engine?**
-A: Go to the engine's [Gamebanana](https://gamebanana.com/tools/23841) page, download the CIA of your choice (Standard or Lite), and copy it to your SD card; then, using a tool like FBI, locate the file and install it.
-
-**Q: How do I install mods?**
-A: To install mods for the engine, go to the root of your SD card and create a folder named "SnakeEngine" (or let the engine create the folder by launching the game), then create a folder named "mods" inside it; that is where you can place them.
-
-**Q: Can I install ANY mod?**
-A: The engine offers some support for the Psych Engine scripting API, but that doesn't mean mods will run on your 3DS right out of the box; they need to be adapted and tweaked to fit the 3DS's limitations. You also have to keep in mind that many features don't work exactly as they do in Psych Engine—so, for instance, stages or characters created there might look quite out of place here. It is recommended to create mods directly using Snake Engine.
-
-**Q: Will there be compatibility for Psych Online?**
-A: No.
-
-**Q: Will there be additional content in the engine?**
-A: No, there won't be any extra content included from other mods or engines within the Snake Engine. While certain features might be added to enhance the experience—such as gameplay customization options or modifiers—content like the special events that occur during songs in Psych Engine, community-created playable characters (like Playable GF), or additional weeks won't be included. This DOES NOT mean the engine lacks or won't have support for such things; it simply means it won't come with that additional content built-in.
-
-**Q: Will this engine be available on other consoles? (Like PS Vita or Wii)**
-A: No, this engine is and will remain exclusively for the Nintendo 3DS; there are no plans to port it to other consoles. However, you have full authorization to port this engine to other consoles yourself.
-
-**Q: Why doesn't something I made in Psych Engine work the same way in Snake Engine?**
-A: The engine isn't 100% accurate to Psych Engine or even the base game; it's a recreation built using a completely different programming language. While *Friday Night Funkin'* uses HaxeFlixel, Snake Engine uses C++ and aims to replicate the original game's behavior as closely as possible. Also, since it isn't fully finished yet, you'll notice plenty of inconsistencies.
-
-**Q: Was this project created using AI?**
-A: For the most part, I built this project on my own without AI assistance; I only used AI—or let it handle things entirely—for specific parts that proved difficult, such as the project configuration, the 3D banner implementation, or the update checker. That said, I neither use nor support the use of AI for the artistic or musical aspects, or for anything unrelated to writing code.
-
-**I scanned a QR code for the engine and it's not working; what should I do?**
-A: Download the engine from GameBanana; I have not officially provided a download QR code for this engine, so any QR code currently circulating for its installation might not be updated to the latest version or may not even work.
-
-**Will there be support for Codename and/or V-Slice features?**
-A: I'm not entirely sure, but it's highly unlikely; this engine is based on Psych Engine for modding purposes. If support for Codename or V-Slice were to be implemented in the future, it would likely be limited to charts or characters—scripting from other engines won't be included.
-
-**How can I support the engine?**
-A: You can do this in various ways, such as joining the Discord, helping to fix bugs in the engine or community mods, donating (which is completely optional), or simply showing your support for the engine; any form of support is appreciated.
-
----
-
-## Credits & Licenses
-
-- **Snake Engine** by **Snakyjoel** and contributors.
-- **Friday Night Funkin'** by The Funkin' Crew.
-- Powered by [devkitPro](https://devkitpro.org/), [libctru](https://github.com/devkitPro/libctru), and [citro2d](https://github.com/devkitPro/citro2d).
-- Distributed under the terms of the project licenses (see `SNAKE ENGINE LICENSE.md` and `FRIDAY NIGHT FUNKIN LICENSE.md`).
-
-> This project was developed with some help of AI tools.
-
+<sub>Built with [README Builder](https://ofershap.github.io/readme-builder/) — visual drag-and-drop editor for GitHub READMEs</sub>

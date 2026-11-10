@@ -24,12 +24,23 @@ struct FreeplaySong {
 
 class FreeplayState : public MusicBeatState {
 public:
+    FreeplayState(bool isSubState = false);
+    ~FreeplayState() override;
+
     void init() override;
     void update(float dt) override;
     void draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) override;
     void exitState() override;
     
     static std::string currentChar;
+
+    void openSubState(bool playIntro = true);
+
+    bool isSubState = false;
+    bool hasFinishedExit = false;
+    bool isExiting = false;
+    bool hasExited = false;
+    float exitTimer = 0.0f;
 
 private:
     int curSelected = 0;
@@ -48,6 +59,22 @@ private:
     // Background color lerping
     float curColor[3] = {100, 100, 100};
     float targetColor[3] = {100, 100, 100};
+
+    // Cached week display name lines and difficulty strings
+    struct CachedWeekLines {
+        std::vector<std::string> lines;
+        float scale = 0.8f;
+        float startY = 120.0f;
+        float lineHeight = 16.0f;
+    };
+    CachedWeekLines cachedWeekLines;
+    void updateSelectedWeekText();
+
+    std::string cachedCurrentDifficultyStr;
+    std::string cachedCurDiffLower;
+    std::string cachedUpperDiffStr;
+    std::string cachedAlbumName;
+    float cachedFavPromptWidth = 0.0f;
     
     // Background and unified Freeplay BF sprite sheet
     C2D_SpriteSheet freeplayBFSheet = nullptr;
@@ -57,9 +84,17 @@ private:
     C2D_Image getBfBackgroundImage();
     
     // UI and difficulty sprites
+    C2D_SpriteSheet freeplayDiffSheet = nullptr;
+    std::vector<Frame> freeplayDiffFrames;
+    Frame getDifficultyFrame(const std::string& name);
+    bool hasBaseDiff(const std::string& name);
     C2D_Image getDifficultyImage(const std::string& name);
 
     // Icon Cache for Freeplay Songs list
+    C2D_SpriteSheet freeplayIconsSheet = nullptr;
+    std::vector<Frame> freeplayIconsFrames;
+    Frame getIconFrame(const std::string& name);
+    bool hasBaseIcon(const std::string& name);
     C2D_Image getIconImage(const std::string& name);
     
     // Song capsule sprite with scrolling text
@@ -109,7 +144,12 @@ private:
 
     // Album Art
     C2D_SpriteSheet menuBgSheet = nullptr;
+    C2D_SpriteSheet freeplayAlbumsSheet = nullptr;
+    std::vector<Frame> freeplayAlbumsFrames;
     std::string currentAlbumName;
+    Frame getAlbumFrame(const std::string& name);
+    Frame getAlbumTextFrame(const std::string& name);
+    bool hasBaseAlbum(const std::string& name);
     C2D_Image getAlbumImage(const std::string& name);
     C2D_Image getAlbumTextImage(const std::string& name);
     std::string getAlbumNameForSelected(int songIdx = -1);
@@ -146,8 +186,6 @@ private:
     CppAnimate bfdjAnimate;
     float textScrollTime = 0.0f;
 
-    bool isExiting = false;
-    float exitTimer = 0.0f;
     // Easter egg parameters
     float iconEggTime = -1.0f;
     float iconEggY = 0.0f;
@@ -177,6 +215,27 @@ private:
     std::map<std::string, float> heartBounceAnim;
 
     std::vector<Frame> letterStuffFrames;
+    Frame starFrame;
+    std::vector<Frame> fireLoopFrames;
+    float starWaveTimer = 0.0f;
+
+    struct StarSlot {
+        bool visible = false;
+        int flameTier = 0; // 0: none, 1: blue, 2: red
+        float flameTimer = 0.0f;
+        bool isExtinguishing = false;
+        int extinguishTier = 0;
+        float extinguishTimer = 0.0f;
+        float spawnScale = 1.0f;
+    };
+    StarSlot starSlots[10];
+    int displayStars = 0;
+    int targetStars = 0;
+    float starChainTimer = 0.0f;
+    void updateStarChain(float dt);
+
+    Frame getFireFrame(float timer);
+    int getStarsForSong(const FreeplaySong& fs, const std::string& diffName = "", int diffIdx = -1);
 
     // LRU Asset Cache Structures
     struct CacheEntry {

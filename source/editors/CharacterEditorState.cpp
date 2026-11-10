@@ -1,6 +1,7 @@
 #include "CharacterEditorState.hpp"
 #include "../backend/Paths.hpp"
 #include "../backend/AudioEngine.hpp"
+#include "../backend/Macros.hpp"
 #include "../backend/ModHandler.hpp"
 #include "../shaders/ShaderManager.hpp"
 #include "../backend/savedata/ClientPrefs.hpp"
@@ -542,12 +543,12 @@ void CharacterEditorState::update(float dt) {
         if (keyJustPressed(KEY_DUP)) {
             curSelected--;
             if (curSelected < 0) curSelected = maxOpts - 1;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.3f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.3f);
         }
         if (keyJustPressed(KEY_DDOWN)) {
             curSelected++;
             if (curSelected >= maxOpts) curSelected = 0;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.3f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.3f);
         }
     }
 
@@ -721,12 +722,12 @@ void CharacterEditorState::update(float dt) {
             else if (currentTab == 4) { // Camera
                 if (curSelected == 0) { // Enable Frame
                     showCamBounds = !showCamBounds;
-                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                 } else if (curSelected == 1) { // Cam Zoom
                     simCamZoom += pressLeft ? -0.05f : 0.05f;
                     if (simCamZoom < 0.1f) simCamZoom = 0.1f;
                     if (simCamZoom > 3.0f) simCamZoom = 3.0f;
-                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                 }
             }
             else if (currentTab == 5) { // Reference
@@ -735,7 +736,7 @@ void CharacterEditorState::update(float dt) {
                     if (curRefCharIndex < 0) curRefCharIndex = characterList.size() - 1;
                     if (curRefCharIndex >= (int)characterList.size()) curRefCharIndex = 0;
                     loadRefCharacter(characterList[curRefCharIndex]);
-                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                 } else if (curSelected == 1) { // Ref Anim Listbox
                     if (!refAnimList.empty()) {
                         refAnimSliderIndex += pressLeft ? -1 : 1;
@@ -743,29 +744,29 @@ void CharacterEditorState::update(float dt) {
                         if (refAnimSliderIndex >= (int)refAnimList.size()) refAnimSliderIndex = 0;
                         curRefAnimIndex = refAnimSliderIndex;
                         playCurRefAnim();
-                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                     }
                 } else if (curSelected == 2) { // Show Ref
                     showRefChar = !showRefChar;
-                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                 } else if (curSelected == 3) { // Ref Alpha
                     refAlpha += pressLeft ? -0.1f : 0.1f;
                     if (refAlpha < 0.0f) refAlpha = 0.0f;
                     if (refAlpha > 1.0f) refAlpha = 1.0f;
                     if (refObj) refObj->alpha = refAlpha;
-                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                 } else if (curSelected == 4) { // Ref Pos X
                     if (refObj) {
                         refObj->x += pressLeft ? -change : change;
                         refObj->baseX = refObj->x;
                     }
-                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                 } else if (curSelected == 5) { // Ref Pos Y
                     if (refObj) {
                         refObj->y += pressLeft ? -change : change;
                         refObj->baseY = refObj->y;
                     }
-                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                 }
             }
         } else if (!visibleOptionIds.empty()) {
@@ -785,13 +786,13 @@ void CharacterEditorState::update(float dt) {
                 ghostObj->isPlayer = charObj->isPlayer;
                 centerCameraOnTarget();
                 playCurAnim();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 2) { // Reload
                 loadCharacter(currentCharacter);
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.5f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.5f);
             } else if (optId == 3) { // Save
                 saveCharacter();
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.5f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.5f);
             } else if (optId == 4) { // Make Ghost
                 ghostObj->isPlayer = charObj->isPlayer;
                 ghostObj->flipX = charObj->flipX;
@@ -809,14 +810,14 @@ void CharacterEditorState::update(float dt) {
                 ghostObj->animFinished = charObj->animFinished;
                 ghostObj->spritemapAnim.smLogicalFrame = charObj->spritemapAnim.smLogicalFrame;
                 ghostObj->spritemapAnim.animFinished = charObj->spritemapAnim.animFinished;
-                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.5f);
+                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.5f);
             } else if (optId == 5) { // Show Ghost
                 showGhost = !showGhost;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 6) { // Highlight Ghost
                 ghostHighlight = !ghostHighlight;
                 ghostObj->isHighlighted = ghostHighlight;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 7) { // Ghost Alpha Slider
                 ghostAlpha += pressLeft ? -0.05f : 0.05f;
                 if (ghostAlpha < 0.0f) ghostAlpha = 0.0f;
@@ -826,7 +827,7 @@ void CharacterEditorState::update(float dt) {
                 charObj->singDuration += pressLeft ? -0.5f : 0.5f;
                 if (charObj->singDuration < 0.1f) charObj->singDuration = 0.1f;
                 ghostObj->singDuration = charObj->singDuration;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 9) { // Scale
                 charObj->charScale += pressLeft ? -change * 0.05f : change * 0.05f;
                 if (charObj->charScale < 0.1f) charObj->charScale = 0.1f;
@@ -844,38 +845,38 @@ void CharacterEditorState::update(float dt) {
                     ghostObj->spritemapAnim.scaleY = charObj->charScale;
                 }
                 playCurAnim();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 10) { // Flip X
                 charObj->flipX = !charObj->flipX;
                 ghostObj->flipX = charObj->flipX;
                 playCurAnim();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 11) { // Antialiasing
                 charObj->noAntialiasing = !charObj->noAntialiasing;
                 ghostObj->noAntialiasing = charObj->noAntialiasing;
                 charObj->setAntialiasing(!charObj->noAntialiasing);
                 ghostObj->setAntialiasing(!ghostObj->noAntialiasing);
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 12) { // Pos X
                 charObj->x += pressLeft ? -change : change;
                 charObj->baseX = charObj->x;
                 ghostObj->x = charObj->x;
                 ghostObj->baseX = charObj->x;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 13) { // Pos Y
                 charObj->y += pressLeft ? -change : change;
                 charObj->baseY = charObj->y;
                 ghostObj->y = charObj->y;
                 ghostObj->baseY = charObj->y;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 14) { // Cam Offset X
                 charObj->camOffsetX += pressLeft ? -change * 5.0f : change * 5.0f;
                 ghostObj->camOffsetX = charObj->camOffsetX;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 15) { // Cam Offset Y
                 charObj->camOffsetY += pressLeft ? -change * 5.0f : change * 5.0f;
                 ghostObj->camOffsetY = charObj->camOffsetY;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 16) { // Animation selection list
                 if (!animList.empty()) {
                     if (pressLeft) {
@@ -887,7 +888,7 @@ void CharacterEditorState::update(float dt) {
                     }
                     curAnimIndex = animSliderIndex;
                     playCurAnim();
-                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                 }
             } else if (optId == 17 && !animList.empty()) { // FPS
                 std::string curAnimName = animList[animSliderIndex];
@@ -895,39 +896,39 @@ void CharacterEditorState::update(float dt) {
                 if (charObj->animations[curAnimName].fps < 1) charObj->animations[curAnimName].fps = 1;
                 ghostObj->animations[curAnimName].fps = charObj->animations[curAnimName].fps;
                 playCurAnim();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 18 && !animList.empty()) { // Loop
                 std::string curAnimName = animList[animSliderIndex];
                 charObj->setAnimLoop(curAnimName, !charObj->animations[curAnimName].loop);
                 ghostObj->setAnimLoop(curAnimName, charObj->animations[curAnimName].loop);
                 playCurAnim();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 19 && !animList.empty()) { // Offset X
                 std::string curAnimName = animList[animSliderIndex];
                 charObj->animations[curAnimName].offsetX += pressLeft ? -change : change;
                 ghostObj->animations[curAnimName].offsetX = charObj->animations[curAnimName].offsetX;
                 playCurAnim();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 20 && !animList.empty()) { // Offset Y
                 std::string curAnimName = animList[animSliderIndex];
                 charObj->animations[curAnimName].offsetY += pressLeft ? -change : change;
                 ghostObj->animations[curAnimName].offsetY = charObj->animations[curAnimName].offsetY;
                 playCurAnim();
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 21) { // Enable Frame Checkbox
                 showCamBounds = !showCamBounds;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 22) { // Cam Zoom Stepper
                 simCamZoom += pressLeft ? -0.05f : 0.05f;
                 if (simCamZoom < 0.1f) simCamZoom = 0.1f;
                 if (simCamZoom > 3.0f) simCamZoom = 3.0f;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 23) { // Ref Char listbox
                 curRefCharIndex += pressLeft ? -1 : 1;
                 if (curRefCharIndex < 0) curRefCharIndex = characterList.size() - 1;
                 if (curRefCharIndex >= (int)characterList.size()) curRefCharIndex = 0;
                 loadRefCharacter(characterList[curRefCharIndex]);
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 29) { // Ref Anim listbox
                 if (!refAnimList.empty()) {
                     refAnimSliderIndex += pressLeft ? -1 : 1;
@@ -935,25 +936,25 @@ void CharacterEditorState::update(float dt) {
                     if (refAnimSliderIndex >= (int)refAnimList.size()) refAnimSliderIndex = 0;
                     curRefAnimIndex = refAnimSliderIndex;
                     playCurRefAnim();
-                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                 }
             } else if (optId == 24) { // Show Ref Checkbox
                 showRefChar = !showRefChar;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 26) { // Ref Alpha Stepper
                 refAlpha += pressLeft ? -0.05f : 0.05f;
                 if (refAlpha < 0.0f) refAlpha = 0.0f;
                 if (refAlpha > 1.0f) refAlpha = 1.0f;
                 if (refObj) refObj->alpha = refAlpha;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 27 && refObj) { // Ref Pos X
                 refObj->x += pressLeft ? -change : change;
                 refObj->baseX = refObj->x;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             } else if (optId == 28 && refObj) { // Ref Pos Y
                 refObj->y += pressLeft ? -change : change;
                 refObj->baseY = refObj->y;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             }
         }
     }
@@ -993,14 +994,14 @@ void CharacterEditorState::update(float dt) {
 
         if (touch.px >= 0 && touch.px <= btnBoxW + 2.0f && touch.py >= 0 && touch.py <= headerH) {
             showAnimOverlay = !showAnimOverlay;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             touchHeld = false;
             touchDown = false;
             touchUp = false;
         } else if (touch.px >= btnBoxW + 3.0f && touch.px <= btnBoxW * 2.0f + 5.0f && touch.py >= 0 && touch.py <= headerH) {
             dragTargetMode = (dragTargetMode == 0) ? 1 : 0;
             centerCameraOnTarget();
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             touchHeld = false;
             touchDown = false;
             touchUp = false;
@@ -1025,7 +1026,7 @@ void CharacterEditorState::update(float dt) {
                     if (win.h < 50.0f * pcUiScale) win.h = 50.0f * pcUiScale;
                     if (win.h > 210.0f) win.h = 210.0f;
                 }
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
             }
             touchHeld = false;
             touchDown = false;
@@ -1057,7 +1058,7 @@ void CharacterEditorState::update(float dt) {
                             windows.erase(windows.begin() + i);
                             windows.push_back(temp);
                         }
-                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                         break;
                     }
                 }
@@ -1267,7 +1268,7 @@ void CharacterEditorState::update(float dt) {
                         curSelected = 0;
                         isDraggingCharList = false;
                         isDraggingAnimList = false;
-                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                     }
                 }
                 // 2. Drag Start for Lists (Normal Mode Only)
@@ -1392,7 +1393,7 @@ void CharacterEditorState::update(float dt) {
                     // Clicked title bar
                     if (touch.px >= focusedWin.x + focusedWin.w - 14.0f * pcUiScale) {
                         focusedWin.expanded = false; // Minimize to bottom taskbar!
-                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                     } else {
                         // Start dragging window
                         draggedWindowId = focusedWin.id;
@@ -1466,20 +1467,20 @@ void CharacterEditorState::update(float dt) {
                                 if (tapped >= 0 && tapped < (int)characterList.size()) {
                                     curCharIndex = tapped;
                                     loadCharacter(characterList[curCharIndex]);
-                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                                 }
                             } else if (elem.id == 1) { // Playable Checkbox
                                 charObj->isPlayer = !charObj->isPlayer;
                                 ghostObj->isPlayer = charObj->isPlayer;
                                 centerCameraOnTarget();
                                 playCurAnim();
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else if (elem.id == 2) { // Reload Button
                                 loadCharacter(currentCharacter);
-                                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.5f);
+                                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.5f);
                             } else if (elem.id == 3) { // Save Button
                                 saveCharacter();
-                                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.5f);
+                                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.5f);
                             } else if (elem.id == 4) { // Make Ghost Button
                                 ghostObj->isPlayer = charObj->isPlayer;
                                 ghostObj->flipX = charObj->flipX;
@@ -1497,42 +1498,42 @@ void CharacterEditorState::update(float dt) {
                                 ghostObj->animFinished = charObj->animFinished;
                                 ghostObj->spritemapAnim.smLogicalFrame = charObj->spritemapAnim.smLogicalFrame;
                                 ghostObj->spritemapAnim.animFinished = charObj->spritemapAnim.animFinished;
-                                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.5f);
+                                AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.5f);
                             } else if (elem.id == 5) { // Show Ghost Checkbox
                                 showGhost = !showGhost;
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else if (elem.id == 6) { // Highlight Ghost Checkbox
                                 ghostHighlight = !ghostHighlight;
                                 ghostObj->isHighlighted = ghostHighlight;
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else if (elem.id == 10) { // Flip X Checkbox
                                 charObj->flipX = !charObj->flipX;
                                 ghostObj->flipX = charObj->flipX;
                                 playCurAnim();
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else if (elem.id == 11) { // Antialiasing Checkbox
                                 charObj->noAntialiasing = !charObj->noAntialiasing;
                                 ghostObj->noAntialiasing = charObj->noAntialiasing;
                                 charObj->setAntialiasing(!charObj->noAntialiasing);
                                 ghostObj->setAntialiasing(!ghostObj->noAntialiasing);
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else if (elem.id == 16) { // Animations listbox
                                 int tapped = (int)((touchStartPy - elem.y + animScrollY) / (10.0f * pcUiScale));
                                 if (tapped >= 0 && tapped < (int)animList.size()) {
                                     animSliderIndex = tapped;
                                     curAnimIndex = animSliderIndex;
                                     playCurAnim();
-                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                                 }
                             } else if (elem.id == 21) { // Enable Cam Frame Checkbox
                                 showCamBounds = !showCamBounds;
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else if (elem.id == 23) { // Ref Char listbox tap
                                 int tapped = (int)((touchStartPy - elem.y + refCharScrollY) / (10.0f * pcUiScale));
                                 if (tapped >= 0 && tapped < (int)characterList.size()) {
                                     curRefCharIndex = tapped;
                                     loadRefCharacter(characterList[curRefCharIndex]);
-                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                                 }
                             } else if (elem.id == 29) { // Ref Anim listbox tap
                                 int tapped = (int)((touchStartPy - elem.y + refAnimScrollY) / (10.0f * pcUiScale));
@@ -1540,11 +1541,11 @@ void CharacterEditorState::update(float dt) {
                                     refAnimSliderIndex = tapped;
                                     curRefAnimIndex = refAnimSliderIndex;
                                     playCurRefAnim();
-                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                                 }
                             } else if (elem.id == 24) { // Show Ref Checkbox
                                 showRefChar = !showRefChar;
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else if (elem.id == 26) { // Ref Alpha Slider
                                 float sliderX = elem.x + 4.0f;
                                 float sliderW = elem.w - 8.0f;
@@ -1553,14 +1554,14 @@ void CharacterEditorState::update(float dt) {
                                 if (pct > 1.0f) pct = 1.0f;
                                 refAlpha = pct;
                                 if (refObj) refObj->alpha = refAlpha;
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else if (elem.id == 18) { // Loop Checkbox
                                 if (!animList.empty()) {
                                     std::string curAnimName = animList[animSliderIndex];
                                     charObj->setAnimLoop(curAnimName, !charObj->animations[curAnimName].loop);
                                     ghostObj->setAnimLoop(curAnimName, charObj->animations[curAnimName].loop);
                                     playCurAnim();
-                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                                 }
                             } else {
                                 // Arrows adjusted elements
@@ -1634,7 +1635,7 @@ void CharacterEditorState::update(float dt) {
                                         refObj->y += sign * change;
                                         refObj->baseY = refObj->y;
                                     }
-                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                                 }
                             }
                         }
@@ -1654,7 +1655,7 @@ void CharacterEditorState::update(float dt) {
                         if (tapped >= 0 && tapped < (int)characterList.size()) {
                             curCharIndex = tapped;
                             loadCharacter(characterList[curCharIndex]);
-                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                         }
                     }
                     // Playable Checkbox (forgiving row height tap)
@@ -1665,7 +1666,7 @@ void CharacterEditorState::update(float dt) {
                         ghostObj->isPlayer = charObj->isPlayer;
                         centerCameraOnTarget();
                         playCurAnim();
-                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                     }
                     // Reload Button
                     float btnY = 145.0f;
@@ -1673,7 +1674,7 @@ void CharacterEditorState::update(float dt) {
                     if (touchStartPy >= btnY - 2.0f && touchStartPy <= btnY + btnH + 2.0f && touchStartPx >= 10 && touchStartPx <= 310) {
                         curSelected = 2;
                         loadCharacter(currentCharacter);
-                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.5f);
+                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.5f);
                     }
                     // Save Button
                     float saveY = 175.0f;
@@ -1681,7 +1682,7 @@ void CharacterEditorState::update(float dt) {
                     if (touchStartPy >= saveY - 2.0f && touchStartPy <= saveY + saveH + 2.0f && touchStartPx >= 10 && touchStartPx <= 310) {
                         curSelected = 3;
                         saveCharacter();
-                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.5f);
+                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.5f);
                     }
                 }
                 else if (currentTab == 1) { // Ghost
@@ -1706,14 +1707,14 @@ void CharacterEditorState::update(float dt) {
                         ghostObj->animFinished = charObj->animFinished;
                         ghostObj->spritemapAnim.smLogicalFrame = charObj->spritemapAnim.smLogicalFrame;
                         ghostObj->spritemapAnim.animFinished = charObj->spritemapAnim.animFinished;
-                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.5f);
+                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.5f);
                     }
                     // Show Ghost Checkbox (forgiving row height)
                     float checkShowY = 64.0f;
                     if (touchStartPy >= checkShowY - 5.0f && touchStartPy <= checkShowY + 20.0f) {
                         curSelected = 1;
                         showGhost = !showGhost;
-                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                     }
                     // Highlight Ghost Checkbox (forgiving row height)
                     float checkHighY = 88.0f;
@@ -1721,7 +1722,7 @@ void CharacterEditorState::update(float dt) {
                         curSelected = 2;
                         ghostHighlight = !ghostHighlight;
                         ghostObj->isHighlighted = ghostHighlight;
-                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                     }
                 }
                 else if (currentTab == 2) { // Character
@@ -1734,13 +1735,13 @@ void CharacterEditorState::update(float dt) {
                                 charObj->flipX = !charObj->flipX;
                                 ghostObj->flipX = charObj->flipX;
                                 playCurAnim();
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else if (i == 3) { // Antialiasing
                                 charObj->noAntialiasing = !charObj->noAntialiasing;
                                 ghostObj->noAntialiasing = charObj->noAntialiasing;
                                 charObj->setAntialiasing(!charObj->noAntialiasing);
                                 ghostObj->setAntialiasing(!ghostObj->noAntialiasing);
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else {
                                 if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) { // [-] button
                                     if (i == 0) {
@@ -1781,7 +1782,7 @@ void CharacterEditorState::update(float dt) {
                                         charObj->camOffsetY -= change * 5.0f;
                                         ghostObj->camOffsetY = charObj->camOffsetY;
                                     }
-                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                                 } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) { // [+] button
                                     if (i == 0) {
                                         charObj->singDuration += 0.5f;
@@ -1819,7 +1820,7 @@ void CharacterEditorState::update(float dt) {
                                         charObj->camOffsetY += change * 5.0f;
                                         ghostObj->camOffsetY = charObj->camOffsetY;
                                     }
-                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                    AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                                 }
                             }
                             break;
@@ -1835,7 +1836,7 @@ void CharacterEditorState::update(float dt) {
                             animSliderIndex = tapped;
                             curAnimIndex = animSliderIndex;
                             playCurAnim();
-                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                         }
                     }
                     
@@ -1851,12 +1852,12 @@ void CharacterEditorState::update(float dt) {
                                 if (charObj->animations[curAnimName].fps < 1) charObj->animations[curAnimName].fps = 1;
                                 ghostObj->animations[curAnimName].fps = charObj->animations[curAnimName].fps;
                                 playCurAnim();
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) {
                                 charObj->animations[curAnimName].fps++;
                                 ghostObj->animations[curAnimName].fps = charObj->animations[curAnimName].fps;
                                 playCurAnim();
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             }
                         }
                         // Loop (forgiving row height)
@@ -1865,7 +1866,7 @@ void CharacterEditorState::update(float dt) {
                             charObj->setAnimLoop(curAnimName, !charObj->animations[curAnimName].loop);
                             ghostObj->setAnimLoop(curAnimName, charObj->animations[curAnimName].loop);
                             playCurAnim();
-                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                         }
                         // Offset X
                         float offXY = 166.0f;
@@ -1875,12 +1876,12 @@ void CharacterEditorState::update(float dt) {
                                 charObj->animations[curAnimName].offsetX -= change;
                                 ghostObj->animations[curAnimName].offsetX = charObj->animations[curAnimName].offsetX;
                                 playCurAnim();
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) {
                                 charObj->animations[curAnimName].offsetX += change;
                                 ghostObj->animations[curAnimName].offsetX = charObj->animations[curAnimName].offsetX;
                                 playCurAnim();
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             }
                         }
                         // Offset Y
@@ -1891,12 +1892,12 @@ void CharacterEditorState::update(float dt) {
                                 charObj->animations[curAnimName].offsetY -= change;
                                 ghostObj->animations[curAnimName].offsetY = charObj->animations[curAnimName].offsetY;
                                 playCurAnim();
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) {
                                 charObj->animations[curAnimName].offsetY += change;
                                 ghostObj->animations[curAnimName].offsetY = charObj->animations[curAnimName].offsetY;
                                 playCurAnim();
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             }
                         }
                     }
@@ -1906,7 +1907,7 @@ void CharacterEditorState::update(float dt) {
                     if (touchStartPy >= checkY - 5.0f && touchStartPy <= checkY + 24.0f) {
                         curSelected = 0;
                         showCamBounds = !showCamBounds;
-                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                     }
                     float zoomY = 80.0f;
                     if (touchStartPy >= zoomY - 5.0f && touchStartPy <= zoomY + 24.0f) {
@@ -1914,11 +1915,11 @@ void CharacterEditorState::update(float dt) {
                         if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) {
                             simCamZoom -= 0.05f;
                             if (simCamZoom < 0.1f) simCamZoom = 0.1f;
-                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                         } else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) {
                             simCamZoom += 0.05f;
                             if (simCamZoom > 3.0f) simCamZoom = 3.0f;
-                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                         }
                     }
                 }
@@ -1936,7 +1937,7 @@ void CharacterEditorState::update(float dt) {
                         if (tapped >= 0 && tapped < (int)characterList.size()) {
                             curRefCharIndex = tapped;
                             loadRefCharacter(characterList[curRefCharIndex]);
-                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                         }
                     }
                     else if (touchStartPx >= box2X && touchStartPx <= box2X + box2W && touchStartPy >= box2Y && touchStartPy <= box2Y + box2H) {
@@ -1947,14 +1948,14 @@ void CharacterEditorState::update(float dt) {
                                 refAnimSliderIndex = tapped;
                                 curRefAnimIndex = refAnimSliderIndex;
                                 playCurRefAnim();
-                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                             }
                         }
                     }
                     else if (touchStartPy >= checkShowY - 4.0f && touchStartPy <= checkShowY + 18.0f) {
                         curSelected = 2;
                         showRefChar = !showRefChar;
-                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                        AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                     }
                     else if (touchStartPy >= alphaY - 4.0f && touchStartPy <= alphaY + 28.0f) {
                         curSelected = 3;
@@ -1966,7 +1967,7 @@ void CharacterEditorState::update(float dt) {
                             if (pct > 1.0f) pct = 1.0f;
                             refAlpha = pct;
                             if (refObj) refObj->alpha = refAlpha;
-                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                         }
                     }
                     else if (touchStartPy >= posX_Y - 4.0f && touchStartPy <= posX_Y + 18.0f) {
@@ -1975,7 +1976,7 @@ void CharacterEditorState::update(float dt) {
                             if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) refObj->x -= change;
                             else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) refObj->x += change;
                             refObj->baseX = refObj->x;
-                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                         }
                     }
                     else if (touchStartPy >= posY_Y - 4.0f && touchStartPy <= posY_Y + 18.0f) {
@@ -1984,7 +1985,7 @@ void CharacterEditorState::update(float dt) {
                             if (touchStartPx >= minusX - 10.0f && touchStartPx <= minusX + 30.0f) refObj->y -= change;
                             else if (touchStartPx >= plusX - 10.0f && touchStartPx <= plusX + 32.0f) refObj->y += change;
                             refObj->baseY = refObj->y;
-                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.4f);
+                            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.4f);
                         }
                     }
                 }
@@ -2207,8 +2208,9 @@ void CharacterEditorState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom)
     }
 
     // 2. BOTTOM SCREEN (320x240): Tab UI or PC Mode Split
-    C2D_SceneBegin(bottom);
-    C2D_TargetClear(bottom, C2D_Color32(18, 18, 22, 255));
+    if (!g_isRightEye && bottom) {
+        C2D_SceneBegin(bottom);
+        C2D_TargetClear(bottom, C2D_Color32(18, 18, 22, 255));
 
 
     if (pcMode) {
@@ -2769,6 +2771,7 @@ void CharacterEditorState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom)
         C2D_DrawLine(bannerX, bannerY + bannerH, borderColor, bannerX + bannerW, bannerY + bannerH, borderColor, 1.0f, 0.96f);
         
         drawText("CHARACTER SAVED!", bannerX + bannerW * 0.5f, bannerY + bannerH * 0.5f, 0.45f, true, textColor, 0.98f);
+    }
     }
 }
 

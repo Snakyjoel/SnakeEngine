@@ -10,6 +10,7 @@ std::map<std::string, int> Highscores::weekScores;
 std::map<std::string, float> Highscores::weekAccuracies;
 std::map<std::string, std::string> Highscores::songRatings;
 std::map<std::string, std::string> Highscores::weekRatings;
+std::map<std::string, bool> Highscores::weekCompleted;
 
 std::string Highscores::formatKey(const std::string& name, const std::string& diff) {
     std::string key = name;
@@ -26,6 +27,7 @@ void Highscores::load() {
     weekAccuracies.clear();
     songRatings.clear();
     weekRatings.clear();
+    weekCompleted.clear();
 
     std::string path = ModHandler::getWorkingBase() + "highscores.json";
     json_error_t error;
@@ -98,6 +100,17 @@ void Highscores::load() {
         }
     }
 
+    json_t *wComp = json_object_get(root, "weekCompleted");
+    if (wComp && json_is_object(wComp)) {
+        const char *key;
+        json_t *value;
+        json_object_foreach(wComp, key, value) {
+            if (json_is_boolean(value) && json_is_true(value)) {
+                weekCompleted[key] = true;
+            }
+        }
+    }
+
     json_decref(root);
 }
 
@@ -108,6 +121,7 @@ void Highscores::reset() {
     weekAccuracies.clear();
     songRatings.clear();
     weekRatings.clear();
+    weekCompleted.clear();
     std::string path = ModHandler::getWorkingBase() + "highscores.json";
     remove(path.c_str());
     save();
@@ -155,6 +169,14 @@ void Highscores::save() {
     }
     json_object_set_new(root, "weekRatings", wRatings);
 
+    json_t *wComp = json_object();
+    for (auto const& pair : weekCompleted) {
+        if (pair.second) {
+            json_object_set_new(wComp, pair.first.c_str(), json_true());
+        }
+    }
+    json_object_set_new(root, "weekCompleted", wComp);
+
     std::string path = basePath + "highscores.json";
     json_dump_file(root, path.c_str(), 0);
     json_decref(root);
@@ -177,9 +199,12 @@ void Highscores::saveAccuracy(const std::string& song, float accuracy, const std
 }
 
 void Highscores::saveWeekScore(const std::string& week, int score, const std::string& diff) {
+    weekCompleted[week] = true;
     std::string key = formatKey(week, diff);
     if (weekScores.find(key) == weekScores.end() || score > weekScores[key]) {
         weekScores[key] = score;
+        save();
+    } else {
         save();
     }
 }
@@ -259,4 +284,33 @@ std::string Highscores::getWeekRating(const std::string& week, const std::string
         return songRatings[key];
     }
     return "";
+}
+
+
+bool Highscores::isWeekCompleted(const std::string& week) {
+    if (week.empty()) return true;
+
+    auto toLower = [](const std::string& s) {
+        std::string res = s;
+        for (char& c : res) c = (char)tolower((unsigned char)c);
+        return res;
+    };
+
+    std::string lowerWeek = toLower(week);
+
+    for (const auto& pair : weekCompleted) {
+        if (pair.second && toLower(pair.first) == lowerWeek) {
+            return true;
+        }
+    }
+
+    for (const auto& pair : weekScores) {
+        if (pair.second > 0) {
+            std::string lowerKey = toLower(pair.first);
+            if (lowerKey == lowerWeek || lowerKey.rfind(lowerWeek + "-", 0) == 0) {
+                return true;
+            }
+        }
+    }
+    return false;
 }

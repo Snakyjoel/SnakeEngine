@@ -10,7 +10,10 @@
 #include "Highscores.hpp"
 #include "Achievements.hpp"
 #include "backend/AsyncAssetManager.hpp"
-#include "states/PreloadCacheState.hpp"
+#include "backend/UpdateChecker.hpp"
+#include "states/TitleState.hpp"
+#include "states/egg/EggDuelState.hpp"
+#include "states/egg/EggDialogueState.hpp"
 #include "states/PlayState.hpp"
 
 C2D_Font globalVCRFont = nullptr;
@@ -39,10 +42,7 @@ void makeFontPixelPerfect(C2D_Font font) {
 static C2D_TextBuf menuDebugBuf = nullptr;
 bool g_inTransition = false;
 
-extern "C" {
-    u32 __ctru_heap_size = 12 * 1024 * 1024;        // 12MB heap for game logic + Lua
-    u32 __ctru_linear_heap_size = 0;                // 0 = Autodetect remaining RAM for linear heap (textures/audio)
-}
+
 
 
 
@@ -53,7 +53,7 @@ static bool s_wasMusicPausedByOS = false;
 static bool s_wasAsyncSuspendedByOS = false;
 
 static void aptHookFunc(APT_HookType hook, void* param) {
-    if (hook == APTHOOK_ONSUSPEND || hook == APTHOOK_ONEXIT) {
+    if (hook == APTHOOK_ONSUSPEND) {
         s_wasAudioPausedByOS = !AudioEngine::paused;
         s_wasMusicPausedByOS = MusicPlayer::isPlaying();
         s_wasAsyncSuspendedByOS = !AsyncAssetManager::get().isSuspended();
@@ -69,7 +69,14 @@ static void aptHookFunc(APT_HookType hook, void* param) {
 }
 
 int main(int argc, char* argv[]) {
-    osSetSpeedupEnable(true); // N3DS 804MHz
+    gfxInitDefault();
+
+    bool isNew3DS = false;
+    APT_CheckNew3DS(&isNew3DS);
+    if (isNew3DS) {
+        osSetSpeedupEnable(true); // N3DS 804MHz
+        APT_SetAppCpuTimeLimit(80); // Enable up to 80% CPU usage on Core 1 (SysCore) for background threads
+    }
     
     Result ndspRes = ndspInit();
     if (R_SUCCEEDED(ndspRes)) {
@@ -78,7 +85,6 @@ int main(int argc, char* argv[]) {
     }
 
     if (R_FAILED(romfsInit())) {
-        gfxInitDefault();
         consoleInit(GFX_BOTTOM, NULL);
         printf("\x1b[10;10HERROR: RomFS not mounted!\x1b[0K");
         while (aptMainLoop()) { gspWaitForVBlank(); hidScanInput(); if (hidKeysDown() & KEY_START) break; }
@@ -87,7 +93,6 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    gfxInitDefault();
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
     C2D_Prepare();
@@ -133,7 +138,17 @@ int main(int argc, char* argv[]) {
 
     AsyncAssetManager::get().init();
 
-    MusicBeatState* currentState = new PreloadCacheState();
+    MusicBeatState* currentState = nullptr;
+    if (ClientPrefs::inEggDuel) {
+        MusicBeatState::skipTransition = true;
+        currentState = new EggDuelState();
+    } else if (ClientPrefs::acceptedEgg) {
+        MusicBeatState::skipTransition = true;
+        currentState = new EggDialogueState();
+    } else {
+        currentState = new TitleState();
+    }
+    MusicBeatState::currentState = currentState;
     currentState->init();
 
     u64 lastTime = osGetTime();
@@ -175,17 +190,19 @@ int main(int argc, char* argv[]) {
                 }
                 g_isRightEye = false;
 
-                if (MusicBeatState::useStickerTransition) {
-                    MusicBeatState::drawStickerTransition(top, bottom);
-                    if (g_current3DSlider > 0.001f) {
-                        MusicBeatState::drawStickerTransition(topRight, nullptr);
+                if (!MusicBeatState::skipTransition) {
+                    if (MusicBeatState::useStickerTransition) {
+                        MusicBeatState::drawStickerTransition(top, bottom);
+                        if (g_current3DSlider > 0.001f) {
+                            MusicBeatState::drawStickerTransition(topRight, nullptr);
+                        }
+                    } else {
+                        drawWipeOverlay(top, 400.0f, 240.0f);
+                        if (g_current3DSlider > 0.001f) {
+                            drawWipeOverlay(topRight, 400.0f, 240.0f);
+                        }
+                        drawWipeOverlay(bottom, 320.0f, 240.0f);
                     }
-                } else {
-                    drawWipeOverlay(top, 400.0f, 240.0f);
-                    if (g_current3DSlider > 0.001f) {
-                        drawWipeOverlay(topRight, 400.0f, 240.0f);
-                    }
-                    drawWipeOverlay(bottom, 320.0f, 240.0f);
                 }
                 C3D_FrameEnd(0);
 
@@ -193,10 +210,12 @@ int main(int argc, char* argv[]) {
                     currentState->exitState();
                     delete currentState;
                     currentState = nullptr;
+                    MusicBeatState::currentState = nullptr;
                 }
 
                 if (MusicBeatState::nextState != nullptr) {
                     currentState = MusicBeatState::nextState;
+                    MusicBeatState::currentState = currentState;
                     MusicBeatState::nextState = nullptr;
                     currentState->init();
 
@@ -273,21 +292,34 @@ int main(int argc, char* argv[]) {
                     C2D_TextBufClear(menuDebugBuf);
                 }
 
+                extern u32 __ctru_heap_size;
                 extern u32 __ctru_linear_heap_size;
-                float lramTotal = (float)__ctru_linear_heap_size / (1024.0f * 1024.0f);
-                float lramUsed = lramTotal - ((float)linearSpaceFree() / (1024.0f * 1024.0f));
+                float heapTotal    = (float)__ctru_heap_size / (1024.0f * 1024.0f);
+                float linearTotal  = (float)__ctru_linear_heap_size / (1024.0f * 1024.0f);
+                struct mallinfo mi = mallinfo();
+                float heapUsed     = (float)mi.uordblks / (1024.0f * 1024.0f);
+                float linearFree   = (float)linearSpaceFree() / (1024.0f * 1024.0f);
+                float linearUsed   = linearTotal - linearFree;
+                float totalUsed    = heapUsed + linearUsed;
+                float totalAvail   = heapTotal + linearTotal;
                 float vramUsed = (float)(6 * 1024 * 1024 - vramSpaceFree()) / (1024.0f * 1024.0f);
                 float vramTotal = 6.0f;
-
-                struct mallinfo mi = mallinfo();
-                float stdRamUsed = (float)mi.uordblks / (1024.0f * 1024.0f);
+                float cpuPercent = (C3D_GetProcessingTime() * 6.0f);
+                float gpuPercent = (C3D_GetDrawingTime() * 6.0f);
+                if (cpuPercent > 100.0f) cpuPercent = 100.0f;
+                if (cpuPercent < 0.0f)   cpuPercent = 0.0f;
+                if (gpuPercent > 100.0f) gpuPercent = 100.0f;
+                if (gpuPercent < 0.0f)   gpuPercent = 0.0f;
 
                 bool isNew3DS = false;
                 APT_CheckNew3DS(&isNew3DS);
 
+                int menuFps = (int)(1.0f / (dt > 0.0001f ? dt : 0.0166f));
+                if (menuFps > 60) menuFps = 60;
+
                 char debugStr[256];
-                sprintf(debugStr, "SYSTEM RAM: %.2f MB\nLINEAR RAM: %.2f / %.2f MB\nVRAM: %.2f / %.2f MB\nMODEL: %s", 
-                        stdRamUsed, lramUsed, lramTotal, vramUsed, vramTotal, isNew3DS ? "New 3DS" : "Old 3DS");
+                sprintf(debugStr, "FPS:   %d\nRAM:   %.1f / %.1f MB\nVRAM:  %.1f / 6.0 MB\nCPU:   %d%%\nGPU:   %d%%\nMODEL: %s", 
+                        menuFps, totalUsed, totalAvail, vramUsed, (int)cpuPercent, (int)gpuPercent, isNew3DS ? "New 3DS" : "Old 3DS");
 
                 C2D_Text debugObj;
                 C2D_TextFontParse(&debugObj, globalVCRFont, menuDebugBuf, debugStr);
@@ -333,6 +365,8 @@ int main(int argc, char* argv[]) {
 
     aptUnhook(&s_aptHookCookie);
 
+    UpdateChecker::shutdown();
+
     if (currentState) {
         currentState->exitState();
         delete currentState;
@@ -341,13 +375,16 @@ int main(int argc, char* argv[]) {
 
     AsyncAssetManager::get().shutdown();
 
-    AudioEngine::stopAudioThread();
-    AudioEngine::exit();
-    MusicPlayer::stop();
+    AudioEngine::shutdown();
 
     if (globalVCRFont) {
         C2D_FontFree(globalVCRFont);
         globalVCRFont = nullptr;
+    }
+
+    if (globalPixelFont) {
+        C2D_FontFree(globalPixelFont);
+        globalPixelFont = nullptr;
     }
 
     if (menuDebugBuf) {

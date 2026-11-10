@@ -1,11 +1,13 @@
 #include "InGameVideoPlayer.hpp"
 #include "../backend/Conductor.hpp"
 #include "../backend/Paths.hpp"
+#include "../backend/savedata/ClientPrefs.hpp"
 #include <cstring>
 
 InGameVideoPlayer::InGameVideoPlayer(const std::string& videoPath, bool inFrontOfHUD, bool loop)
     : inFrontOfHUD(inFrontOfHUD), loop(loop), isPaused(false), finished(false), alpha(1.0f),
-      path(videoPath), displayedFrame(-1), songStartPosition(-1.0), firstFrameReady(false)
+      path(videoPath), displayedFrame(-1), songStartPosition(-1.0), firstFrameReady(false),
+      transferInProgress(false), pendingRingSlot(-1)
 {
     tex[0].data = nullptr;
     tex[1].data = nullptr;
@@ -35,9 +37,10 @@ InGameVideoPlayer::InGameVideoPlayer(const std::string& videoPath, bool inFrontO
     }
 
     GPU_TEXCOLOR texFmt = (decoder.getFormat() == 1) ? GPU_RGBA4 : GPU_RGB565;
+    GPU_TEXTURE_FILTER_PARAM filter = ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST;
     for (int i = 0; i < 2; i++) {
         C3D_TexInit(&tex[i], 512, 256, texFmt);
-        C3D_TexSetFilter(&tex[i], GPU_LINEAR, GPU_LINEAR);
+        C3D_TexSetFilter(&tex[i], filter, GPU_NEAREST);
     }
 
     subtex.width  = w;
@@ -54,6 +57,14 @@ InGameVideoPlayer::InGameVideoPlayer(const std::string& videoPath, bool inFrontO
 }
 
 InGameVideoPlayer::~InGameVideoPlayer() {
+    if (transferInProgress) {
+        gspWaitForPPF();
+        transferInProgress = false;
+        if (pendingRingSlot != -1) {
+            decoder.releaseFrame(pendingRingSlot);
+            pendingRingSlot = -1;
+        }
+    }
     decoder.close();
     for (int i = 0; i < 2; i++) {
         if (tex[i].data) {
@@ -64,6 +75,12 @@ InGameVideoPlayer::~InGameVideoPlayer() {
 }
 
 void InGameVideoPlayer::restartVideo() {
+    if (transferInProgress) {
+        gspWaitForPPF();
+        transferInProgress = false;
+    }
+    pendingRingSlot = -1;
+
     decoder.close();
     displayedFrame = -1;
     songStartPosition = -1.0;
@@ -80,15 +97,26 @@ void InGameVideoPlayer::restartVideo() {
 void InGameVideoPlayer::processGPUTransfer(uint16_t* frameBuf, int ringSlot) {
     if (!frameBuf) return;
 
+    // Ensure any previously active DMA transfer has completed before starting a new one
+    if (transferInProgress) {
+        gspWaitForPPF();
+        transferInProgress = false;
+        if (pendingRingSlot != -1) {
+            decoder.releaseFrame(pendingRingSlot);
+            pendingRingSlot = -1;
+        }
+    }
+
     currentTex ^= 1;
 
     GX_TRANSFER_FORMAT transferFmt = (decoder.getFormat() == 1) ? GX_TRANSFER_FMT_RGBA4 : GX_TRANSFER_FMT_RGB565;
+    u32 transferH = (decoder.getHeight() + 7) & ~7;
+    if (transferH == 0 || transferH > 256) transferH = 256;
 
-    // Direct GPU DMA transfer from 512-pitch decoded buffer — Zero CPU row-by-row memcpy!
-    GSPGPU_FlushDataCache(frameBuf, 512 * 256 * 2);
-    C3D_SyncDisplayTransfer(
-        (u32*)frameBuf,             GX_BUFFER_DIM(512, 256),
-        (u32*)tex[currentTex].data, GX_BUFFER_DIM(512, 256),
+    // Asynchronous GPU DMA display transfer from 512-pitch decoded buffer — Non-blocking!
+    GX_DisplayTransfer(
+        (u32*)frameBuf,             GX_BUFFER_DIM(512, transferH),
+        (u32*)tex[currentTex].data, GX_BUFFER_DIM(512, transferH),
         GX_TRANSFER_FLIP_VERT(0)   |
         GX_TRANSFER_OUT_TILED(1)   |
         GX_TRANSFER_RAW_COPY(0)    |
@@ -97,7 +125,8 @@ void InGameVideoPlayer::processGPUTransfer(uint16_t* frameBuf, int ringSlot) {
         GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO)
     );
 
-    decoder.releaseFrame(ringSlot);
+    transferInProgress = true;
+    pendingRingSlot = ringSlot;
     firstFrameReady = true;
 }
 
@@ -150,14 +179,27 @@ void InGameVideoPlayer::update(float dt) {
 void InGameVideoPlayer::draw(float stageAlpha) {
     if (finished || !firstFrameReady || !tex[currentTex].data) return;
 
+    // Finalize pending GPU DMA transfer if still running (in most cases it finished during update)
+    if (transferInProgress) {
+        gspWaitForPPF();
+        transferInProgress = false;
+        if (pendingRingSlot != -1) {
+            decoder.releaseFrame(pendingRingSlot);
+            pendingRingSlot = -1;
+        }
+    }
+
     float drawAlpha = alpha * stageAlpha;
     if (drawAlpha <= 0.0f) return;
 
     img.tex = &tex[currentTex];
     img.subtex = &subtex;
 
-    C2D_ImageTint tint;
-    C2D_AlphaImageTint(&tint, drawAlpha);
-
-    C2D_DrawImageAt(img, 0.0f, 0.0f, 0.5f, &tint, scaleX, scaleY);
+    if (drawAlpha >= 0.999f) {
+        C2D_DrawImageAt(img, 0.0f, 0.0f, 0.5f, nullptr, scaleX, scaleY);
+    } else {
+        C2D_ImageTint tint;
+        C2D_AlphaImageTint(&tint, drawAlpha);
+        C2D_DrawImageAt(img, 0.0f, 0.0f, 0.5f, &tint, scaleX, scaleY);
+    }
 }

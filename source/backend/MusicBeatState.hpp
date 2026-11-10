@@ -17,8 +17,10 @@ public:
     virtual void exitState();
     virtual void stepHit(int step);
     virtual void beatHit(int beat);
+    virtual bool hasTransitions() const { return true; }
 
     static void switchState(MusicBeatState* newState);
+    static MusicBeatState* currentState;
     static MusicBeatState* nextState;
 
     static bool skipTransition;

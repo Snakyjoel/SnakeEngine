@@ -1,8 +1,6 @@
 #include "VideoState.hpp"
-#include <string.h>
-#include <malloc.h>
 #include "../backend/AudioEngine.hpp"
-#include "backend/Conductor.hpp"
+#include "../backend/Macros.hpp"
 #include "backend/Paths.hpp"
 #include <cmath>
 
@@ -42,7 +40,9 @@ static void drawProgressRing(float cx, float cy, float r_in, float r_out, float 
     }
 }
 
-VideoState::VideoState(const std::string& videoPath, MusicBeatState* nextState, bool debugUI) {
+VideoState::VideoState(const std::string& videoPath, MusicBeatState* nextState, bool instantSkip)
+    : m_nextState(nextState), m_instantSkip(instantSkip)
+{
     std::string resolvedPath = videoPath;
     if (resolvedPath.find("romfs:/") != 0 && resolvedPath.find("sdmc:/") != 0) {
         std::string videoName = resolvedPath;
@@ -52,27 +52,25 @@ VideoState::VideoState(const std::string& videoPath, MusicBeatState* nextState, 
         resolvedPath = Paths::getPath(videoName, "videos");
     }
     path = resolvedPath;
-    m_nextState = nextState;
     tex[0].data = nullptr;
     tex[1].data = nullptr;
-    textBuf = nullptr;
     displayedFrame = -1;
     videoTimer = 0.0f;
     failedToLoad = false;
     transitioning = false;
-    isDebug = debugUI;
-    isPaused = false;
     skipProgress = 0.0f;
     ringAlpha = 0.0f;
+}
+
+VideoState::VideoState(const std::string& videoPath, MusicBeatState* nextState, bool /*unusedDebug*/, bool instantSkip)
+    : VideoState(videoPath, nextState, instantSkip)
+{
 }
 
 VideoState::~VideoState() {
     decoder.close();
     if (tex[0].data) C3D_TexDelete(&tex[0]);
     if (tex[1].data) C3D_TexDelete(&tex[1]);
-    if (isDebug && textBuf) {
-        C2D_TextBufDelete(textBuf);
-    }
 }
 
 void VideoState::init() {
@@ -81,10 +79,6 @@ void VideoState::init() {
     if (!decoder.open(path, true)) {
         failedToLoad = true;
         return;
-    }
-
-    if (isDebug) {
-        textBuf = C2D_TextBufNew(4096);
     }
 
     GPU_TEXCOLOR texFmt = (decoder.getFormat() == 1) ? GPU_RGBA4 : GPU_RGB565;
@@ -140,23 +134,20 @@ void VideoState::update(float dt) {
 
     if (failedToLoad) {
         transitioning = true;
+        if (m_instantSkip) {
+            MusicBeatState::skipTransition = true;
+        }
         switchState(m_nextState);
         return;
     }
 
-    if (isDebug) {
-        if (hidKeysDown() & KEY_A) {
+    if (m_instantSkip) {
+        u32 kDown = hidKeysDown();
+        if (kDown != 0) {
             transitioning = true;
+            MusicBeatState::skipTransition = true;
             switchState(m_nextState);
             return;
-        }
-        if (hidKeysDown() & KEY_START) {
-            isPaused = !isPaused;
-            if (isPaused) {
-                AudioEngine::pause();
-            } else {
-                AudioEngine::resume();
-            }
         }
     } else {
         u32 kHeld = hidKeysHeld();
@@ -181,12 +172,6 @@ void VideoState::update(float dt) {
             if (skipProgress < 0.0f) skipProgress = 0.0f;
         }
     }
-
-    if (dt > 0.0001f) {
-        currentFPS = currentFPS * 0.9f + (1.0f / dt) * 0.1f;
-    }
-
-    if (isPaused) return;
 
     float masterTime = 0.0f;
     if (decoder.hasAudioTrack()) {
@@ -230,6 +215,9 @@ void VideoState::update(float dt) {
 
     if (decoder.isEnded()) {
         transitioning = true;
+        if (m_instantSkip) {
+            MusicBeatState::skipTransition = true;
+        }
         switchState(m_nextState);
         return;
     }
@@ -238,23 +226,25 @@ void VideoState::update(float dt) {
 void VideoState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     if (failedToLoad) return;
 
-    C2D_SceneBegin(bottom);
-    C2D_TargetClear(bottom, C2D_Color32(0, 0, 0, 255));
+    if (!g_isRightEye && bottom) {
+        C2D_SceneBegin(bottom);
+        C2D_TargetClear(bottom, C2D_Color32(0, 0, 0, 255));
 
-    if (!isDebug && ringAlpha > 0.0f) {
-        float cx = 285.0f;
-        float cy = 205.0f;
-        float r_in = 12.0f;
-        float r_out = 16.0f;
+        if (!m_instantSkip && ringAlpha > 0.0f) {
+            float cx = 285.0f;
+            float cy = 205.0f;
+            float r_in = 12.0f;
+            float r_out = 16.0f;
 
-        u8 alphaBack = (u8)(ringAlpha * 100.0f);
-        u8 alphaFront = (u8)(ringAlpha * 255.0f);
+            u8 alphaBack = (u8)(ringAlpha * 100.0f);
+            u8 alphaFront = (u8)(ringAlpha * 255.0f);
 
-        u32 colorBack = C2D_Color32(0, 0, 0, alphaBack);
-        drawProgressRing(cx, cy, r_in, r_out, 1.0f, colorBack, 0.9f);
+            u32 colorBack = C2D_Color32(0, 0, 0, alphaBack);
+            drawProgressRing(cx, cy, r_in, r_out, 1.0f, colorBack, 0.9f);
 
-        u32 colorFront = C2D_Color32(255, 255, 255, alphaFront);
-        drawProgressRing(cx, cy, r_in, r_out, skipProgress, colorFront, 0.91f);
+            u32 colorFront = C2D_Color32(255, 255, 255, alphaFront);
+            drawProgressRing(cx, cy, r_in, r_out, skipProgress, colorFront, 0.91f);
+        }
     }
 
     C2D_SceneBegin(top);
@@ -269,41 +259,5 @@ void VideoState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         float y = (240.0f - h) / 2.0f;
 
         C2D_DrawImageAt(img, 0, y, 0.5f, nullptr, scaleX, scaleX);
-    }
-
-    if (isDebug) {
-        C2D_SceneBegin(bottom);
-        C2D_TextBufClear(textBuf);
-
-        uint32_t totalFrames = decoder.getTotalFrames();
-        float progress = 0.0f;
-        if (totalFrames > 0) progress = (float)displayedFrame / (float)totalFrames;
-
-        C2D_DrawRectSolid(20, 100, 0, 280, 20, C2D_Color32(50, 50, 50, 255));
-        C2D_DrawRectSolid(20, 100, 0, 280 * progress, 20, C2D_Color32(0, 255, 0, 255));
-
-        char timeText[128];
-        float fpsVal = (float)decoder.getFps();
-        float totalSecs = (float)totalFrames / fpsVal;
-        float curSecs = (float)(displayedFrame > 0 ? displayedFrame : 0) / fpsVal;
-        sprintf(timeText, "Time: %02d:%02d / %02d:%02d\nFPS: %.1f (Video: %d)",
-            (int)curSecs / 60, (int)curSecs % 60,
-            (int)totalSecs / 60, (int)totalSecs % 60,
-            currentFPS, (int)fpsVal);
-
-        C2D_Text t;
-        C2D_TextParse(&t, textBuf, timeText);
-        C2D_TextOptimize(&t);
-        C2D_DrawText(&t, C2D_WithColor, 20, 50, 0, 0.55f, 0.55f, C2D_Color32(255, 255, 255, 255));
-
-        C2D_TextParse(&t, textBuf, "START: Pause/Resume\nA: Exit to Debug Menu");
-        C2D_TextOptimize(&t);
-        C2D_DrawText(&t, C2D_WithColor, 20, 140, 0, 0.5f, 0.5f, C2D_Color32(200, 200, 200, 255));
-
-        if (isPaused) {
-            C2D_TextParse(&t, textBuf, "PAUSED");
-            C2D_TextOptimize(&t);
-            C2D_DrawText(&t, C2D_WithColor, 130, 40, 0, 0.8f, 0.8f, C2D_Color32(255, 255, 0, 255));
-        }
     }
 }

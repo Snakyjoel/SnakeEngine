@@ -23,6 +23,27 @@ public:
         }
     }
 
+    static void decodeIMAStereo(const uint8_t* adpcmData, uint32_t adpcmSize, int16_t* pcmOut, uint32_t& samplesDecoded, State& stateL, State& stateR) {
+        samplesDecoded = 0;
+        uint32_t pairs = adpcmSize / 2;
+        for (uint32_t i = 0; i < pairs; i++) {
+            uint8_t byteL = adpcmData[i * 2];
+            uint8_t byteR = adpcmData[i * 2 + 1];
+
+            int16_t sL0 = 0, sL1 = 0, sR0 = 0, sR1 = 0;
+            decodeNibble(byteL & 0x0F, sL0, stateL);
+            decodeNibble((byteL >> 4) & 0x0F, sL1, stateL);
+            decodeNibble(byteR & 0x0F, sR0, stateR);
+            decodeNibble((byteR >> 4) & 0x0F, sR1, stateR);
+
+            // Interleaved stereo PCM for NDSP: [L0, R0, L1, R1]
+            pcmOut[samplesDecoded++] = sL0;
+            pcmOut[samplesDecoded++] = sR0;
+            pcmOut[samplesDecoded++] = sL1;
+            pcmOut[samplesDecoded++] = sR1;
+        }
+    }
+
 private:
     static inline void decodeNibble(uint8_t nibble, int16_t& sample, State& state) {
         static const int indexTable[8] = {

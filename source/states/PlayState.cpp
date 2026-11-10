@@ -14,6 +14,7 @@
 #include "../objects/InGameVideoPlayer.hpp"
 #include "../backend/LuaManager.hpp"
 #include "../backend/SpritesheetCache.hpp"
+#include "../backend/TextureLoader.hpp"
 #include "../backend/Ease.hpp"
 #include "Achievements.hpp"
 #include "ResultState.hpp"
@@ -260,6 +261,7 @@ void PlayState::updateLuaText(LuaText& t) {
 }
 
 PlayState* PlayState::instance = nullptr;
+int PlayState::blueBalls = 0;
 int PlayState::campaignScore = 0;
 int PlayState::campaignSicks = 0;
 int PlayState::campaignGoods = 0;
@@ -275,8 +277,8 @@ inline float lerp(float a, float b, float t) {
 
 static constexpr float DEG_TO_RAD = 0.017453292519943295f;
 
-PlayState::PlayState(const std::string& songName, const std::string& difficulty)
-    : curSong(songName), currentDifficulty(difficulty) {
+PlayState::PlayState(const std::string& songName, const std::string& difficulty, const std::string& modDir)
+    : curSong(songName), currentDifficulty(difficulty), modDirectory(modDir) {
     isStoryMode = false;
 }
 
@@ -287,6 +289,7 @@ PlayState::PlayState(const WeekData& week, int songIdx, const std::string& diffi
         curSong = week.songs[songIdx].name;
     }
     currentDifficulty = difficulty;
+    modDirectory = week.modFolder;
 
     if (songIdx == 0) {
         campaignScore = 0;
@@ -508,7 +511,21 @@ void PlayState::init() {
 
     PlayState::instance = this;
 
-    // Load song JSON early to ensure arrowSkin and ratingSkin are available
+    // Ensure currentModFolder is properly set and protected from Freeplay thread race conditions
+    if (!modDirectory.empty()) {
+        ModHandler::get().currentModFolder = modDirectory;
+    } else if (ModHandler::get().currentModFolder.empty()) {
+        // Fallback auto-detection: find which mod contains this song's chart
+        std::string sFolder = curSong;
+        std::transform(sFolder.begin(), sFolder.end(), sFolder.begin(), ::tolower);
+        std::replace(sFolder.begin(), sFolder.end(), ' ', '-');
+        std::string detectedMod = ModHandler::get().getModFolderOfFile("data/" + sFolder + "/" + sFolder + ".json");
+        if (!detectedMod.empty()) {
+            ModHandler::get().currentModFolder = detectedMod;
+            modDirectory = detectedMod;
+        }
+    }
+
     std::string sPath = Paths::songJson(curSong, currentDifficulty);
     songData = SongParser::loadJson(sPath);
 
@@ -558,10 +575,29 @@ void PlayState::init() {
         }
 
         if (hasCustomSkin) {
-            C2D_SpriteSheet skinSheet = C2D_SpriteSheetLoad(t3xPath.c_str());
+            bool isPng = (t3xPath.find(".png") != std::string::npos);
+            C2D_SpriteSheet skinSheet = isPng ? nullptr : C2D_SpriteSheetLoad(t3xPath.c_str());
+            C2D_Image skinImg;
+            skinImg.tex = nullptr;
+            skinImg.subtex = nullptr;
+
             if (skinSheet) {
-                C2D_Image skinImg = C2D_SpriteSheetGetImage(skinSheet, 0);
-                if (skinImg.tex && skinImg.subtex) {
+                skinImg = C2D_SpriteSheetGetImage(skinSheet, 0);
+            } else {
+                std::string pngPath = t3xPath;
+                if (!isPng) {
+                    size_t dot = pngPath.find_last_of('.');
+                    if (dot != std::string::npos) pngPath = pngPath.substr(0, dot) + ".png";
+                }
+                C3D_Tex* tex = nullptr;
+                Tex3DS_SubTexture* sub = nullptr;
+                if (TextureLoader::loadPng(pngPath, &tex, &sub)) {
+                    skinImg.tex = tex;
+                    skinImg.subtex = sub;
+                }
+            }
+
+            if (skinImg.tex && skinImg.subtex) {
                     bool isPixelSkin =
                         skinName.size() >= 6 &&
                         skinName.compare(skinName.size() - 6, 6, "-pixel") == 0;
@@ -581,13 +617,8 @@ void PlayState::init() {
                     }
 
                     noteSheet = skinSheet;
-
                     printf("\x1b[6;1H[ArrowSkin] Loaded custom: %s (scale x%.2f)\x1b[K\n",
                            skinName.c_str(), arrowSkinScaleFactor);
-                } else {
-                    printf("\x1b[6;1HWARN: ArrowSkin sheet invalid: %s\x1b[K\n", skinName.c_str());
-                    hasCustomSkin = false; // Fallback to default
-                }
             } else {
                 printf("\x1b[6;1HWARN: ArrowSkin could not load: %s\x1b[K\n", skinName.c_str());
                 hasCustomSkin = false; // Fallback to default
@@ -663,10 +694,16 @@ void PlayState::init() {
 
         if (Paths::fileExists(t3xPath) && Paths::fileExists(xmlPath)) {
             auto* csSkin = SpritesheetCache::get().load("images/ratingSkins/" + skinName);
-            ratingSheet = csSkin ? csSkin->sheet : nullptr;
-            if (ratingSheet) {
-                ratingBaseImage = C2D_SpriteSheetGetImage(ratingSheet, 0);
-                 if (ratingBaseImage.tex) {
+            if (csSkin) {
+                if (csSkin->sheet) {
+                    ratingSheet = csSkin->sheet;
+                    ratingBaseImage = C2D_SpriteSheetGetImage(ratingSheet, 0);
+                } else if (csSkin->rawTex) {
+                    ratingBaseImage.tex = csSkin->rawTex;
+                    ratingBaseImage.subtex = csSkin->rawSub;
+                }
+            }
+            if (ratingBaseImage.tex) {
                      bool isPixelRating =
                          skinName.size() >= 6 &&
                          skinName.compare(skinName.size() - 6, 6, "-pixel") == 0;
@@ -675,7 +712,6 @@ void PlayState::init() {
                          (ClientPrefs::globalAntialiasing && !isPixelRating) ? GPU_LINEAR : GPU_NEAREST,
                          (ClientPrefs::globalAntialiasing && !isPixelRating) ? GPU_LINEAR : GPU_NEAREST
                      );
-                 }
 
                 static Tex3DS_SubTexture defaultRatingSubtex;
                 if (ratingBaseImage.subtex == nullptr) {
@@ -756,10 +792,17 @@ void PlayState::init() {
 
     if (!loadedCustomRating) {
         auto* csRating = SpritesheetCache::get().load("shared/images/ratingSkins/rating");
-        ratingSheet = csRating ? csRating->sheet : nullptr;
-        if (ratingSheet) {
-            ratingBaseImage = C2D_SpriteSheetGetImage(ratingSheet, 0);
-            if (ratingBaseImage.tex) C3D_TexSetFilter(ratingBaseImage.tex, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
+        if (csRating) {
+            if (csRating->sheet) {
+                ratingSheet = csRating->sheet;
+                ratingBaseImage = C2D_SpriteSheetGetImage(ratingSheet, 0);
+            } else if (csRating->rawTex) {
+                ratingBaseImage.tex = csRating->rawTex;
+                ratingBaseImage.subtex = csRating->rawSub;
+            }
+        }
+        if (ratingBaseImage.tex) {
+            C3D_TexSetFilter(ratingBaseImage.tex, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
 
             static Tex3DS_SubTexture defaultRatingSubtex;
             if (ratingBaseImage.subtex == nullptr) {
@@ -904,15 +947,19 @@ void PlayState::init() {
     }
 
     gf = new Character();
-    gf->loadFromPsychJson(Paths::characterJson(SongParser::gfVersion));
-    if (gf->curAnim.empty()) gf->loadFromPsychJson(Paths::characterJson("gf")); // fallback
+    std::string gfPath = Paths::characterJson(SongParser::gfVersion);
+    gf->loadFromPsychJson(gfPath);
+    if (gf->curAnim.empty()) {
+        gf->loadFromPsychJson(Paths::characterJson("gf")); // fallback
+    }
     if (gf->curCharacterName.empty() || gf->curCharacterName == "bf-pixel") {
         gf->curCharacterName = SongParser::gfVersion.empty() ? "gf" : SongParser::gfVersion;
     }
     AsyncAssetManager::get().cacheCharacter(gf->curCharacterName, gf);
 
     bf = new Character();
-    bf->loadFromPsychJson(Paths::characterJson(SongParser::player1));
+    std::string bfPath = Paths::characterJson(SongParser::player1);
+    bf->loadFromPsychJson(bfPath);
     if (bf->curAnim.empty()) {
         bf->loadFromPsychJson(Paths::characterJson("bf-pixel")); // fallback
     }
@@ -923,14 +970,18 @@ void PlayState::init() {
     AsyncAssetManager::get().cacheCharacter(bf->curCharacterName, bf);
 
     dad = new Character();
-    dad->loadFromPsychJson(Paths::characterJson(SongParser::player2));
-    if (dad->curAnim.empty()) dad->loadFromPsychJson(Paths::characterJson("bf-pixel")); // fallback
+    std::string dadPath = Paths::characterJson(SongParser::player2);
+    dad->loadFromPsychJson(dadPath);
+    if (dad->curAnim.empty()) {
+        dad->loadFromPsychJson(Paths::characterJson("bf-pixel")); // fallback
+    }
     if (dad->curCharacterName.empty()) {
         dad->curCharacterName = SongParser::player2.empty() ? "dad" : SongParser::player2;
     }
     AsyncAssetManager::get().cacheCharacter(dad->curCharacterName, dad);
 
-    currentStage = new Stage(Paths::stageJson(SongParser::stage));
+    std::string stageJsonResolved = Paths::stageJson(SongParser::stage);
+    currentStage = new Stage(stageJsonResolved);
     if (currentStage) {
         isPixelStage = currentStage->isPixelStage;
     }
@@ -1052,7 +1103,6 @@ void PlayState::init() {
     if (gf)  gf->danced  = false;
     if (dad) dad->danced = false;
     if (bf)  bf->danced  = false;
-    pOffsetX = 0; pOffsetY = 0; eOffsetX = 0; eOffsetY = 0;
 
 
     for(int i=0; i<4; i++) {
@@ -1108,16 +1158,17 @@ void PlayState::init() {
         }
     }
 
-    // Use same base path as stageJson but swap extension to .lua
     std::string stageName = SongParser::stage;
-    std::string luaPath = "romfs:/preload/stages/" + stageName + ".lua";
+    std::string luaPath = Paths::stageLua(stageName);
 
-    std::string modLuaPath = ModHandler::get().getModPath("stages/" + stageName + ".lua");
-    if (!modLuaPath.empty()) {
-        luaPath = modLuaPath;
-    } else if (!Paths::fileExists(luaPath) && !Paths::fileExists(Paths::stageJson(stageName))) {
-        stageName = "StageTest";
-        luaPath = "romfs:/preload/stages/StageTest.lua";
+    if (!Paths::fileExists(luaPath) && !Paths::fileExists(Paths::stageJson(stageName))) {
+        // Fallback to default "Stage" if custom stage missing
+        stageName = "Stage";
+        luaPath = Paths::stageLua(stageName);
+        if (!Paths::fileExists(luaPath) && !Paths::fileExists(Paths::stageJson(stageName))) {
+            stageName = "StageTest";
+            luaPath = "romfs:/preload/stages/StageTest.lua";
+        }
     }
 
     // Load global Lua scripts first
@@ -1155,15 +1206,25 @@ void PlayState::init() {
             noteTypes.push_back(n.noteType);
         }
     }
+    std::vector<std::string> noteScripts;
     for (const auto& nt : noteTypes) {
         std::string scriptPath = Paths::customNoteLuaScript(nt);
         if (!scriptPath.empty()) {
+            noteScripts.push_back(scriptPath);
             LuaManager::get().runScript(scriptPath);
         }
     }
 
     LuaManager::get().callFunction("onCreate");
     LuaManager::get().callFunction("onCreatePost");
+
+    // Pre-scan all song and event scripts to pre-allocate required camera shader buffers at song init
+    std::vector<std::string> allScriptPaths = globalScripts;
+    if (Paths::fileExists(luaPath)) allScriptPaths.push_back(luaPath);
+    allScriptPaths.insert(allScriptPaths.end(), songScripts.begin(), songScripts.end());
+    allScriptPaths.insert(allScriptPaths.end(), eventScripts.begin(), eventScripts.end());
+    allScriptPaths.insert(allScriptPaths.end(), noteScripts.begin(), noteScripts.end());
+    ShaderManager::get().preloadShadersForSong(allScriptPaths);
 
 
     // Cache any custom textures applied by Lua scripts in onCreatePost
@@ -1226,23 +1287,56 @@ void PlayState::init() {
                 fclose(f);
             }
         } else if (Paths::fileExists(tPath)) {
-            auto* csCustom = SpritesheetCache::get().load("images/" + n.texture);
-            C2D_SpriteSheet sheet = csCustom ? csCustom->sheet : nullptr;
-            if (sheet) {
-                customNoteSheets[n.texture] = sheet;
-                C2D_Image img = C2D_SpriteSheetGetImage(sheet, 0);
-                if (img.tex) {
+            bool isPng = (tPath.find(".png") != std::string::npos);
+            if (isPng) {
+                C3D_Tex* tex = nullptr;
+                Tex3DS_SubTexture* sub = nullptr;
+                if (TextureLoader::loadPng(tPath, &tex, &sub)) {
                     bool isPixelNote =
                         n.texture.size() >= 6 &&
                         n.texture.compare(n.texture.size() - 6, 6, "-pixel") == 0;
                     C3D_TexSetFilter(
-                        img.tex,
+                        tex,
                         (ClientPrefs::globalAntialiasing && !isPixelNote) ? GPU_LINEAR : GPU_NEAREST,
                         (ClientPrefs::globalAntialiasing && !isPixelNote) ? GPU_LINEAR : GPU_NEAREST
                     );
+                    C2D_Image img;
+                    img.tex = tex;
+                    img.subtex = sub;
+                    customNoteImages[n.texture] = img;
                 }
             } else {
-                printf("\x1b[14;1HWARN: Custom note texture not found: %s\x1b[K\n", n.texture.c_str());
+                auto* csCustom = SpritesheetCache::get().load("images/" + n.texture);
+                C2D_SpriteSheet sheet = csCustom ? csCustom->sheet : nullptr;
+                if (sheet) {
+                    customNoteSheets[n.texture] = sheet;
+                    C2D_Image img = C2D_SpriteSheetGetImage(sheet, 0);
+                    if (img.tex) {
+                        bool isPixelNote =
+                            n.texture.size() >= 6 &&
+                            n.texture.compare(n.texture.size() - 6, 6, "-pixel") == 0;
+                        C3D_TexSetFilter(
+                            img.tex,
+                            (ClientPrefs::globalAntialiasing && !isPixelNote) ? GPU_LINEAR : GPU_NEAREST,
+                            (ClientPrefs::globalAntialiasing && !isPixelNote) ? GPU_LINEAR : GPU_NEAREST
+                        );
+                    }
+                } else if (csCustom && csCustom->rawTex) {
+                    bool isPixelNote =
+                        n.texture.size() >= 6 &&
+                        n.texture.compare(n.texture.size() - 6, 6, "-pixel") == 0;
+                    C3D_TexSetFilter(
+                        csCustom->rawTex,
+                        (ClientPrefs::globalAntialiasing && !isPixelNote) ? GPU_LINEAR : GPU_NEAREST,
+                        (ClientPrefs::globalAntialiasing && !isPixelNote) ? GPU_LINEAR : GPU_NEAREST
+                    );
+                    C2D_Image img;
+                    img.tex = csCustom->rawTex;
+                    img.subtex = csCustom->rawSub;
+                    customNoteImages[n.texture] = img;
+                } else {
+                    printf("\x1b[14;1HWARN: Custom note texture not found: %s\x1b[K\n", n.texture.c_str());
+                }
             }
         } else {
             printf("\x1b[14;1HWARN: Custom note texture not found: %s\x1b[K\n", n.texture.c_str());
@@ -1583,10 +1677,11 @@ void PlayState::update(float dt) {
                 deathStateSwitched = true;
                 MusicPlayer::stop();
 
+                PlayState::blueBalls = 0;
                 if (isStoryMode) {
                     MusicBeatState::switchState(new StoryMenuState());
                 } else {
-                    MusicBeatState::switchState(new FreeplayState());
+                    MusicBeatState::switchState(new MainMenuState(true));
                 }
                 MusicPlayer::playMenuMusic();
                 return;
@@ -1601,7 +1696,7 @@ void PlayState::update(float dt) {
                 if (isStoryMode) {
                     MusicBeatState::switchState(new PlayState(weekData, curSongIdx, currentDifficulty));
                 } else {
-                    MusicBeatState::switchState(new PlayState(curSong, currentDifficulty));
+                    MusicBeatState::switchState(new PlayState(curSong, currentDifficulty, modDirectory));
                 }
                 return;
             }
@@ -1618,9 +1713,6 @@ void PlayState::update(float dt) {
         }
     }
 
-    if (!bfWentIdle && bf && bf->curAnim.find("idle") != std::string::npos) {
-        bfWentIdle = true;
-    }
 
     // Process deferred character cleanup — safe here because C3D_FrameBegin already
     // synced the GPU for the previous frame before update() is called.
@@ -1710,11 +1802,14 @@ void PlayState::update(float dt) {
     if (kDown & KEY_START) {
         paused = !paused;
         if (paused) {
-            if (!pauseSubState) {
-                pauseSubState = new PauseSubState();
+            if (pauseSubState) {
+                delete pauseSubState;
+                pauseSubState = nullptr;
             }
+            pauseSubState = new PauseSubState();
             AudioEngine::pause();
             if (inGameVideo) inGameVideo->isPaused = true;
+            return;
         } else {
             if (pauseSubState) {
                 delete pauseSubState;
@@ -1730,6 +1825,9 @@ void PlayState::update(float dt) {
             pauseSubState->update(dt);
         }
         return;
+    } else if (pauseSubState) {
+        delete pauseSubState;
+        pauseSubState = nullptr;
     }
 
     { static char _dtBuf[32]; snprintf(_dtBuf, sizeof(_dtBuf), "%.6f", dt); LuaManager::get().callFunction("onUpdate", {_dtBuf}); LuaManager::get().callFunction("onUpdatePost", {_dtBuf}); }
@@ -1739,6 +1837,7 @@ void PlayState::update(float dt) {
     if (health <= 0.0f && !gameOver) {
         gameOver = true;
         gameOverTimer = 0.0f;
+        blueBalls++;
         deathSoundPlayed = false;
         deathLoopPlaying = false;
         deathConfirmActive = false;
@@ -1791,7 +1890,11 @@ void PlayState::update(float dt) {
 
         // Now load the Game Over Boyfriend
         deadBF = new Character();
-        deadBF->loadFromPsychJson(Paths::characterJson("bf-dead"));
+        std::string primaryDead = (isPixelStage || livingBfName.find("-pixel") != std::string::npos) ? "bf-pixel-dead" : "bf-dead";
+        deadBF->loadFromPsychJson(Paths::characterJson(primaryDead));
+        if (!deadBF->hasValidTexture() && primaryDead != "bf-dead") {
+            deadBF->loadFromPsychJson(Paths::characterJson("bf-dead"));
+        }
         if (!deadBF->hasValidTexture()) {
             deadBF->loadFromPsychJson(Paths::characterJson(livingBfName));
             if (!deadBF->hasValidTexture()) {
@@ -1928,8 +2031,6 @@ void PlayState::update(float dt) {
 
 
 
-    pOffsetX = lerp(pOffsetX, 0.0f, dt * 8.0f);
-    pOffsetY = lerp(pOffsetY, 0.0f, dt * 8.0f);
 
     float zoomLerp = std::min(1.0f, dt * 3.1f);
     float bumpLerp = std::min(1.0f, dt * 8.0f);
@@ -2245,13 +2346,6 @@ void PlayState::handleInput(float dt) {
         }
         if (!keyHeld[i]) {
             keyHitRecently[i] = false;
-            currentHoldTime[i] = 0.0f;
-        } else {
-            currentHoldTime[i] += dt;
-            if (currentHoldTime[i] > maxHoldTime) maxHoldTime = currentHoldTime[i];
-            if (std::find(keysUsed.begin(), keysUsed.end(), i) == keysUsed.end()) {
-                keysUsed.push_back(i);
-            }
         }
 
         // Handle Head Hits
@@ -3405,7 +3499,13 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             C2D_Image img = { holdPiece.tex, &holdPiece.sub };
             if (useFastTint) C2D_SetTintMode(C2D_TintMult);
             GPU_TEXTURE_FILTER_PARAM f = n.antialiasing ? GPU_LINEAR : GPU_NEAREST;
-            if (holdPiece.tex) C3D_TexSetFilter(holdPiece.tex, f, f);
+            static C3D_Tex* lastHoldTex = nullptr;
+            static GPU_TEXTURE_FILTER_PARAM lastHoldFilt = (GPU_TEXTURE_FILTER_PARAM)-1;
+            if (holdPiece.tex && (holdPiece.tex != lastHoldTex || f != lastHoldFilt)) {
+                C3D_TexSetFilter(holdPiece.tex, f, f);
+                lastHoldTex = holdPiece.tex;
+                lastHoldFilt = f;
+            }
             float finalScaleX = dsX * (n.flipX ? -1.0f : 1.0f);
             float finalScaleY = dsY * (n.flipY ? -1.0f : 1.0f);
             if (holdPiece.rotated) {
@@ -3745,15 +3845,14 @@ void PlayState::drawLuaTextsForCamera(const std::string& camera, bool front, flo
 
 void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     ClearTextBuf();
-    if (ClientPrefs::fastNotes ? !fastNoteSheet : !noteSheet) return;
+    if (!gameOver && (ClientPrefs::fastNotes ? !fastNoteSheet : !noteSheet)) return;
 
     this->top = top;
     this->bottom = bottom;
 
     C2D_TargetClear(top, C2D_Color32(0, 0, 0, 255));
-    C2D_TargetClear(bottom, C2D_Color32(0, 0, 0, 255));
+    if (!g_isRightEye && bottom) C2D_TargetClear(bottom, C2D_Color32(0, 0, 0, 255));
 
-    ShaderManager::get().init(); // Ensure targets are ready
     ShaderManager::get().beginCamera("camGame", top);
 
     if (gameOver) {
@@ -3780,7 +3879,7 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         if (inGameVideo && !inGameVideo->inFrontOfHUD) inGameVideo->draw();
     }
 
-    ShaderManager::get().endCamera("camGame", top, bottom);
+    ShaderManager::get().endCamera("camGame", top, g_isRightEye ? nullptr : bottom);
 
     if (!gameOver) {
         // Layer 3: camHUD (Back)
@@ -3878,7 +3977,7 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             }
         }
 
-        ShaderManager::get().endCamera("camHUD", top, bottom);
+        ShaderManager::get().endCamera("camHUD", top, g_isRightEye ? nullptr : bottom);
     }
 
     // Layer 5: camOther
@@ -3889,9 +3988,9 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     drawLuaTextsForCamera("camOther", true, 0, 0);
     if (inGameVideo && inGameVideo->inFrontOfHUD) inGameVideo->draw();
 
-    ShaderManager::get().endCamera("camOther", top, bottom);
+    ShaderManager::get().endCamera("camOther", top, g_isRightEye ? nullptr : bottom);
 
-    if (!gameOver) {
+    if (!gameOver && !g_isRightEye && bottom) {
         // Layer 6: camBottom (Always on top of bottom screen after extended game/HUD cameras are presented)
         ShaderManager::get().beginCamera("camBottom", bottom);
         drawLuaSpritesForCamera("camBottom", false, hsX, hsY);
@@ -3902,7 +4001,7 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         ShaderManager::get().endCamera("camBottom", bottom, nullptr);
     }
 
-    if (ClientPrefs::hitboxEnabled && !gameOver) {
+    if (ClientPrefs::hitboxEnabled && !gameOver && !paused && !g_isRightEye && bottom) {
         C2D_SceneBegin(bottom);
         drawHitboxOverlay();
         C2D_SceneBegin(top);
@@ -3918,31 +4017,46 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         C2D_DrawRectSolid(0, 0, 0.99f, ScreenWidthTop, ScreenHeight, C2D_Color32(0, 0, 0, a));
 
         // Also ensure bottom screen is black (cleared to black by default, but draw just in case)
-        C2D_SceneBegin(bottom);
-        C2D_DrawRectSolid(0, 0, 0.99f, 320, 240, C2D_Color32(0, 0, 0, a));
-        C2D_SceneBegin(top);
+        if (!g_isRightEye && bottom) {
+            C2D_SceneBegin(bottom);
+            C2D_DrawRectSolid(0, 0, 0.99f, 320, 240, C2D_Color32(0, 0, 0, a));
+            C2D_SceneBegin(top);
+        }
     }
 
     if (paused && pauseSubState) pauseSubState->draw();
 
-    if (ClientPrefs::debugInfo && (!paused || !pauseSubState || !pauseSubState->memoryDebugState)) {
+    if (ClientPrefs::debugInfo && !paused && !g_isRightEye && bottom) {
         C2D_SceneBegin(bottom);
+        extern u32 __ctru_heap_size;
         extern u32 __ctru_linear_heap_size;
-        float lramTotal = (float)__ctru_linear_heap_size / (1024.0f * 1024.0f);
-        float lramUsed = lramTotal - ((float)linearSpaceFree() / (1024.0f * 1024.0f));
+        float heapTotal    = (float)__ctru_heap_size / (1024.0f * 1024.0f);
+        float linearTotal  = (float)__ctru_linear_heap_size / (1024.0f * 1024.0f);
+        struct mallinfo mi = mallinfo();
+        float heapUsed     = (float)mi.uordblks / (1024.0f * 1024.0f);
+        float linearFree   = (float)linearSpaceFree() / (1024.0f * 1024.0f);
+        float linearUsed   = linearTotal - linearFree;
+        float totalUsed    = heapUsed + linearUsed;
+        float totalAvail   = heapTotal + linearTotal;
+
+        float vramUsed = (float)(6 * 1024 * 1024 - vramSpaceFree()) / (1024.0f * 1024.0f);
+        float cpuPercent = (C3D_GetProcessingTime() * 6.0f);
+        float gpuPercent = (C3D_GetDrawingTime() * 6.0f);
+        if (cpuPercent > 100.0f) cpuPercent = 100.0f;
+        if (cpuPercent < 0.0f)   cpuPercent = 0.0f;
+        if (gpuPercent > 100.0f) gpuPercent = 100.0f;
+        if (gpuPercent < 0.0f)   gpuPercent = 0.0f;
+
+        bool isNew3DS = false;
+        APT_CheckNew3DS(&isNew3DS);
 
         char debugStr[256];
         if (!ClientPrefs::extendedDebug) {
-            sprintf(debugStr, "FPS: %d | L-RAM: %.1f/%.1f MB", (int)curFPS, lramUsed, lramTotal);
+            sprintf(debugStr, "FPS: %d | RAM: %.1f/%.1f MB | CPU: %d%%", 
+                    (int)curFPS, totalUsed, totalAvail, (int)cpuPercent);
         } else {
-            float vramUsed = (float)(6 * 1024 * 1024 - vramSpaceFree()) / (1024.0f * 1024.0f);
-            float vramTotal = 6.0f;
-            struct mallinfo mi = mallinfo();
-            float stdRamUsed = (float)mi.uordblks / (1024.0f * 1024.0f);
-            bool isNew3DS = false;
-            APT_CheckNew3DS(&isNew3DS);
-            sprintf(debugStr, "FPS: %d | Model: %s\nRAM: %.1f MB | L-RAM: %.1f/%.1f MB\nVRAM: %.1f/%.1f MB",
-                    (int)curFPS, isNew3DS ? "New" : "Old", stdRamUsed, lramUsed, lramTotal, vramUsed, vramTotal);
+            sprintf(debugStr, "FPS: %d | MODEL: %s\nRAM: %.1f/%.1f MB\nVRAM: %.1f/6.0 MB\nCPU: %d%% | GPU: %d%%",
+                    (int)curFPS, isNew3DS ? "New 3DS" : "Old 3DS", totalUsed, totalAvail, vramUsed, (int)cpuPercent, (int)gpuPercent);
         }
 
         std::vector<std::string> debugLines;
@@ -4103,6 +4217,7 @@ void PlayState::endSong() {
 
     MusicBeatState* nextState = nullptr;
     if (isStoryMode && curSongIdx + 1 < (int)weekData.songs.size()) {
+        PlayState::blueBalls = 0;
         nextState = new PlayState(weekData, curSongIdx + 1, currentDifficulty);
     } else {
         std::string resName = isStoryMode ? (weekData.fileName.empty() ? weekData.weekName : weekData.fileName) : curSong;
@@ -4253,6 +4368,7 @@ void PlayState::exitState() {
         delete pauseSubState;
         pauseSubState = nullptr;
     }
+    PauseSubState::freeNesAudio();
     if (lyricsTextBuf) { C2D_TextBufDelete(lyricsTextBuf); lyricsTextBuf = nullptr; }
     if (debugTextBuf) {
         C2D_TextBufDelete(debugTextBuf);
@@ -4282,21 +4398,6 @@ void PlayState::exitState() {
 
 
 
-void PlayState::drawText(C2D_Text* textObj, float x, float y, float scale, bool centered, float maxWidth) {
-    float textW, textH;
-    C2D_TextGetDimensions(textObj, scale, scale, &textW, &textH);
-
-    float actualScale = scale;
-    if (maxWidth > 0 && textW > maxWidth) {
-        actualScale = scale * (maxWidth / textW);
-        C2D_TextGetDimensions(textObj, actualScale, actualScale, &textW, &textH);
-    }
-
-    float drawX = centered ? x - (textW / 2.0f) : x;
-    float drawY = centered ? y - (textH / 2.0f) : y;
-
-    C2D_DrawText(textObj, C2D_WithColor, drawX, drawY, 0.85f, actualScale, actualScale, CWhite);
-}
 
 void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, float shakeX, float shakeY) {
     float screenScale = 240.0f / 720.0f;
@@ -4918,10 +5019,54 @@ void PlayState::loadHealthIcon(HealthIconData& icon, const std::string& name) {
             s = preloaded->sheet;
             preloaded->sheet = nullptr; // Take ownership
             delete preloaded;
-        } else {
+        } else if (path.find(".png") == std::string::npos) {
             s = C2D_SpriteSheetLoad(path.c_str());
         }
         if (!s) {
+            std::string pngPath = path;
+            if (pngPath.find(".png") == std::string::npos) {
+                size_t dot = pngPath.find_last_of('.');
+                if (dot != std::string::npos) pngPath = pngPath.substr(0, dot) + ".png";
+            }
+            C3D_Tex* tex = nullptr;
+            Tex3DS_SubTexture* sub = nullptr;
+            if (TextureLoader::loadPng(pngPath, &tex, &sub)) {
+                icon.tex = *tex;
+                icon.vramData = tex->data;
+                delete tex;
+
+                float u0 = 0.0f;
+                float u1 = sub->right;
+                float v0 = 1.0f;
+                float v1 = sub->bottom;
+
+                float halfW = (float)sub->width * 0.5f;
+                float fullH = (float)sub->height;
+                float du = u1 - u0;
+
+                icon.normalSub.width  = (u16)halfW;
+                icon.normalSub.height = (u16)fullH;
+                icon.normalSub.left   = u0;
+                icon.normalSub.right  = u0 + du * 0.5f;
+                icon.normalSub.top    = v0;
+                icon.normalSub.bottom = v1;
+
+                icon.losingSub.width  = (u16)halfW;
+                icon.losingSub.height = (u16)fullH;
+                icon.losingSub.left   = u0 + du * 0.5f;
+                icon.losingSub.right  = u1;
+                icon.losingSub.top    = v0;
+                icon.losingSub.bottom = v1;
+
+                delete sub;
+
+                icon.loaded = true;
+                GPU_TEXTURE_FILTER_PARAM filter = isPixel ? GPU_NEAREST : (ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
+                C3D_TexSetFilter(&icon.tex, filter, filter);
+                healthIconCache[name] = icon;
+                return;
+            }
+
             printf("\x1b[14;1HWARN: Icon not found: %s\x1b[K\n", name.c_str());
             return;
         }

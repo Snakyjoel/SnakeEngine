@@ -1,0 +1,4 @@
+moviepy
+Pillow
+numpy
+pyinstaller
