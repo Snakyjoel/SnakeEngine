@@ -321,8 +321,6 @@ void EggDialogueState::nextLine() {
                 break;
 
             case Branch::ACCEPT_DUEL:
-                ClientPrefs::inEggDuel = true;
-                ClientPrefs::saveSettings();
                 exiting = true;
                 exitTimer = 0.0f;
                 toDuel = true;

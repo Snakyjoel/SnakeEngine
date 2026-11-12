@@ -299,7 +299,6 @@ int main(int argc, char* argv[]) {
                 float totalUsed    = heapUsed + linearUsed;
                 float totalAvail   = heapTotal + linearTotal;
                 float vramUsed = (float)(6 * 1024 * 1024 - vramSpaceFree()) / (1024.0f * 1024.0f);
-                float vramTotal = 6.0f;
                 float cpuPercent = (C3D_GetProcessingTime() * 6.0f);
                 float gpuPercent = (C3D_GetDrawingTime() * 6.0f);
                 if (cpuPercent > 100.0f) cpuPercent = 100.0f;

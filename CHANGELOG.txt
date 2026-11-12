@@ -1,4 +1,5 @@
-3.7.9
+3.8.9
+- Main menu items no longer appear when 3D is enabled in Freeplay
 - Fixed the scroll on the difficulty selector in freeplay
 - Added the "Random" song option in freeplay
 - Improved videos playback

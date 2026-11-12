@@ -56,7 +56,6 @@ public:
     
     static bool acceptedEgg;
     static bool eggInteractionOccurred;
-    static bool inEggDuel;
     static int fpsLimit;
     
     static void loadSettings();

@@ -1387,7 +1387,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     float botIntroBottomY = 120.0f * (1.0f - iconPopScale) + (120.0f * exitT * exitT);
 
     C2D_SceneBegin(top);
-    if (isSubState) {
+    if (isSubState && isExiting) {
         C3D_RenderTargetClear(top, C3D_CLEAR_DEPTH, 0, 0);
         float bgAlpha = introEaseOut * exitAlpha;
         C2D_DrawRectSolid(0, 0, 0.01f, 400, 240, C2D_Color32((int)curColor[0], (int)curColor[1], (int)curColor[2], (u8)(bgAlpha * 255.0f)));
@@ -1760,12 +1760,12 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
 
     if (!g_isRightEye && bottom) {
         C2D_SceneBegin(bottom);
-        if (isSubState) {
+        if (isSubState && isExiting) {
             C3D_RenderTargetClear(bottom, C3D_CLEAR_DEPTH, 0, 0);
             float bgAlpha = introEaseOut * exitAlpha;
             C2D_DrawRectSolid(0, 0, 0.01f, 320, 240, C2D_Color32((int)(curColor[0]*0.5f), (int)(curColor[1]*0.5f), (int)(curColor[2]*0.5f), (u8)(bgAlpha * 255.0f)));
         } else {
-            C2D_TargetClear(bottom, C2D_Color32((int)curColor[0]*0.5f, (int)curColor[1]*0.5f, (int)curColor[2]*0.5f, 255));
+            C2D_TargetClear(bottom, C2D_Color32((int)(curColor[0]*0.5f), (int)(curColor[1]*0.5f), (int)(curColor[2]*0.5f), 255));
         }
 
         // Draw menuBG decoration tinted with the current selection color

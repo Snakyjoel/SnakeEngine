@@ -273,29 +273,44 @@ void MainMenuState::update(float dt) {
         AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
     }
 
-    if (keyJustPressed(KEY_Y)) {
-        curSelected = 4;
+    auto confirmOption = [&](int index) {
+        if (oldSelected >= 0 && oldSelected < (int)menuItems.size() && oldSelected != index) {
+            menuItems[oldSelected].animate.play("idle");
+        }
+        curSelected = index;
+        if (curSelected >= 0 && curSelected < (int)menuItems.size()) {
+            menuItems[curSelected].animate.play("selected");
+        }
         AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
-        switchState(new AchievementsMenuState());
+        selectedSomething = true;
+        confirmTimer = 0.0f;
+        flickerTimer = 0.0f;
+        flickerVisible = true;
+        for (int i = 0; i < 6; i++) {
+            itemFadeTimers[i] = 0.0f;
+            if (i != curSelected) itemAlphas[i] = 1.0f;
+        }
+        bgMagentaActive = true;
+        bgMagentaTimer = 0.0f;
+        bgFlickerTimer = 0.0f;
+        bgFlickerVisible = false;
+    };
+
+    if (keyJustPressed(KEY_Y)) {
+        confirmOption(4);
         return;
     }
     if (keyJustPressed(KEY_X)) {
-        curSelected = 5;
-        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
-        switchState(new OptionsMenuState());
+        confirmOption(5);
         return;
     }
 
     if (keyJustPressed(KEY_TOUCH)) {
         if (touch.px >= 10.0f && touch.px <= 240.0f && touch.py >= 30.0f && touch.py <= 90.0f) {
-            curSelected = 4;
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
-            switchState(new AchievementsMenuState());
+            confirmOption(4);
             return;
         } else if (touch.px >= 80.0f && touch.px <= 310.0f && touch.py >= 145.0f && touch.py <= 205.0f) {
-            curSelected = 5;
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
-            switchState(new OptionsMenuState());
+            confirmOption(5);
             return;
         }
     }
@@ -310,19 +325,8 @@ void MainMenuState::update(float dt) {
     }
 
     if (keyJustPressed(KEY_A | KEY_START)) {
-        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
-        selectedSomething = true;
-        confirmTimer = 0.0f;
-        flickerTimer = 0.0f;
-        flickerVisible = true;
-        for (int i = 0; i < 6; i++) {
-            itemFadeTimers[i] = 0.0f;
-            if (i != curSelected) itemAlphas[i] = 1.0f;
-        }
-        bgMagentaActive = true;
-        bgMagentaTimer = 0.0f;
-        bgFlickerTimer = 0.0f;
-        bgFlickerVisible = false;
+        confirmOption(curSelected);
+        return;
     }
 
     if (keyJustPressed(KEY_B)) {
@@ -364,8 +368,17 @@ void MainMenuState::update(float dt) {
 }
 
 void MainMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
+    if (freeplaySubState && isFreeplayActive && !freeplaySubState->isExiting) {
+        freeplaySubState->draw(top, bottom);
+        return;
+    }
+
     C2D_SetTintMode(C2D_TintMult);
     float drawAlpha = introTimer;
+    float topAlpha = drawAlpha;
+    if (isFreeplayActive && freeplaySubState && freeplaySubState->isExiting) {
+        topAlpha *= std::max(0.0f, std::min(freeplaySubState->exitTimer / 0.35f, 1.0f));
+    }
 
     bool magentaActive = selectedSomething &&
         (!ClientPrefs::flashing || (ClientPrefs::flashing && bgFlickerVisible));
@@ -390,7 +403,7 @@ void MainMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         if (drawY > 0.0f) drawY = 0.0f;
 
         C2D_ImageTint tint;
-        C2D_PlainImageTint(&tint, C2D_Color32(bgTintR, bgTintG, bgTintB, (u8)(drawAlpha * 255.0f)), 1.0f);
+        C2D_PlainImageTint(&tint, C2D_Color32(bgTintR, bgTintG, bgTintB, (u8)(topAlpha * 255.0f)), 1.0f);
         C2D_DrawImageAt(topBG, topBgDrawX + get3DOffset(-10.0f), drawY, 0.1f, &tint, topBgScale, topBgScale);
     }
 
@@ -400,7 +413,7 @@ void MainMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         if (selectedSomething && i == curSelected) myAlpha *= (flickerVisible ? 1.0f : 0.0f);
         C2D_ImageTint tint;
         C2D_ImageTint* tintPtr = nullptr;
-        float finalAlpha = drawAlpha * myAlpha;
+        float finalAlpha = topAlpha * myAlpha;
         if (item.isDarkened || finalAlpha < 1.0f) {
             float itemAlpha = finalAlpha;
             if (item.isDarkened) itemAlpha *= 0.3f;
@@ -410,7 +423,7 @@ void MainMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         item.animate.drawCentered(item.x + get3DOffset(10.0f), item.y, 0.5f, 1.0f, 1.0f, tintPtr);
     }
 
-    u32 textCol = C2D_Color32(255, 255, 255, (u8)(drawAlpha * 255.0f));
+    u32 textCol = C2D_Color32(255, 255, 255, (u8)(topAlpha * 255.0f));
     AddText(versionDisplayStr, 8 + get3DOffset(10.0f), 225, 0.38f, false, 1.5f, textCol, 0.0f);
 
     if (!g_isRightEye && bottom) {
