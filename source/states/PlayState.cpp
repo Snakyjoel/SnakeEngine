@@ -162,87 +162,6 @@ static void parseNoteXml(const std::string& xmlPath, C3D_Tex* tex, C2D_Image bas
     }
 }
 
-static void parseNoteFastXml(const std::string& xmlPath, C3D_Tex* tex, C2D_Image baseImg, std::vector<NoteSprite>& subs) {
-    subs.clear();
-    subs.resize(3);
-    for (auto& s : subs) {
-        s.tex = tex;
-    }
-
-    std::ifstream f(xmlPath);
-    if (!f.is_open()) return;
-
-    static Tex3DS_SubTexture defaultSubtex;
-    if (baseImg.subtex == nullptr) {
-        defaultSubtex.width = baseImg.tex ? baseImg.tex->width : 0;
-        defaultSubtex.height = baseImg.tex ? baseImg.tex->height : 0;
-        defaultSubtex.left = 0.0f;
-        defaultSubtex.top = 0.0f;
-        defaultSubtex.right = 1.0f;
-        defaultSubtex.bottom = 1.0f;
-        baseImg.subtex = &defaultSubtex;
-    }
-
-    float nw = baseImg.subtex->right  - baseImg.subtex->left;
-    float nh = baseImg.subtex->bottom - baseImg.subtex->top;
-    std::string line;
-    while (std::getline(f, line)) {
-        if (line.find("<SubTexture") == std::string::npos) continue;
-        auto getValString = [&](const std::string& key) {
-            size_t p = line.find(" " + key);
-            if (p == std::string::npos) return std::string("");
-            p = line.find("=", p + key.size() + 1);
-            if (p == std::string::npos) return std::string("");
-            p = line.find("\"", p + 1);
-            if (p == std::string::npos) return std::string("");
-            size_t e = line.find("\"", p + 1);
-            if (e == std::string::npos) return std::string("");
-            return line.substr(p + 1, e - p - 1);
-        };
-        auto getValFloat = [&](const std::string& key) {
-            std::string val = getValString(key);
-            return val.empty() ? 0.0f : (float)atof(val.c_str());
-        };
-
-        std::string name = getValString("name");
-        float x = getValFloat("x");
-        float y = getValFloat("y");
-        float w = getValFloat("width");
-        float h = getValFloat("height");
-        bool rotated = getValString("rotated") == "true";
-        float frameX = getValFloat("frameX");
-        float frameY = getValFloat("frameY");
-        float frameWidth = getValFloat("frameWidth");
-        float frameHeight = getValFloat("frameHeight");
-
-        int slot = -1;
-        if (name.find("Note0") != std::string::npos) { slot = 0; }
-        else if (name.find("Tail0") != std::string::npos) { slot = 1; }
-        else if (name.find("NoteHoldEnd0") != std::string::npos) { slot = 2; }
-
-        if (slot != -1) {
-            NoteSprite& ns = subs[slot];
-            ns.tex = tex;
-            ns.rotated = rotated;
-            ns.w = w;
-            ns.h = h;
-            ns.frameX = frameX;
-            ns.frameY = frameY;
-            ns.frameWidth = frameWidth ? frameWidth : w;
-            ns.frameHeight = frameHeight ? frameHeight : h;
-
-            float pw = rotated ? h : w;
-            float ph = rotated ? w : h;
-            ns.sub.width = (u16)pw;
-            ns.sub.height = (u16)ph;
-            ns.sub.left = baseImg.subtex->left + (x * nw / baseImg.subtex->width);
-            ns.sub.top = baseImg.subtex->top + (y * nh / baseImg.subtex->height);
-            ns.sub.right = baseImg.subtex->left + ((x + pw) * nw / baseImg.subtex->width);
-            ns.sub.bottom = baseImg.subtex->top + ((y + ph) * nh / baseImg.subtex->height);
-        }
-    }
-}
-
 struct RawTexHeader {
     char magic[4];    // "RWTX"
     uint16_t width;   // Pow2 Width
@@ -558,129 +477,90 @@ void PlayState::init() {
     currentLyrics = "";
 
     arrowSkinScaleFactor = 1.0f;
-    if (!ClientPrefs::fastNotes) {
-        bool hasCustomSkin = false;
-        std::string skinName = "";
-        std::string t3xPath = "";
-        std::string xmlPath = "";
+    bool hasCustomSkin = false;
+    std::string skinName = "";
+    std::string t3xPath = "";
+    std::string xmlPath = "";
 
-        if (!SongParser::arrowSkin.empty()) {
-            skinName = SongParser::arrowSkin;
-            std::string skinKey = "noteSkins/" + skinName;
-            t3xPath = Paths::image(skinKey);
-            xmlPath = Paths::xml(skinKey);
-            if (Paths::fileExists(t3xPath) && Paths::fileExists(xmlPath)) {
-                hasCustomSkin = true;
-            }
-        }
-
-        if (hasCustomSkin) {
-            bool isPng = (t3xPath.find(".png") != std::string::npos);
-            C2D_SpriteSheet skinSheet = isPng ? nullptr : C2D_SpriteSheetLoad(t3xPath.c_str());
-            C2D_Image skinImg;
-            skinImg.tex = nullptr;
-            skinImg.subtex = nullptr;
-
-            if (skinSheet) {
-                skinImg = C2D_SpriteSheetGetImage(skinSheet, 0);
-            } else {
-                std::string pngPath = t3xPath;
-                if (!isPng) {
-                    size_t dot = pngPath.find_last_of('.');
-                    if (dot != std::string::npos) pngPath = pngPath.substr(0, dot) + ".png";
-                }
-                C3D_Tex* tex = nullptr;
-                Tex3DS_SubTexture* sub = nullptr;
-                if (TextureLoader::loadPng(pngPath, &tex, &sub)) {
-                    skinImg.tex = tex;
-                    skinImg.subtex = sub;
-                }
-            }
-
-            if (skinImg.tex && skinImg.subtex) {
-                    bool isPixelSkin =
-                        skinName.size() >= 6 &&
-                        skinName.compare(skinName.size() - 6, 6, "-pixel") == 0;
-
-                    C3D_TexSetFilter(
-                        skinImg.tex,
-                        (ClientPrefs::globalAntialiasing && !isPixelSkin) ? GPU_LINEAR : GPU_NEAREST,
-                        (ClientPrefs::globalAntialiasing && !isPixelSkin) ? GPU_LINEAR : GPU_NEAREST
-                    );
-
-                    parseNoteXml(xmlPath, skinImg.tex, skinImg, noteSubtexs, &noteSubtexFrames);
-
-                    // Compute scale so the custom skin visually matches the default note size (73.0f reference)
-                    float customArrowW = (noteSubtexs.size() > 1) ? noteSubtexs[0 * 6 + 1].w : 0.0f;
-                    if (customArrowW > 0.0f) {
-                        arrowSkinScaleFactor = 73.0f / customArrowW;
-                    }
-
-                    noteSheet = skinSheet;
-                    printf("\x1b[6;1H[ArrowSkin] Loaded custom: %s (scale x%.2f)\x1b[K\n",
-                           skinName.c_str(), arrowSkinScaleFactor);
-            } else {
-                printf("\x1b[6;1HWARN: ArrowSkin could not load: %s\x1b[K\n", skinName.c_str());
-                hasCustomSkin = false; // Fallback to default
-            }
-        }
-
-        if (!hasCustomSkin) {
-            auto* csNote = SpritesheetCache::get().load("shared/images/noteSkins/NOTE_assets");
-            noteSheet = csNote ? csNote->sheet : nullptr;
-
-            if (noteSheet) {
-                C2D_Image mainNoteImg = C2D_SpriteSheetGetImage(noteSheet, 0);
-                if (mainNoteImg.tex) C3D_TexSetFilter(mainNoteImg.tex, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
-                if (mainNoteImg.subtex == nullptr) {
-                     printf("\x1b[10;1HERROR: NOTE_assets subtex is NULL\n");
-                     return;
-                }
-                parseNoteXml(Paths::resolve("romfs:/shared/images/noteSkins/NOTE_assets.xml"), mainNoteImg.tex, mainNoteImg, noteSubtexs, &noteSubtexFrames);
-                float defaultArrowW = (noteSubtexs.size() > 1) ? noteSubtexs[0 * 6 + 1].w : 0.0f;
-                if (defaultArrowW > 0.0f) {
-                    arrowSkinScaleFactor = 73.0f / defaultArrowW;
-                }
-            } else {
-                printf("\x1b[6;1HERROR: Could not load NOTE_assets\n");
-            }
+    if (!SongParser::arrowSkin.empty()) {
+        skinName = SongParser::arrowSkin;
+        std::string skinKey = "noteSkins/" + skinName;
+        t3xPath = Paths::image(skinKey);
+        xmlPath = Paths::xml(skinKey);
+        if (Paths::fileExists(t3xPath) && Paths::fileExists(xmlPath)) {
+            hasCustomSkin = true;
         }
     }
 
-    if (ClientPrefs::fastNotes) {
-        auto* csFastNote = SpritesheetCache::get().load("shared/images/noteSkins/NoteSheetFast");
-        fastNoteSheet = csFastNote ? csFastNote->sheet : nullptr;
-        if (fastNoteSheet) {
-            fastNoteBaseImg = C2D_SpriteSheetGetImage(fastNoteSheet, 0);
-            if (fastNoteBaseImg.tex) {
-                bool isPixelFast =
-                    SongParser::arrowSkin.size() >= 6 &&
-                    SongParser::arrowSkin.compare(SongParser::arrowSkin.size() - 6, 6, "-pixel") == 0;
+    if (hasCustomSkin) {
+        bool isPng = (t3xPath.find(".png") != std::string::npos);
+        C2D_SpriteSheet skinSheet = isPng ? nullptr : C2D_SpriteSheetLoad(t3xPath.c_str());
+        C2D_Image skinImg;
+        skinImg.tex = nullptr;
+        skinImg.subtex = nullptr;
+
+        if (skinSheet) {
+            skinImg = C2D_SpriteSheetGetImage(skinSheet, 0);
+        } else {
+            std::string pngPath = t3xPath;
+            if (!isPng) {
+                size_t dot = pngPath.find_last_of('.');
+                if (dot != std::string::npos) pngPath = pngPath.substr(0, dot) + ".png";
+            }
+            C3D_Tex* tex = nullptr;
+            Tex3DS_SubTexture* sub = nullptr;
+            if (TextureLoader::loadPng(pngPath, &tex, &sub)) {
+                skinImg.tex = tex;
+                skinImg.subtex = sub;
+            }
+        }
+
+        if (skinImg.tex && skinImg.subtex) {
+                bool isPixelSkin =
+                    skinName.size() >= 6 &&
+                    skinName.compare(skinName.size() - 6, 6, "-pixel") == 0;
+
                 C3D_TexSetFilter(
-                    fastNoteBaseImg.tex,
-                    (ClientPrefs::globalAntialiasing && !isPixelFast) ? GPU_LINEAR : GPU_NEAREST,
-                    (ClientPrefs::globalAntialiasing && !isPixelFast) ? GPU_LINEAR : GPU_NEAREST
+                    skinImg.tex,
+                    (ClientPrefs::globalAntialiasing && !isPixelSkin) ? GPU_LINEAR : GPU_NEAREST,
+                    (ClientPrefs::globalAntialiasing && !isPixelSkin) ? GPU_LINEAR : GPU_NEAREST
                 );
-            }
 
-            static Tex3DS_SubTexture defaultFastNoteSubtex;
-            if (fastNoteBaseImg.subtex == nullptr) {
-                defaultFastNoteSubtex.width = fastNoteBaseImg.tex ? fastNoteBaseImg.tex->width : 0;
-                defaultFastNoteSubtex.height = fastNoteBaseImg.tex ? fastNoteBaseImg.tex->height : 0;
-                defaultFastNoteSubtex.left = 0.0f;
-                defaultFastNoteSubtex.top = 0.0f;
-                defaultFastNoteSubtex.right = 1.0f;
-                defaultFastNoteSubtex.bottom = 1.0f;
-                fastNoteBaseImg.subtex = &defaultFastNoteSubtex;
-            }
+                parseNoteXml(xmlPath, skinImg.tex, skinImg, noteSubtexs, &noteSubtexFrames);
 
-            if (fastNoteBaseImg.subtex) {
-                parseNoteFastXml("romfs:/shared/images/noteSkins/NoteSheetFast.xml", fastNoteBaseImg.tex, fastNoteBaseImg, fastNoteSubtexs);
-                float fastArrowW = (fastNoteSubtexs.size() > 0) ? fastNoteSubtexs[0].w : 0.0f;
-                if (fastArrowW > 0.0f) {
-                    fastNoteSkinScaleFactor = 73.0f / fastArrowW;
+                // Compute scale so the custom skin visually matches the default note size (73.0f reference)
+                float customArrowW = (noteSubtexs.size() > 1) ? noteSubtexs[0 * 6 + 1].w : 0.0f;
+                if (customArrowW > 0.0f) {
+                    arrowSkinScaleFactor = 73.0f / customArrowW;
                 }
+
+                noteSheet = skinSheet;
+                printf("\x1b[6;1H[ArrowSkin] Loaded custom: %s (scale x%.2f)\x1b[K\n",
+                       skinName.c_str(), arrowSkinScaleFactor);
+        } else {
+            printf("\x1b[6;1HWARN: ArrowSkin could not load: %s\x1b[K\n", skinName.c_str());
+            hasCustomSkin = false; // Fallback to default
+        }
+    }
+
+    if (!hasCustomSkin) {
+        auto* csNote = SpritesheetCache::get().load("shared/images/noteSkins/NOTE_assets");
+        noteSheet = csNote ? csNote->sheet : nullptr;
+
+        if (noteSheet) {
+            C2D_Image mainNoteImg = C2D_SpriteSheetGetImage(noteSheet, 0);
+            if (mainNoteImg.tex) C3D_TexSetFilter(mainNoteImg.tex, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
+            if (mainNoteImg.subtex == nullptr) {
+                 printf("\x1b[10;1HERROR: NOTE_assets subtex is NULL\n");
+                 return;
             }
+            parseNoteXml(Paths::resolve("romfs:/shared/images/noteSkins/NOTE_assets.xml"), mainNoteImg.tex, mainNoteImg, noteSubtexs, &noteSubtexFrames);
+            float defaultArrowW = (noteSubtexs.size() > 1) ? noteSubtexs[0 * 6 + 1].w : 0.0f;
+            if (defaultArrowW > 0.0f) {
+                arrowSkinScaleFactor = 73.0f / defaultArrowW;
+            }
+        } else {
+            printf("\x1b[6;1HERROR: Could not load NOTE_assets\n");
         }
     }
 
@@ -1009,8 +889,7 @@ void PlayState::init() {
 
     receptorY = ClientPrefs::downscroll ? ScreenHeight - 60.0f : 20.0f;
     spacing = 38.0f;
-    bool useFast = ClientPrefs::fastNotes && fastNoteSheet && fastNoteSubtexs.size() >= 2;
-    noteScale = 0.5f * (useFast ? fastNoteSkinScaleFactor : arrowSkinScaleFactor);
+    noteScale = 0.5f * arrowSkinScaleFactor;
 
     startTimerActive = true;
     countdownTick = 0;
@@ -1883,7 +1762,6 @@ void PlayState::update(float dt) {
         AsyncAssetManager::get().clearAll();
         SpritesheetCache::get().clear();
         noteSheet = nullptr;
-        fastNoteSheet = nullptr;
         ratingSheet = nullptr;
         countdownSheet = nullptr;
         customNoteSheets.clear();
@@ -2640,28 +2518,61 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
         }
     }
 
-    if (scoreTxtVisible) {
+    bool hasAnyScoreOption = ClientPrefs::scoreTxtScore || ClientPrefs::scoreTxtMisses || 
+                             ClientPrefs::scoreTxtRating || ClientPrefs::scoreTxtFC;
+
+    if (scoreTxtVisible && hasAnyScoreOption) {
         if (scoreTextNeedsUpdate || score != cachedScore || misses != cachedMisses || (int)totalNotesHit != cachedTotalNotesHit) {
             cachedScore = score;
             cachedMisses = misses;
             cachedTotalNotesHit = (int)totalNotesHit;
             scoreTextNeedsUpdate = false;
 
-            char line1Str[128];
-            char line2Str[128];
-            sprintf(line1Str, "Score: %d | Misses: %d", score, misses);
+            std::string line1 = "";
+            if (ClientPrefs::scoreTxtScore) {
+                line1 += "Score: " + std::to_string(score);
+            }
+            if (ClientPrefs::scoreTxtMisses) {
+                if (!line1.empty()) line1 += " | ";
+                line1 += "Misses: " + std::to_string(misses);
+            }
+
+            std::string line2 = "";
             if (totalNotesHit <= 0) {
-                sprintf(line2Str, "Rating: ?");
+                if (ClientPrefs::scoreTxtRating || ClientPrefs::scoreTxtFC) {
+                    line2 = "Rating: ?";
+                }
             } else {
                 std::string rName = getRatingName(accuracy);
                 std::string rFC = getRatingFC(misses, sicks, goods, bads, shits);
-                sprintf(line2Str, "Rating: %s (%.2f%%) - %s", rName.c_str(), accuracy, rFC.c_str());
+
+                if (ClientPrefs::scoreTxtRating && ClientPrefs::scoreTxtFC) {
+                    char buf[128];
+                    snprintf(buf, sizeof(buf), "Rating: %s (%.2f%%) - %s", rName.c_str(), accuracy, rFC.c_str());
+                    line2 = buf;
+                } else if (ClientPrefs::scoreTxtRating) {
+                    char buf[128];
+                    snprintf(buf, sizeof(buf), "Rating: %s (%.2f%%)", rName.c_str(), accuracy);
+                    line2 = buf;
+                } else if (ClientPrefs::scoreTxtFC) {
+                    line2 = rFC;
+                }
             }
 
-            C2D_TextFontParse(&scoreTextObjLine1, vcrFont, vcrFontBuf, line1Str);
+            // If line 1 is empty, promote line 2 to line 1
+            if (line1.empty()) {
+                line1 = line2;
+                line2 = "";
+            }
+
+            C2D_TextFontParse(&scoreTextObjLine1, vcrFont, vcrFontBuf, line1.c_str());
             C2D_TextOptimize(&scoreTextObjLine1);
-            C2D_TextFontParse(&scoreTextObjLine2, vcrFont, vcrFontBuf, line2Str);
-            C2D_TextOptimize(&scoreTextObjLine2);
+            if (!line2.empty()) {
+                C2D_TextFontParse(&scoreTextObjLine2, vcrFont, vcrFontBuf, line2.c_str());
+                C2D_TextOptimize(&scoreTextObjLine2);
+            } else {
+                scoreTextObjLine2.width = 0;
+            }
         }
 
         float textScaleX = hdScale * scoreTxtScaleX * hudZoom;
@@ -2669,10 +2580,13 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
 
         float w1 = 0, h1 = 0, w2 = 0, h2 = 0;
         C2D_TextGetDimensions(&scoreTextObjLine1, textScaleX, textScaleY, &w1, &h1);
-        C2D_TextGetDimensions(&scoreTextObjLine2, textScaleX, textScaleY, &w2, &h2);
+        bool hasLine2 = (scoreTextObjLine2.width > 0);
+        if (hasLine2) {
+            C2D_TextGetDimensions(&scoreTextObjLine2, textScaleX, textScaleY, &w2, &h2);
+        }
 
-        float spacing = 2.0f * hudZoom;
-        float totalH = h1 + h2 + spacing;
+        float spacing = hasLine2 ? (2.0f * hudZoom) : 0.0f;
+        float totalH = h1 + (hasLine2 ? h2 : 0.0f) + spacing;
 
         float centerXT = ScreenWidthTop / 2.0f;
         float centerYT = ScreenHeight / 2.0f;
@@ -2689,21 +2603,25 @@ void PlayState::drawHUD(float shakeX, float shakeY) {
         float drawX1 = drawCenterX1 - (w1 / 2.0f);
         float drawY1 = startY;
 
-        // Center Line 2
-        float sX2 = (scoreTxtX != -9999.0f) ? scoreTxtX : ((bw / 2.0f) - (w2 / 2.0f));
-        float baseCenterX2 = sX2 + w2 / 2.0f;
-        float drawCenterX2 = centerXT + (baseCenterX2 - centerXT) * hudZoom + shakeX;
-        float drawX2 = drawCenterX2 - (w2 / 2.0f);
-        float drawY2 = startY + h1 + spacing;
-
         u8 sa = (u8)(255 * scoreTxtAlpha * hudAlpha);
         u32 sCol = (scoreTxtColor & 0x00FFFFFF) | ((u32)sa << 24);
 
-        DrawTextBorderCardinal(&scoreTextObjLine1, drawX1, drawY1, 0.84f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,sa));
-        C2D_DrawText(&scoreTextObjLine1, C2D_WithColor, drawX1, drawY1, 0.85f, textScaleX, textScaleY, sCol);
+        if (w1 > 0) {
+            DrawTextBorderCardinal(&scoreTextObjLine1, drawX1, drawY1, 0.84f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,sa));
+            C2D_DrawText(&scoreTextObjLine1, C2D_WithColor, drawX1, drawY1, 0.85f, textScaleX, textScaleY, sCol);
+        }
 
-        DrawTextBorderCardinal(&scoreTextObjLine2, drawX2, drawY2, 0.84f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,sa));
-        C2D_DrawText(&scoreTextObjLine2, C2D_WithColor, drawX2, drawY2, 0.85f, textScaleX, textScaleY, sCol);
+        // Center Line 2 (if present)
+        if (hasLine2 && w2 > 0) {
+            float sX2 = (scoreTxtX != -9999.0f) ? scoreTxtX : ((bw / 2.0f) - (w2 / 2.0f));
+            float baseCenterX2 = sX2 + w2 / 2.0f;
+            float drawCenterX2 = centerXT + (baseCenterX2 - centerXT) * hudZoom + shakeX;
+            float drawX2 = drawCenterX2 - (w2 / 2.0f);
+            float drawY2 = startY + h1 + spacing;
+
+            DrawTextBorderCardinal(&scoreTextObjLine2, drawX2, drawY2, 0.84f, textScaleX, textScaleY, 1.5f, C2D_Color32(0,0,0,sa));
+            C2D_DrawText(&scoreTextObjLine2, C2D_WithColor, drawX2, drawY2, 0.85f, textScaleX, textScaleY, sCol);
+        }
     }
 
 
@@ -3083,8 +3001,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         }
     }
 
-    bool useFastReceptors = ClientPrefs::fastNotes && fastNoteSheet && fastNoteSubtexs.size() >= 2;
-
     // Draw opponent receptors if enabled
     if (ClientPrefs::opponentStrums) {
         for (int i = 0; i < 4; i++) {
@@ -3102,24 +3018,16 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             sx *= hudZoom; sy *= hudZoom;
 
             NoteSprite ns;
-            bool isHit = false;
-            if (useFastReceptors) {
-                ns = fastNoteSubtexs[0];
-                if (receptorTimer[i] > 0.0f) {
-                    isHit = true;
-                }
+            int groupIdx = i;
+            int slot = receptorActiveSlot[groupIdx];
+            size_t idx = groupIdx * 6 + slot;
+            if (noteSubtexFrames.size() > idx && !noteSubtexFrames[idx].empty()) {
+                int numFrames = noteSubtexFrames[idx].size();
+                int frameIdx = (int)(receptorAnimTime[groupIdx] * 24.0f);
+                if (frameIdx >= numFrames) frameIdx = numFrames - 1;
+                ns = noteSubtexFrames[idx][frameIdx];
             } else {
-                int groupIdx = i;
-                int slot = receptorActiveSlot[groupIdx];
-                size_t idx = groupIdx * 6 + slot;
-                if (noteSubtexFrames.size() > idx && !noteSubtexFrames[idx].empty()) {
-                    int numFrames = noteSubtexFrames[idx].size();
-                    int frameIdx = (int)(receptorAnimTime[groupIdx] * 24.0f);
-                    if (frameIdx >= numFrames) frameIdx = numFrames - 1;
-                    ns = noteSubtexFrames[idx][frameIdx];
-                } else {
-                    ns = noteSubtexs[idx];
-                }
+                ns = noteSubtexs[idx];
             }
 
             if (!ns.tex) continue;
@@ -3148,16 +3056,8 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             u8 g = (col >> 8) & 0xFF;
             u8 b = col & 0xFF;
 
-            if (col != 0xFFFFFFFF || useFastReceptors || ClientPrefs::noteColorsEnabled) {
-                if (useFastReceptors) {
-                    if (isHit) {
-                        C2D_PlainImageTint(&tint, C2D_Color32(r, g, b, a), 0.6f);
-                        C2D_SetTintMode(C2D_TintSolid);
-                    } else {
-                        C2D_PlainImageTint(&tint, C2D_Color32(r, g, b, a), 1.0f);
-                        C2D_SetTintMode(C2D_TintMult);
-                    }
-                } else if (ClientPrefs::noteColorsEnabled) {
+            if (col != 0xFFFFFFFF || ClientPrefs::noteColorsEnabled) {
+                if (ClientPrefs::noteColorsEnabled) {
                     unsigned char nr = ClientPrefs::noteColors[i % 4][0];
                     unsigned char ng = ClientPrefs::noteColors[i % 4][1];
                     unsigned char nb = ClientPrefs::noteColors[i % 4][2];
@@ -3175,14 +3075,8 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
                 }
             }
 
-            if (useFastReceptors) {
-                static const float FAST_ANGLES[4] = { -M_PI/2.0f, M_PI, 0.0f, M_PI/2.0f };
-                renderNoteSprite(ns, drawX, drawY, 0.75f, tintPtr, sx, sy, FAST_ANGLES[i] + oppAngle, customOpponentStrumFlipX[i], customOpponentStrumFlipY[i], customOpponentStrumAntialiasing[i]);
-                C2D_SetTintMode(C2D_TintMult);
-            } else {
-                renderNoteSprite(ns, drawX, drawY, 0.75f, tintPtr, sx, sy, oppAngle, customOpponentStrumFlipX[i], customOpponentStrumFlipY[i], customOpponentStrumAntialiasing[i]);
-                C2D_SetTintMode(C2D_TintMult);
-            }
+            renderNoteSprite(ns, drawX, drawY, 0.75f, tintPtr, sx, sy, oppAngle, customOpponentStrumFlipX[i], customOpponentStrumFlipY[i], customOpponentStrumAntialiasing[i]);
+            C2D_SetTintMode(C2D_TintMult);
         }
     }
 
@@ -3202,28 +3096,16 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         sx *= hudZoom; sy *= hudZoom;
 
         NoteSprite ns;
-        bool isHit = false;
-        bool isPress = false;
-        bool isBotHolding = ClientPrefs::botPlay && (receptorTimer[4 + i] > 0.0f);
-        if (useFastReceptors) {
-            ns = fastNoteSubtexs[0];
-            if (keyHitRecently[i] || isBotHolding) {
-                isHit = true;
-            } else if (keyHeld[i]) {
-                isPress = true;
-            }
+        int groupIdx = i;
+        int slot = receptorActiveSlot[4 + groupIdx];
+        size_t idx = groupIdx * 6 + slot;
+        if (noteSubtexFrames.size() > idx && !noteSubtexFrames[idx].empty()) {
+            int numFrames = noteSubtexFrames[idx].size();
+            int frameIdx = (int)(receptorAnimTime[4 + groupIdx] * 24.0f);
+            if (frameIdx >= numFrames) frameIdx = numFrames - 1;
+            ns = noteSubtexFrames[idx][frameIdx];
         } else {
-            int groupIdx = i;
-            int slot = receptorActiveSlot[4 + groupIdx];
-            size_t idx = groupIdx * 6 + slot;
-            if (noteSubtexFrames.size() > idx && !noteSubtexFrames[idx].empty()) {
-                int numFrames = noteSubtexFrames[idx].size();
-                int frameIdx = (int)(receptorAnimTime[4 + groupIdx] * 24.0f);
-                if (frameIdx >= numFrames) frameIdx = numFrames - 1;
-                ns = noteSubtexFrames[idx][frameIdx];
-            } else {
-                ns = noteSubtexs[idx];
-            }
+            ns = noteSubtexs[idx];
         }
 
         if (!ns.tex) continue;
@@ -3252,19 +3134,8 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         u8 g = (col >> 8) & 0xFF;
         u8 b = col & 0xFF;
 
-        if (col != 0xFFFFFFFF || useFastReceptors || ClientPrefs::noteColorsEnabled) {
-            if (useFastReceptors) {
-                if (isHit) {
-                    C2D_PlainImageTint(&tint, C2D_Color32(r, g, b, a), 0.6f);
-                    C2D_SetTintMode(C2D_TintSolid);
-                } else if (isPress) {
-                    C2D_PlainImageTint(&tint, C2D_Color32((u8)(r * 0.43f), (u8)(g * 0.43f), (u8)(b * 0.43f), a), 1.0f);
-                    C2D_SetTintMode(C2D_TintMult);
-                } else {
-                    C2D_PlainImageTint(&tint, C2D_Color32(r, g, b, a), 1.0f);
-                    C2D_SetTintMode(C2D_TintMult);
-                }
-            } else if (ClientPrefs::noteColorsEnabled) {
+        if (col != 0xFFFFFFFF || ClientPrefs::noteColorsEnabled) {
+            if (ClientPrefs::noteColorsEnabled) {
                 unsigned char nr = ClientPrefs::noteColors[i % 4][0];
                 unsigned char ng = ClientPrefs::noteColors[i % 4][1];
                 unsigned char nb = ClientPrefs::noteColors[i % 4][2];
@@ -3282,14 +3153,8 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             }
         }
 
-        if (useFastReceptors) {
-            static const float FAST_ANGLES[4] = { -M_PI/2.0f, M_PI, 0.0f, M_PI/2.0f };
-            renderNoteSprite(ns, drawX, drawY, 0.75f, tintPtr, sx, sy, FAST_ANGLES[i] + playerAngle, customPlayerStrumFlipX[i], customPlayerStrumFlipY[i], customPlayerStrumAntialiasing[i]);
-            C2D_SetTintMode(C2D_TintMult);
-        } else {
-            renderNoteSprite(ns, drawX, drawY, 0.75f, tintPtr, sx, sy, playerAngle, customPlayerStrumFlipX[i], customPlayerStrumFlipY[i], customPlayerStrumAntialiasing[i]);
-            C2D_SetTintMode(C2D_TintMult);
-        }
+        renderNoteSprite(ns, drawX, drawY, 0.75f, tintPtr, sx, sy, playerAngle, customPlayerStrumFlipX[i], customPlayerStrumFlipY[i], customPlayerStrumAntialiasing[i]);
+        C2D_SetTintMode(C2D_TintMult);
     }
 
 
@@ -3390,18 +3255,10 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
                 holdPiece.w = imgT.subtex->width;
                 holdPiece.h = imgT.subtex->height;
             } else {
-                if (ClientPrefs::fastNotes && fastNoteSheet && fastNoteSubtexs.size() >= 3) {
-                    holdPiece = fastNoteSubtexs[1];
-                    holdEnd = fastNoteSubtexs[2];
-                    hasHoldEnd = true;
-                } else if (ClientPrefs::fastNotes && fastNoteSheet && fastNoteSubtexs.size() == 2) {
-                    holdPiece = fastNoteSubtexs[1];
-                } else {
-                    int groupIdx = n.noteData;
-                    holdPiece = noteSubtexs[groupIdx * 6 + 4];
-                    holdEnd = noteSubtexs[groupIdx * 6 + 5];
-                    hasHoldEnd = true;
-                }
+                int groupIdx = n.noteData;
+                holdPiece = noteSubtexs[groupIdx * 6 + 4];
+                holdEnd = noteSubtexs[groupIdx * 6 + 5];
+                hasHoldEnd = true;
             }
         }
 
@@ -3411,11 +3268,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         C2D_ImageTint* tintPtr = nullptr;
         float baseAlpha = getLaneAlpha(n.noteData, n.isPlayer) * n.multAlpha;
 
-        static const unsigned char FAST_COLORS[4][3] = {
-            {0xC2,0x4B,0x99}, {0x00,0xFF,0xFF}, {0x12,0xFA,0x05}, {0xF9,0x39,0x3F}
-        };
-        bool useFastTint = ClientPrefs::fastNotes && fastNoteSheet && fastNoteSubtexs.size() >= 2
-                           && n.texture.empty();
         unsigned char r = 255, g = 255, b = 255;
         u8 a_note = 255;
         if (n.color != 0xFFFFFFFF) {
@@ -3424,16 +3276,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             r = (n.color >> 16) & 0xFF;
             g = (n.color >> 8) & 0xFF;
             b = n.color & 0xFF;
-        } else if (useFastTint) {
-            if (ClientPrefs::noteColorsEnabled) {
-                r = ClientPrefs::noteColors[n.noteData % 4][0];
-                g = ClientPrefs::noteColors[n.noteData % 4][1];
-                b = ClientPrefs::noteColors[n.noteData % 4][2];
-            } else {
-                r = FAST_COLORS[n.noteData % 4][0];
-                g = FAST_COLORS[n.noteData % 4][1];
-                b = FAST_COLORS[n.noteData % 4][2];
-            }
         } else if (ClientPrefs::noteColorsEnabled) {
             r = ClientPrefs::noteColors[n.noteData % 4][0];
             g = ClientPrefs::noteColors[n.noteData % 4][1];
@@ -3444,7 +3286,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         if (n.isPlayer && !n.sustainActive && diff <= 0) {
             aVal *= 0.5f;
         }
-        if (n.color != 0xFFFFFFFF || useFastTint || ClientPrefs::noteColorsEnabled) {
+        if (n.color != 0xFFFFFFFF || ClientPrefs::noteColorsEnabled) {
             C2D_PlainImageTint(&tint, C2D_Color32(r, g, b, 255), 1.0f);
             for (int ci = 0; ci < 4; ci++) {
                 tint.corners[ci].color = (tint.corners[ci].color & 0x00FFFFFF) | ((u32)(aVal * 255) << 24);
@@ -3497,7 +3339,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float finalCx = bodyCx + offsetXS;
             float finalCy = bodyCy + offsetYS;
             C2D_Image img = { holdPiece.tex, &holdPiece.sub };
-            if (useFastTint) C2D_SetTintMode(C2D_TintMult);
             GPU_TEXTURE_FILTER_PARAM f = n.antialiasing ? GPU_LINEAR : GPU_NEAREST;
             static C3D_Tex* lastHoldTex = nullptr;
             static GPU_TEXTURE_FILTER_PARAM lastHoldFilt = (GPU_TEXTURE_FILTER_PARAM)-1;
@@ -3513,7 +3354,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             } else {
                 C2D_DrawImageAtRotated(img, finalCx, finalCy, 0.80f, drawAngle, tintPtr, finalScaleX, finalScaleY);
             }
-            if (useFastTint) C2D_SetTintMode(C2D_TintMult);
         }
 
         // Draw hold end tip (anchored directly where hold piece ends)
@@ -3550,7 +3390,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             float finalEndCy = endCy + endOffsetYS;
 
             C2D_Image imgEnd = { holdEnd.tex, &holdEnd.sub };
-            if (useFastTint) C2D_SetTintMode(C2D_TintMult);
             GPU_TEXTURE_FILTER_PARAM f_end = n.antialiasing ? GPU_LINEAR : GPU_NEAREST;
             if (holdEnd.tex) C3D_TexSetFilter(holdEnd.tex, f_end, f_end);
             float finalEndScaleX = endDsX * (n.flipX ? -1.0f : 1.0f);
@@ -3560,7 +3399,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             } else {
                 C2D_DrawImageAtRotated(imgEnd, finalEndCx, finalEndCy, 0.81f, endDrawAngle, tintPtr, finalEndScaleX, finalEndScaleY);
             }
-            if (useFastTint) C2D_SetTintMode(C2D_TintMult);
         }
     }
 
@@ -3624,8 +3462,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
                 ns.sub = *imgT.subtex;
                 ns.w = imgT.subtex->width;
                 ns.h = imgT.subtex->height;
-            } else if (ClientPrefs::fastNotes && fastNoteSheet && fastNoteSubtexs.size() >= 2) {
-                ns = fastNoteSubtexs[0];
             } else {
                 int groupIdx = n.noteData;
                 ns = noteSubtexs[groupIdx * 6 + 2];
@@ -3655,11 +3491,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         float baseAlpha = getLaneAlpha(n.noteData, n.isPlayer) * n.multAlpha;
         float noteAngle = (getLaneAngle(n.noteData, n.isPlayer) + n.angle) * DEG_TO_RAD;
 
-        bool useFastTintHead = ClientPrefs::fastNotes && fastNoteSheet && fastNoteSubtexs.size() >= 2
-                               && n.texture.empty();
-        static const unsigned char FAST_COLORS_H[4][3] = {
-            {0xC2,0x4B,0x99}, {0x00,0xFF,0xFF}, {0x12,0xFA,0x05}, {0xF9,0x39,0x3F}
-        };
         unsigned char r = 255, g = 255, b = 255;
         u8 a_note = 255;
         if (n.color != 0xFFFFFFFF) {
@@ -3668,16 +3499,6 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             r = (n.color >> 16) & 0xFF;
             g = (n.color >> 8) & 0xFF;
             b = n.color & 0xFF;
-        } else if (useFastTintHead) {
-            if (ClientPrefs::noteColorsEnabled) {
-                r = ClientPrefs::noteColors[n.noteData % 4][0];
-                g = ClientPrefs::noteColors[n.noteData % 4][1];
-                b = ClientPrefs::noteColors[n.noteData % 4][2];
-            } else {
-                r = FAST_COLORS_H[n.noteData % 4][0];
-                g = FAST_COLORS_H[n.noteData % 4][1];
-                b = FAST_COLORS_H[n.noteData % 4][2];
-            }
         } else if (ClientPrefs::noteColorsEnabled) {
             r = ClientPrefs::noteColors[n.noteData % 4][0];
             g = ClientPrefs::noteColors[n.noteData % 4][1];
@@ -3688,7 +3509,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         if (n.ignoreNote && n.hit) {
             aVal *= 0.3f;
         }
-        if (n.color != 0xFFFFFFFF || useFastTintHead || ClientPrefs::noteColorsEnabled) {
+        if (n.color != 0xFFFFFFFF || ClientPrefs::noteColorsEnabled) {
             C2D_PlainImageTint(&alphaTint, C2D_Color32(r, g, b, 255), 1.0f);
             for (int ci = 0; ci < 4; ci++) {
                 alphaTint.corners[ci].color = (alphaTint.corners[ci].color & 0x00FFFFFF) | ((u32)(aVal * 255) << 24);
@@ -3701,15 +3522,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             }
         }
 
-        // For fast notes draw rotated head
-        if (useFastTintHead) {
-            static const float FAST_ANGLES[4] = { -M_PI/2.0f, M_PI, 0.0f, M_PI/2.0f };
-            C2D_SetTintMode(C2D_TintMult);
-            renderNoteSprite(ns, drawX, drawY, 0.90f, passTint, sx * n.scaleX, sy * n.scaleY, FAST_ANGLES[n.noteData % 4] + noteAngle, n.flipX, n.flipY, n.antialiasing);
-            C2D_SetTintMode(C2D_TintMult);
-        } else {
-            renderNoteSprite(ns, drawX, drawY, 0.90f, passTint, sx * n.scaleX, sy * n.scaleY, noteAngle, n.flipX, n.flipY, n.antialiasing);
-        }
+        renderNoteSprite(ns, drawX, drawY, 0.90f, passTint, sx * n.scaleX, sy * n.scaleY, noteAngle, n.flipX, n.flipY, n.antialiasing);
     }
 
     // Draw debug logs
@@ -3845,7 +3658,7 @@ void PlayState::drawLuaTextsForCamera(const std::string& camera, bool front, flo
 
 void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     ClearTextBuf();
-    if (!gameOver && (ClientPrefs::fastNotes ? !fastNoteSheet : !noteSheet)) return;
+    if (!gameOver && !noteSheet) return;
 
     this->top = top;
     this->bottom = bottom;
@@ -4026,7 +3839,9 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
 
     if (paused && pauseSubState) pauseSubState->draw();
 
-    if (ClientPrefs::debugInfo && !paused && !g_isRightEye && bottom) {
+    bool hasAnyDebugOption = ClientPrefs::debugFps || ClientPrefs::debugMemory || ClientPrefs::debugHardware;
+
+    if (hasAnyDebugOption && !paused && !g_isRightEye && bottom) {
         C2D_SceneBegin(bottom);
         extern u32 __ctru_heap_size;
         extern u32 __ctru_linear_heap_size;
@@ -4050,26 +3865,37 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         bool isNew3DS = false;
         APT_CheckNew3DS(&isNew3DS);
 
-        char debugStr[256];
-        if (!ClientPrefs::extendedDebug) {
-            sprintf(debugStr, "FPS: %d | RAM: %.1f/%.1f MB | CPU: %d%%", 
-                    (int)curFPS, totalUsed, totalAvail, (int)cpuPercent);
-        } else {
-            sprintf(debugStr, "FPS: %d | MODEL: %s\nRAM: %.1f/%.1f MB\nVRAM: %.1f/6.0 MB\nCPU: %d%% | GPU: %d%%",
-                    (int)curFPS, isNew3DS ? "New 3DS" : "Old 3DS", totalUsed, totalAvail, vramUsed, (int)cpuPercent, (int)gpuPercent);
+        std::vector<std::string> debugLines;
+
+        if (ClientPrefs::debugFps && ClientPrefs::debugHardware) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "FPS: %d | MODEL: %s", (int)curFPS, isNew3DS ? "New 3DS" : "Old 3DS");
+            debugLines.push_back(buf);
+        } else if (ClientPrefs::debugFps) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "FPS: %d", (int)curFPS);
+            debugLines.push_back(buf);
+        } else if (ClientPrefs::debugHardware) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "MODEL: %s", isNew3DS ? "New 3DS" : "Old 3DS");
+            debugLines.push_back(buf);
         }
 
-        std::vector<std::string> debugLines;
-        std::string temp = "";
-        for (int i = 0; debugStr[i] != '\0'; i++) {
-            if (debugStr[i] == '\n') {
-                debugLines.push_back(temp);
-                temp = "";
-            } else {
-                temp += debugStr[i];
-            }
+        if (ClientPrefs::debugMemory) {
+            char bufRAM[128];
+            snprintf(bufRAM, sizeof(bufRAM), "RAM: %.1f/%.1f MB", totalUsed, totalAvail);
+            debugLines.push_back(bufRAM);
+
+            char bufVRAM[128];
+            snprintf(bufVRAM, sizeof(bufVRAM), "VRAM: %.1f/6.0 MB", vramUsed);
+            debugLines.push_back(bufVRAM);
         }
-        if (!temp.empty()) debugLines.push_back(temp);
+
+        if (ClientPrefs::debugHardware) {
+            char bufUsage[128];
+            snprintf(bufUsage, sizeof(bufUsage), "CPU: %d%% | GPU: %d%%", (int)cpuPercent, (int)gpuPercent);
+            debugLines.push_back(bufUsage);
+        }
 
         if (AsyncAssetManager::get().isLoadingAsset) {
             char loadingStr[256];
@@ -4080,7 +3906,7 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         }
 
         float scale = 0.35f;
-        float lineSpacing = 10.0f;
+        float lineSpacing = 12.0f;
         float totalHeight = debugLines.size() * lineSpacing;
         float startY = 240.0f - totalHeight - 6.0f;
 
@@ -4103,18 +3929,22 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             if (lineW > maxLineW) maxLineW = lineW;
         }
 
+        // Single background
+        if (maxLineW > 0.0f && !debugLines.empty()) {
+            float padX = 6.0f;
+            float padY = 4.0f;
+            float boxW = maxLineW + (padX * 2.0f);
+            float boxH = totalHeight + (padY * 2.0f);
+            float boxX = 160.0f - (boxW / 2.0f);
+            float boxY = startY - padY;
+
+            // Draw single solid rectangle over touchscreen hitboxes
+            C2D_DrawRectSolid(boxX, boxY, 0.9992f, boxW, boxH, C2D_Color32(0, 0, 0, 180));
+        }
+
         for (size_t i = 0; i < debugLines.size(); i++) {
             float lx = 160.0f - (lineWidths[i] / 2.0f);
             float ly = startY + (float)i * lineSpacing;
-
-            // Draw an independent background rectangle for this line specifically
-            float lineRectW = lineWidths[i] + 8.0f;
-            float lineRectH = lineSpacing;
-            float lineRectX = 160.0f - (lineRectW / 2.0f);
-            float lineRectY = ly - 1.0f;
-
-            // Use depths greater than 0.999f so it renders over touchscreen hitboxes
-            C2D_DrawRectSolid(lineRectX, lineRectY, 0.9992f, lineRectW, lineRectH, C2D_Color32(0, 0, 0, 180));
 
             DrawTextBorderCardinal(&lineObjs[i], lx, ly, 0.9995f, scale, scale, 1.2f, C2D_Color32(0, 0, 0, 255));
             C2D_DrawText(&lineObjs[i], C2D_WithColor, lx, ly, 0.9998f, scale, scale, CWhite);
@@ -4157,6 +3987,8 @@ void PlayState::drawHitboxOverlay() {
 
 void PlayState::moveChar(int lane, Character* c) {
     if (!c) return;
+    if (c->specialAnim) return;
+    if (c->isExternalAnim && !c->animFinished) return;
     static const std::string dirs[] = {"LEFT", "DOWN", "UP", "RIGHT"};
     c->playAnim("sing" + dirs[lane], true);
     c->holdTimer = 0;
@@ -4275,7 +4107,6 @@ void PlayState::exitState() {
     // The thread accesses Character objects and texture data — must not run concurrently.
     AsyncAssetManager::get().suspend();
 
-    fastNoteSheet = nullptr;
     if (noteSheet && !SpritesheetCache::get().contains(noteSheet)) {
         C2D_SpriteSheetFree(noteSheet);
     }

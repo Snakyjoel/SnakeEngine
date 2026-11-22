@@ -32,7 +32,8 @@ void ShaderManager::drawSaturation(const RT& rt, C3D_RenderTarget* dest, float s
             C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_ONE, GPU_ONE, GPU_ZERO, GPU_ONE);
             C2D_SetTintMode(C2D_TintMult);
             C2D_ImageTint tint;
-            C2D_AlphaImageTint(&tint, addAlpha);
+            u8 c = (u8)std::min(255.0f, addAlpha * 255.0f);
+            C2D_PlainImageTint(&tint, C2D_Color32(c, c, c, 255), 1.0f);
             C2D_DrawImageAt(rt.img, x, y, 0.0f, &tint, scaleX, scaleY);
             C2D_Flush();
             C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);

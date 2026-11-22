@@ -57,6 +57,20 @@ private:
     std::deque<LoadedResult>     resultQueue;       // protected by loadLock
     std::unordered_set<int>      pendingWeekIndices;// indices in requestQueue
 
+    // Unified base game atlas sheets & frames
+    C2D_SpriteSheet baseLevelsSheet  = nullptr;
+    std::vector<Frame> baseLevelsFrames;
+
+    C2D_SpriteSheet baseBannersSheet = nullptr;
+    std::vector<Frame> baseBannersFrames;
+
+    C2D_SpriteSheet baseDiffSheet    = nullptr;
+    std::vector<Frame> baseDiffFrames;
+
+    const Frame* getBaseLevelFrame(const std::string& name);
+    const Frame* getBaseBannerFrame(const std::string& name);
+    const Frame* getBaseDiffFrame(const std::string& name);
+
     // Sliding window cache: selectableWeeks index -> sheet
     std::unordered_map<int, C2D_SpriteSheet> weekSheets;
 
@@ -82,6 +96,16 @@ private:
     float lastTouchY = 0.0f;
     float touchStartLerp = 0.0f;
     float scrollVelocity = 0.0f;
+
+    // Slide transition for song list:
+    bool  showSongList         = false;
+    float transitionProgress   = 0.0f;
+    float songScrollY          = 0.0f;
+    float songTargetScrollY    = 0.0f;
+    float songMaxScrollY       = 0.0f;
+    bool  songTouchActive      = false;
+    float songTouchStartY      = 0.0f;
+    float songTouchStartScroll = 0.0f;
 
     C2D_SpriteSheet tracksSheet = nullptr;
     C2D_Image       tracksImg   = {};

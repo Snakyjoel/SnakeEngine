@@ -135,9 +135,6 @@ void MemoryDebugState::gatherAllMemoryItems() {
 
         // Notes & Ratings
         addSheet("noteSheet", PlayState::instance->noteSheet, "Gameplay");
-        if (PlayState::instance->fastNoteSheet) {
-            addSheet("fastNoteSheet", PlayState::instance->fastNoteSheet, "Gameplay");
-        }
         addSheet("ratingSheet", PlayState::instance->ratingSheet, "Gameplay");
         if (PlayState::instance->countdownSheet) {
             addSheet("countdownSheet", PlayState::instance->countdownSheet, "Gameplay");

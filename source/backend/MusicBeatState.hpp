@@ -31,6 +31,7 @@ public:
     static constexpr float TRANS_DURATION = 0.60f;
 
     static bool useStickerTransition;
+    static bool useFadeTransition;
     static void initStickerTransition();
     static void drawStickerTransition(C3D_RenderTarget* top, C3D_RenderTarget* bottom);
     static void cleanupStickerTransition();

@@ -87,24 +87,24 @@ void TitleState::init() {
     ringAlpha = 0.0f;
 
     // Load animated title sprites
-    logo.loadSheet("preload/images/newgroundsandlogo");
+    logo.loadSheet("preload/images/title/newgroundsandlogo");
     logo.addAnim("bump", "logoBumpin", 24.0f, true);
     logo.play("bump");
     logo.antialiasing = ClientPrefs::globalAntialiasing;
 
-    ng.loadSheet("preload/images/newgroundsandlogo");
+    ng.loadSheet("preload/images/title/newgroundsandlogo");
     ng.addAnim("flash", "newgrounds logo instance", 6.0f, true);
     ng.play("flash");
     ng.antialiasing = ClientPrefs::globalAntialiasing;
 
-    titleEnter.loadSheet("preload/images/titleEnter");
+    titleEnter.loadSheet("preload/images/title/titleEnter");
     titleEnter.addAnim("idle", "Press Enter to Begin0", 12.0f, true);
     titleEnter.addAnim("press", "ENTER PRESSED0", 24.0f, true);
     titleEnter.play("idle");
     titleEnter.ignoreFrameOffsets = true;
     titleEnter.antialiasing = ClientPrefs::globalAntialiasing;
 
-    titleEnter2.loadSheet("preload/images/titleEnter");
+    titleEnter2.loadSheet("preload/images/title/titleEnter");
     titleEnter2.addAnim("idle", "Press Enter to Begin200", 12.0f, true);
     titleEnter2.addAnim("press", "ENTER PRESSED200", 24.0f, true);
     titleEnter2.play("idle");
@@ -112,8 +112,8 @@ void TitleState::init() {
     titleEnter2.antialiasing = ClientPrefs::globalAntialiasing;
 
     // Load Girlfriend Title Dance
-    gf.loadSheet("preload/images/gfDanceTitle");
-    CachedSpritesheet* tempGf = SpritesheetCache::get().load("preload/images/gfDanceTitle");
+    gf.loadSheet("preload/images/title/gfDanceTitle");
+    CachedSpritesheet* tempGf = SpritesheetCache::get().load("preload/images/title/gfDanceTitle");
     if (tempGf) {
         int matchedCount = 0;
         for (const auto& f : tempGf->frames) {

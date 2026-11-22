@@ -124,9 +124,16 @@ int main(int argc, char* argv[]) {
     globalPixelFont = C2D_FontLoad("romfs:/fonts/pixel.bcfnt");
     makeFontPixelPerfect(globalPixelFont);
     gfxSet3D(true);
-    C3D_RenderTarget* top      = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
-    C3D_RenderTarget* topRight = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
-    C3D_RenderTarget* bottom   = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
+    auto createScreenTargetStencil = [](gfxScreen_t screen, gfx3dSide_t side) -> C3D_RenderTarget* {
+        int width = 240;
+        int height = (screen == GFX_TOP) ? (gfxIsWide() ? 800 : 400) : 320;
+        C3D_RenderTarget* target = C3D_RenderTargetCreate(width, height, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+        if (target) C3D_RenderTargetSetOutput(target, screen, side, 0x1000);
+        return target;
+    };
+    C3D_RenderTarget* top      = createScreenTargetStencil(GFX_TOP, GFX_LEFT);
+    C3D_RenderTarget* topRight = createScreenTargetStencil(GFX_TOP, GFX_RIGHT);
+    C3D_RenderTarget* bottom   = createScreenTargetStencil(GFX_BOTTOM, GFX_LEFT);
 
     C3D_AlphaTest(true, GPU_GREATER, 0x00);
     C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA); //Fucking Long Line
@@ -138,7 +145,7 @@ int main(int argc, char* argv[]) {
     AsyncAssetManager::get().init();
 
     MusicBeatState* currentState = nullptr;
-    if (ClientPrefs::acceptedEgg) {
+    if (ClientPrefs::acceptedEgg && !ClientPrefs::acceptedChallenge) {
         MusicBeatState::skipTransition = true;
         currentState = new EggDialogueState();
     } else {
@@ -163,7 +170,7 @@ int main(int argc, char* argv[]) {
 
         if (MusicBeatState::transPhase == TransitionPhase::FADE_OUT) {
             MusicBeatState::transTimer   += dt;
-            float duration = MusicBeatState::useStickerTransition ? 0.80f : MusicBeatState::TRANS_DURATION;
+            float duration = MusicBeatState::useStickerTransition ? 0.98f : (MusicBeatState::useFadeTransition ? 0.45f : MusicBeatState::TRANS_DURATION);
             MusicBeatState::transProgress = MusicBeatState::transTimer / duration;
 
             if (MusicBeatState::useStickerTransition) {
@@ -224,10 +231,12 @@ int main(int argc, char* argv[]) {
                             MusicBeatState::cleanupStickerTransition();
                             MusicBeatState::useStickerTransition = false;
                         }
+                        MusicBeatState::useFadeTransition = false;
                     } else {
                         MusicBeatState::transPhase    = TransitionPhase::FADE_IN;
                         MusicBeatState::transTimer    = 0.0f;
                         MusicBeatState::transProgress = 0.0f;
+                        MusicBeatState::useFadeTransition = false;
                     }
                 } else {
                     MusicBeatState::transPhase = TransitionPhase::NONE;
@@ -235,11 +244,12 @@ int main(int argc, char* argv[]) {
                         MusicBeatState::cleanupStickerTransition();
                         MusicBeatState::useStickerTransition = false;
                     }
+                    MusicBeatState::useFadeTransition = false;
                 }
             }
         } else if (MusicBeatState::transPhase == TransitionPhase::FADE_IN) {
             MusicBeatState::transTimer   += dt;
-            float duration = MusicBeatState::useStickerTransition ? 0.80f : MusicBeatState::TRANS_DURATION;
+            float duration = MusicBeatState::useStickerTransition ? 0.98f : (MusicBeatState::useFadeTransition ? 0.45f : MusicBeatState::TRANS_DURATION);
             MusicBeatState::transProgress = MusicBeatState::transTimer / duration;
 
             if (MusicBeatState::useStickerTransition) {
@@ -253,6 +263,7 @@ int main(int argc, char* argv[]) {
                     MusicBeatState::cleanupStickerTransition();
                     MusicBeatState::useStickerTransition = false;
                 }
+                MusicBeatState::useFadeTransition = false;
             }
         }
 
@@ -281,7 +292,7 @@ int main(int argc, char* argv[]) {
 
             // Global debug overlay (L+R+SELECT outside of PlayState)
             u32 keys_held = hidKeysHeld();
-            if (PlayState::instance == nullptr && ClientPrefs::debugInfo && (keys_held & (KEY_L | KEY_R | KEY_SELECT)) == (KEY_L | KEY_R | KEY_SELECT)) {
+            if (PlayState::instance == nullptr && ClientPrefs::debugMemoryViewer && (keys_held & (KEY_L | KEY_R | KEY_SELECT)) == (KEY_L | KEY_R | KEY_SELECT)) {
                 if (!menuDebugBuf) {
                     menuDebugBuf = C2D_TextBufNew(256);
                 } else {

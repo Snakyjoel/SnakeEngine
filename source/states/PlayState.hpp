@@ -78,6 +78,7 @@ struct SharedLuaTexture {
     void* vramData = nullptr;
     int refCount = 0;
     std::string originalPath = "";
+    bool isPrecached = false;
 };
 
 class InGameVideoPlayer;
@@ -480,9 +481,6 @@ private:
     C3D_RenderTarget* bottom;
 
     C2D_SpriteSheet noteSheet = nullptr;
-    C2D_SpriteSheet fastNoteSheet = nullptr;  // NoteSheetFast
-    C2D_Image       fastNoteBaseImg;
-    std::vector<NoteSprite> fastNoteSubtexs; // [0]=note, [1]=tail, [2]=noteholdend
     SongData songData;
     int curSection = -1;
     std::string lastCameraFocus = "";
@@ -495,7 +493,6 @@ private:
 
     // Arrow skin scale factor: adjusts noteScale so custom-skin notes match default visual size
     float arrowSkinScaleFactor = 1.0f;
-    float fastNoteSkinScaleFactor = 1.0f;
     
     // Lyrics Event Variables
     C2D_TextBuf lyricsTextBuf;

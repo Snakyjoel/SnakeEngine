@@ -3,6 +3,7 @@
 #include <vector>
 #include <citro2d.h>
 #include "../backend/SpritesheetCache.hpp"
+#include "../backend/savedata/ClientPrefs.hpp"
 #include <map>
 
 struct StageSprite {
@@ -80,6 +81,19 @@ struct StageSprite {
     void playAnimFES(const std::string& path, const std::string& animName, int fps, bool loop, float offsetX, float offsetY) {
         auto* cs = SpritesheetCache::get().load(path);
         if (!cs) return;
+
+        GPU_TEXTURE_FILTER_PARAM filter = (antialiasing && ClientPrefs::globalAntialiasing) ? GPU_LINEAR : GPU_NEAREST;
+        if (cs->sheet) {
+            size_t count = C2D_SpriteSheetCount(cs->sheet);
+            for (size_t i = 0; i < count; i++) {
+                C2D_Image im = C2D_SpriteSheetGetImage(cs->sheet, i);
+                if (im.tex) C3D_TexSetFilter(im.tex, filter, filter);
+            }
+        }
+        if (cs->rawTex) C3D_TexSetFilter(cs->rawTex, filter, filter);
+        for (auto& ef : cs->frames) {
+            if (ef.tex) C3D_TexSetFilter(ef.tex, filter, filter);
+        }
 
         isExternalAnim = true;
         externalFrames = cs->frames;

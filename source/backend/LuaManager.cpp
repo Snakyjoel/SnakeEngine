@@ -354,6 +354,7 @@ void LuaManager::registerFunctions(lua_State* L) {
     BIND_LUA_FUNC(addAnimationByPrefix);
     BIND_LUA_FUNC(objectPlayAnimation);
     lua_register(L, "playAnim", lua_objectPlayAnimation);
+    lua_register(L, "characterPlayAnim", lua_objectPlayAnimation);
     BIND_LUA_FUNC(playAnimFES);
     BIND_LUA_FUNC(addLuaSprite);
     BIND_LUA_FUNC(setSpriteVram);
@@ -563,6 +564,30 @@ static void releaseLuaSpriteMemory(StageSprite& oldSprite) {
         return;
     }
 
+    bool isPrecached = false;
+    if (sheetToFree && SpritesheetCache::get().isPinned(sheetToFree)) {
+        isPrecached = true;
+    }
+    if (PlayState::instance) {
+        for (const auto& pair : PlayState::instance->luaTextureCache) {
+            if ((pair.second.sheet != nullptr && pair.second.sheet == sheetToFree) ||
+                (pair.second.tex != nullptr && pair.second.tex == texToFree)) {
+                if (pair.second.isPrecached) {
+                    isPrecached = true;
+                }
+                break;
+            }
+        }
+    }
+
+    if (isPrecached) {
+        oldSprite.sheet = nullptr;
+        oldSprite.img.tex = nullptr;
+        oldSprite.img.subtex = nullptr;
+        oldSprite.vramData = nullptr;
+        return;
+    }
+
     // 0 remaining objects using this texture — MUST free RAM/VRAM resources!
     if (sheetToFree) {
         if (vramDataToFree) {
@@ -735,8 +760,11 @@ int LuaManager::lua_makeLuaSprite(lua_State* L) {
             return 0;
         }
         
-        // Check cache first!
-        auto cacheIt = PlayState::instance->luaTextureCache.find(imgName);
+        std::string cleanKey = SpritesheetCache::normalizeKey(imgName);
+        auto cacheIt = PlayState::instance->luaTextureCache.find(cleanKey);
+        if (cacheIt == PlayState::instance->luaTextureCache.end()) {
+            cacheIt = PlayState::instance->luaTextureCache.find(imgName);
+        }
         if (cacheIt != PlayState::instance->luaTextureCache.end()) {
             SharedLuaTexture& shared = cacheIt->second;
             shared.refCount++;
@@ -763,7 +791,7 @@ int LuaManager::lua_makeLuaSprite(lua_State* L) {
         }
         
         // Load Sprite
-        auto* cs = SpritesheetCache::get().load("images/" + imgName);
+        auto* cs = SpritesheetCache::get().load(cleanKey);
         s.sheet = cs ? cs->sheet : nullptr;
         if (s.sheet) {
             s.img = C2D_SpriteSheetGetImage(s.sheet, 0);
@@ -935,7 +963,30 @@ int LuaManager::lua_makeLuaSprite(lua_State* L) {
 int LuaManager::lua_precacheImage(lua_State* L) {
     if (lua_gettop(L) >= 1) {
         std::string imgName = luaL_checkstring(L, 1);
-        AsyncAssetManager::get().requestImageLoad(imgName);
+        std::string cleanKey = SpritesheetCache::normalizeKey(imgName);
+
+        auto* cs = SpritesheetCache::get().load(cleanKey);
+        if (cs) {
+            SpritesheetCache::get().pin(cleanKey);
+
+            if (PlayState::instance) {
+                SharedLuaTexture shared;
+                shared.sheet = cs->sheet;
+                if (cs->sheet) {
+                    shared.tex = C2D_SpriteSheetGetImage(cs->sheet, 0).tex;
+                    shared.subtex = C2D_SpriteSheetGetImage(cs->sheet, 0).subtex;
+                } else {
+                    shared.tex = cs->rawTex;
+                    shared.subtex = cs->rawSub;
+                }
+                shared.vramData = nullptr;
+                shared.refCount = 1;
+                shared.isPrecached = true;
+                shared.originalPath = cleanKey;
+                PlayState::instance->luaTextureCache[cleanKey] = shared;
+                PlayState::instance->luaTextureCache[imgName] = shared;
+            }
+        }
     }
     return 0;
 }
@@ -1347,7 +1398,8 @@ int LuaManager::lua_makeAnimatedLuaSprite(lua_State* L) {
         return 0;
     }
     
-    auto* cs = SpritesheetCache::get().load("images/" + imgName);
+    std::string cleanKey = SpritesheetCache::normalizeKey(imgName);
+    auto* cs = SpritesheetCache::get().load(cleanKey);
     s.sheet = cs ? cs->sheet : nullptr;
     bool loaded = false;
     if (s.sheet && cs && !cs->frames.empty()) {
@@ -1940,6 +1992,7 @@ int LuaManager::lua_getProperty(lua_State* L) {
                 else if (prop == "y") lua_pushnumber(L, c->y);
                 else if (prop == "visible") lua_pushboolean(L, c->visible);
                 else if (prop == "antialiasing") lua_pushboolean(L, !c->noAntialiasing);
+                else if (prop == "specialAnim") lua_pushboolean(L, c->specialAnim);
                 else lua_pushnil(L);
             } else {
                 lua_pushnil(L);
@@ -2349,6 +2402,13 @@ int LuaManager::lua_setProperty(lua_State* L) {
                 else if (prop == "visible") c->visible = lua_toboolean(L, 2);
                 else if (prop == "angle") c->angle = (float)luaL_checknumber(L, 2);
                 else if (prop == "antialiasing") c->setAntialiasing(lua_toboolean(L, 2));
+                else if (prop == "specialAnim") {
+                    c->specialAnim = getBoolSafe(2);
+                    if (!c->specialAnim && c->isExternalAnim && c->animFinished) {
+                        c->isExternalAnim = false;
+                        c->dance(true);
+                    }
+                }
             }
         }
     }
@@ -4290,6 +4350,10 @@ int LuaManager::lua_stringSplit(lua_State* L) {
 
 // Audio functions
 int LuaManager::lua_precacheSound(lua_State* L) {
+    if (lua_gettop(L) >= 1) {
+        std::string soundPath = luaL_checkstring(L, 1);
+        AudioEngine::precacheSound(soundPath);
+    }
     return 0;
 }
 

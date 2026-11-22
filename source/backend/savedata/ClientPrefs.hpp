@@ -6,6 +6,14 @@ public:
     static bool ghostTapping;
     static bool debugInfo;
     static bool extendedDebug;
+    static bool scoreTxtScore;
+    static bool scoreTxtMisses;
+    static bool scoreTxtRating;
+    static bool scoreTxtFC;
+    static bool debugFps;
+    static bool debugMemory;
+    static bool debugHardware;
+    static bool debugMemoryViewer;
     static bool middleScroll;
     static bool opponentStrums;
     static bool opponentNotes;
@@ -16,13 +24,13 @@ public:
     static bool scoreZoom;
     static bool lowQuality;
     static bool showRatings;
-    static bool fastNotes;
     static bool globalAntialiasing;
     static bool enable3DEffect;
     
     static bool flashing;
     static bool disableReset;
     static bool botPlay;
+    static bool naughtyness;
     static int noteOffset;
     static bool noteColorsEnabled;
     static unsigned int noteKeys[4][2];
@@ -56,6 +64,7 @@ public:
     
     static bool acceptedEgg;
     static bool eggInteractionOccurred;
+    static bool acceptedChallenge;
     static int fpsLimit;
     
     static void loadSettings();

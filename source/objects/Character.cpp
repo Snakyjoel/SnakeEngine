@@ -1018,6 +1018,7 @@ void Character::saveToPsychJson(const std::string& path) {
 void Character::dance(bool forced) {
     if (!forced && specialAnim) return;
     if (!forced && isExternalAnim && !animFinished) return;
+    if (isExternalAnim) isExternalAnim = false;
 
     bool isSinging = (curAnim.find("sing") != std::string::npos);
     bool isMissing = (curAnim.find("miss") != std::string::npos);
@@ -1297,6 +1298,21 @@ void Character::playAnimFES(const std::string& path, const std::string& animName
     CachedSpritesheet* cs = SpritesheetCache::get().load(path);
     if (!cs) return;
 
+    GPU_TEXTURE_FILTER_PARAM filter = (!noAntialiasing && ClientPrefs::globalAntialiasing) ? GPU_LINEAR : GPU_NEAREST;
+    if (cs->sheet) {
+        size_t count = C2D_SpriteSheetCount(cs->sheet);
+        for (size_t i = 0; i < count; i++) {
+            C2D_Image im = C2D_SpriteSheetGetImage(cs->sheet, i);
+            if (im.tex) C3D_TexSetFilter(im.tex, filter, filter);
+        }
+    }
+    if (cs->rawTex) {
+        C3D_TexSetFilter(cs->rawTex, filter, filter);
+    }
+    for (auto& ef : cs->frames) {
+        if (ef.tex) C3D_TexSetFilter(ef.tex, filter, filter);
+    }
+
     isExternalAnim = true;
     externalFrames = cs->frames;
     
@@ -1423,7 +1439,7 @@ void Character::update(float dt) {
     if (animFinished) {
         if (hasAnimation(curAnim + "-loop")) {
             playAnim(curAnim + "-loop");
-        } else if (specialAnim) {
+        } else if (specialAnim && !isExternalAnim) {
             specialAnim = false;
             dance();
         }
@@ -1498,6 +1514,11 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
              C2D_ImageTint tint;
              C2D_ImageTint* tintPtr = nullptr;
              
+             if (img.tex) {
+                 GPU_TEXTURE_FILTER_PARAM filter = (!noAntialiasing && ClientPrefs::globalAntialiasing) ? GPU_LINEAR : GPU_NEAREST;
+                 C3D_TexSetFilter(img.tex, filter, filter);
+             }
+             
              if (!img.tex || isPlaceholder) {
                  C2D_PlainImageTint(&tint, C2D_Color32(100, 100, 100, (u8)(alpha * 255.0f)), 1.0f);
                  tintPtr = &tint;
@@ -1545,6 +1566,10 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
 
     const Frame& f = useFrames[frameIdx];
     C2D_Image img = { f.tex, &f.uv };
+    if (img.tex) {
+        GPU_TEXTURE_FILTER_PARAM filter = (!noAntialiasing && ClientPrefs::globalAntialiasing) ? GPU_LINEAR : GPU_NEAREST;
+        C3D_TexSetFilter(img.tex, filter, filter);
+    }
 
     // Rotated frames: swap scale axes so charScaleX always controls horizontal
     float drawCharScaleX = charScaleX;
@@ -1626,7 +1651,7 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
 
 void Character::setAntialiasing(bool antialiased) {
     noAntialiasing = !antialiased;
-    GPU_TEXTURE_FILTER_PARAM filter = antialiased ? GPU_LINEAR : GPU_NEAREST;
+    GPU_TEXTURE_FILTER_PARAM filter = (antialiased && ClientPrefs::globalAntialiasing) ? GPU_LINEAR : GPU_NEAREST;
     if (mainImage.tex) {
         C3D_TexSetFilter(mainImage.tex, filter, filter);
     }

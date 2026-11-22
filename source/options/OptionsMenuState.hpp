@@ -58,11 +58,8 @@ private:
     C2D_Image bottomBG;
 
     C2D_SpriteSheet noteSheetNormal = nullptr;
-    C2D_SpriteSheet noteSheetFast   = nullptr;
     C2D_Image       baseNoteImgNormal;
-    C2D_Image       baseNoteImgFast;
     std::vector<NoteSprite> noteSubsNormal;
-    std::vector<NoteSprite> noteSubsFast;
 
     C2D_SpriteSheet colorWheelSheet = nullptr;
     C2D_Image       colorWheel;
@@ -95,5 +92,5 @@ private:
     void updateCheckboxAnims(float dt);
 
     std::string getKeyName(unsigned int key);
-    void drawNoteSprite(int noteData, float x, float y, float scale, bool fast);
+    void drawNoteSprite(int noteData, float x, float y, float scale = 0.7f);
 };

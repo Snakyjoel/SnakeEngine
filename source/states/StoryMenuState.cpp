@@ -5,6 +5,8 @@
 #include "../backend/ModHandler.hpp"
 #include "../backend/AudioEngine.hpp"
 #include "../backend/Paths.hpp"
+#include "../objects/ButtonPrompt.hpp"
+#include "../backend/savedata/ClientPrefs.hpp"
 #include "Highscores.hpp"
 #include <cmath>
 #include <sstream>
@@ -30,6 +32,31 @@ static void drawRotatedRect(float cx, float cy, float w, float h, float angleRad
 
     C2D_DrawTriangle(x1, y1, color, x2, y2, color, x3, y3, color, depth);
     C2D_DrawTriangle(x1, y1, color, x3, y3, color, x4, y4, color, depth);
+}
+
+static inline void setBottomScissor(float x, float y, float w, float h) {
+    C2D_Flush();
+    float sLeft = y;
+    float sRight = y + h;
+    float sTop = x;
+    float sBottom = x + w;
+
+    if (sLeft < 0.0f) sLeft = 0.0f;
+    if (sRight > 240.0f) sRight = 240.0f;
+    if (sTop < 0.0f) sTop = 0.0f;
+    if (sBottom > 320.0f) sBottom = 320.0f;
+
+    u32 phys_left   = (u32)(240.0f - sRight);
+    u32 phys_right  = (u32)(240.0f - sLeft);
+    u32 phys_top    = (u32)(320.0f - sBottom);
+    u32 phys_bottom = (u32)(320.0f - sTop);
+
+    C3D_SetScissor(GPU_SCISSOR_NORMAL, phys_left, phys_top, phys_right, phys_bottom);
+}
+
+static inline void disableBottomScissor() {
+    C2D_Flush();
+    C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
 }
 
 
@@ -82,13 +109,13 @@ void StoryMenuState::init() {
         updateHeaderInfo();
     }
  
-    uiSheet = C2D_SpriteSheetLoad("romfs:/preload/images/campaign_menu_UI_assets.t3x");
+    uiSheet = C2D_SpriteSheetLoad("romfs:/preload/images/storymenu/campaign_menu_UI_assets.t3x");
     uiFrames.clear();
     if (uiSheet) {
         C2D_Image mainImg = C2D_SpriteSheetGetImage(uiSheet, 0);
         if (mainImg.tex) C3D_TexSetFilter(mainImg.tex, GPU_LINEAR, GPU_LINEAR);
 
-        SparrowParser::parseXml("romfs:/preload/images/campaign_menu_UI_assets.xml", uiFrames);
+        SparrowParser::parseXml("romfs:/preload/images/storymenu/campaign_menu_UI_assets.xml", uiFrames);
         float rw = mainImg.subtex->right - mainImg.subtex->left;
         float rh = mainImg.subtex->bottom - mainImg.subtex->top;
 
@@ -125,6 +152,38 @@ void StoryMenuState::init() {
     } else {
         tracksImg = {};
     }
+
+    auto loadAtlas = [](const std::string& imgPath, const std::string& xmlPath, C2D_SpriteSheet& sheet, std::vector<Frame>& frames) {
+        frames.clear();
+        sheet = C2D_SpriteSheetLoad(imgPath.c_str());
+        if (sheet) {
+            C2D_Image mainImg = C2D_SpriteSheetGetImage(sheet, 0);
+            if (mainImg.tex) C3D_TexSetFilter(mainImg.tex, GPU_LINEAR, GPU_LINEAR);
+            SparrowParser::parseXml(xmlPath, frames);
+            float rw = mainImg.subtex->right - mainImg.subtex->left;
+            float rh = mainImg.subtex->bottom - mainImg.subtex->top;
+            for (auto& f : frames) {
+                f.tex = mainImg.tex;
+                f.uv.width = (u16)f.w;
+                f.uv.height = (u16)f.h;
+                f.uv.left = mainImg.subtex->left + ((float)f.x * rw / (float)mainImg.subtex->width);
+                f.uv.top = mainImg.subtex->top + ((float)f.y * rh / (float)mainImg.subtex->height);
+                f.uv.right = mainImg.subtex->left + ((float)(f.x + f.w) * rw / (float)mainImg.subtex->width);
+                f.uv.bottom = mainImg.subtex->top + ((float)(f.y + f.h) * rh / (float)mainImg.subtex->height);
+            }
+        }
+    };
+
+    loadAtlas("romfs:/preload/images/storymenu/weeksLevels.t3x", "romfs:/preload/images/storymenu/weeksLevels.xml", baseLevelsSheet, baseLevelsFrames);
+    loadAtlas("romfs:/preload/images/storymenu/weeksLevelsBanners.t3x", "romfs:/preload/images/storymenu/weeksLevelsBanners.xml", baseBannersSheet, baseBannersFrames);
+    loadAtlas("romfs:/preload/images/storymenu/storyDiff.t3x", "romfs:/preload/images/storymenu/storyDiff.xml", baseDiffSheet, baseDiffFrames);
+
+    showSongList        = false;
+    transitionProgress  = 0.0f;
+    songScrollY         = 0.0f;
+    songTargetScrollY   = 0.0f;
+    songMaxScrollY      = 0.0f;
+    songTouchActive     = false;
 
     // Reset confirm animation
     selectedWeek   = false;
@@ -289,6 +348,7 @@ void StoryMenuState::update(float dt) {
         }
         if (confirmTimer >= 1.0f) {
             PlayState::blueBalls = 0;
+            MusicBeatState::useFadeTransition = true;
             if (!pendingIntroVideo.empty()) {
                 WeekData& data = WeekData::weeksLoaded[selectableWeeks[curSelected]];
                 switchState(new VideoState(pendingIntroVideo, new PlayState(data, 0, pendingDiffSuffix)));
@@ -304,7 +364,49 @@ void StoryMenuState::update(float dt) {
     touchPosition touch;
     hidTouchRead(&touch);
 
-    if (!selectableWeeks.empty()) {
+    if (keyJustPressed(KEY_L)) {
+        showSongList = !showSongList;
+        AudioEngine::playSound(showSongList ? "romfs:/preload/sounds/scrollMenu.adp" : "romfs:/preload/sounds/cancelMenu.adp", 0.7f);
+        if (showSongList) {
+            songScrollY = 0.0f;
+            songTargetScrollY = 0.0f;
+        }
+    }
+
+    if (showSongList) {
+        if (keyJustPressed(KEY_DUP) || keyJustPressed(KEY_CPAD_UP)) {
+            songTargetScrollY -= 25.0f;
+            if (songTargetScrollY < 0.0f) songTargetScrollY = 0.0f;
+        }
+        if (keyJustPressed(KEY_DDOWN) || keyJustPressed(KEY_CPAD_DOWN)) {
+            songTargetScrollY += 25.0f;
+            if (songTargetScrollY > songMaxScrollY) songTargetScrollY = songMaxScrollY;
+        }
+
+        u32 kHeldTouch = hidKeysHeld();
+        u32 kUpTouch = hidKeysUp();
+        if (kDown & KEY_TOUCH) {
+            if (touch.py >= 45) {
+                songTouchActive = true;
+                songTouchStartY = touch.py;
+                songTouchStartScroll = songTargetScrollY;
+            } else {
+                showSongList = false;
+                AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
+            }
+        } else if ((kHeldTouch & KEY_TOUCH) && songTouchActive) {
+            float diff = songTouchStartY - touch.py;
+            songTargetScrollY = songTouchStartScroll + diff;
+            if (songTargetScrollY < 0.0f) songTargetScrollY = 0.0f;
+            if (songTargetScrollY > songMaxScrollY) songTargetScrollY = songMaxScrollY;
+        } else if ((kUpTouch & KEY_TOUCH) && songTouchActive) {
+            songTouchActive = false;
+        }
+
+        songScrollY += (songTargetScrollY - songScrollY) * (1.0f - exp2f(-12.0f * dt));
+    }
+
+    if (!selectableWeeks.empty() && !showSongList) {
         if ((keyJustPressed(KEY_DUP) || keyJustPressed(KEY_CPAD_UP))) {
             curSelected--;
             if (curSelected < 0) curSelected = (int)selectableWeeks.size() - 1;
@@ -431,6 +533,10 @@ void StoryMenuState::update(float dt) {
         lerpSelected += (curSelected - lerpSelected) * (1.0f - exp2f(-12.0f * dt));
     }
 
+    float targetTransition = showSongList ? 1.0f : 0.0f;
+    transitionProgress += (targetTransition - transitionProgress) * (1.0f - exp2f(-12.0f * dt));
+    if (std::abs(transitionProgress - targetTransition) < 0.001f) transitionProgress = targetTransition;
+
     accuracyDisplay.update(dt);
 }
 
@@ -449,6 +555,13 @@ void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 float w = bgImg.subtex->width;
                 float h = bgImg.subtex->height;
                 drawImage(bgImg, 200.0f - (w / 2.0f) + get3DOffset(-10.0f), 120.0f - (h / 2.0f), 0.5f);
+            } else {
+                const Frame* bf = getBaseBannerFrame(bgName);
+                if (bf && bf->tex) {
+                    float w = frameLogicalW(*bf);
+                    float h = frameLogicalH(*bf);
+                    drawFrameAt(*bf, 200.0f - (w / 2.0f) + get3DOffset(-10.0f), 120.0f - (h / 2.0f), 0.5f);
+                }
             }
         }
     }
@@ -483,10 +596,16 @@ void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         float dW = 75.0f;
         float dH = 20.0f;
 
+        const Frame* baseDf = getBaseDiffFrame(lowerDiff);
+
         if (dImg.tex) {
             dW = dImg.subtex->width;
             dH = dImg.subtex->height;
             drawImage(dImg, 200 - (dW / 2.0f) + get3DOffset(10.0f), diffY - (dH / 2.0f), 0.85f);
+        } else if (baseDf && baseDf->tex) {
+            dW = frameLogicalW(*baseDf);
+            dH = frameLogicalH(*baseDf);
+            drawFrameAt(*baseDf, 200 - (dW / 2.0f) + get3DOffset(10.0f), diffY - (dH / 2.0f), 0.85f);
         } else if (activeDiffPathExists) {
             // File exists on disk but sprite is loading -> draw rotating white loading square
             drawRotatedRect(200 + get3DOffset(10.0f), diffY, 20.0f, 20.0f, loadingAngle, CWhite, 0.85f);
@@ -513,66 +632,145 @@ void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
      
         if (!selectableWeeks.empty()) {
             u32 tracksColor = C2D_Color32(0xE5, 0x57, 0x77, 255);
-            // TRACKS
-            if (tracksImg.tex) {
-                drawImageScaled(tracksImg, 30.0f, 32.0f, 1.0f, 0.7f, 0.7f);
-            } else {
-                AddText("TRACKS", 30, 30, 0.65f, false, 0.0f, tracksColor, 0.0f);
-            }
 
-            for (const auto& line : cachedSongLines) {
-                AddText(line.text, 30, line.y, 0.45f, false, 0.0f, tracksColor, 0.0f);
-            }
-     
-            float listX = 220.0f;
+            // Sliding Weeks List
+            float weekSlideOffset = transitionProgress * 360.0f;
+            float listX = 160.0f + weekSlideOffset;
             float listCenterY = 120.0f;
-            for (int i = 0; i < (int)selectableWeeks.size(); i++) {
-                float dist = (i - lerpSelected);
-                float itemY = listCenterY + dist * 50.0f;
-                if (itemY < -60 || itemY > 300) continue;
 
-                bool isSelected = (i == curSelected);
-                bool isLocked = (i >= 0 && i < (int)cachedWeekLocked.size()) ? cachedWeekLocked[i] : weekIsLocked(selectableWeeks[i]);
+            if (transitionProgress < 0.999f) {
+                for (int i = 0; i < (int)selectableWeeks.size(); i++) {
+                    float dist = (i - lerpSelected);
+                    float itemY = listCenterY + dist * 50.0f;
+                    if (itemY < -60 || itemY > 300) continue;
 
-                // Flicker
-                if (selectedWeek && isSelected && !flickerVisible) continue;
+                    bool isSelected = (i == curSelected);
+                    bool isLocked = (i >= 0 && i < (int)cachedWeekLocked.size()) ? cachedWeekLocked[i] : weekIsLocked(selectableWeeks[i]);
 
-                C2D_Image img = getWeekImage(selectableWeeks[i]);
-                if (img.tex) {
-                    float scale = isSelected ? 0.7f : 0.5f;
-                    float imgW = img.subtex->width * scale;
-                    float imgH = img.subtex->height * scale;
+                    // Flicker
+                    if (selectedWeek && isSelected && !flickerVisible) continue;
 
-                    C2D_ImageTint tint;
-                    C2D_ImageTint* tintPtr = &tint;
-                    if (isLocked) {
-                        C2D_PlainImageTint(&tint, C2D_Color32(50, 50, 50, 255), 1.0f);
-                    } else if (!isSelected) {
-                        C2D_AlphaImageTint(&tint, 0.6f);
-                    } else {
-                        if (img.tex && (img.tex->fmt == GPU_A8 || img.tex->fmt == GPU_A4)) {
-                            C2D_PlainImageTint(&tint, C2D_Color32(255, 255, 255, 255), 1.0f);
+                    C2D_Image img = getWeekImage(selectableWeeks[i]);
+                    const Frame* baseLf = (!img.tex) ? getBaseLevelFrame(selectableWeeks[i]) : nullptr;
+
+                    if (img.tex) {
+                        constexpr float targetH = 32.0f;
+                        float baseScale = (img.subtex->height > 0) ? (targetH / (float)img.subtex->height) : 1.0f;
+                        float scale = baseScale * (isSelected ? 1.3f : 1.0f);
+                        float imgW = img.subtex->width * scale;
+                        float imgH = img.subtex->height * scale;
+
+                        C2D_ImageTint tint;
+                        C2D_ImageTint* tintPtr = &tint;
+                        if (isLocked) {
+                            C2D_PlainImageTint(&tint, C2D_Color32(50, 50, 50, 255), 1.0f);
+                        } else if (!isSelected) {
+                            C2D_AlphaImageTint(&tint, 0.6f);
+                        } else {
+                            if (img.tex && (img.tex->fmt == GPU_A8 || img.tex->fmt == GPU_A4)) {
+                                C2D_PlainImageTint(&tint, C2D_Color32(255, 255, 255, 255), 1.0f);
+                            } else {
+                                C2D_AlphaImageTint(&tint, 1.0f);
+                            }
+                        }
+
+                        drawImageScaledTinted(img, listX - (imgW / 2.0f), itemY - (imgH / 2.0f), 0.5f, scale, scale, tintPtr);
+
+                        if (isLocked && lockFrame && lockFrame->tex) {
+                            float lW = frameLogicalW(*lockFrame) * scale;
+                            float lH = frameLogicalH(*lockFrame) * scale;
+                            drawFrameAt(*lockFrame, listX - (lW / 2.0f), itemY - (lH / 2.0f), 0.51f, nullptr, scale, scale);
+                        }
+                    } else if (baseLf && baseLf->tex) {
+                        constexpr float targetH = 32.0f;
+                        float fH = frameLogicalH(*baseLf);
+                        float baseScale = (fH > 0.0f) ? (targetH / fH) : 1.0f;
+                        float scale = baseScale * (isSelected ? 1.3f : 1.0f);
+                        float imgW = frameLogicalW(*baseLf) * scale;
+                        float imgH = fH * scale;
+
+                        C2D_ImageTint tint;
+                        C2D_ImageTint* tintPtr = &tint;
+                        if (isLocked) {
+                            C2D_PlainImageTint(&tint, C2D_Color32(50, 50, 50, 255), 1.0f);
+                        } else if (!isSelected) {
+                            C2D_AlphaImageTint(&tint, 0.6f);
                         } else {
                             C2D_AlphaImageTint(&tint, 1.0f);
                         }
-                    }
 
-                    drawImageScaledTinted(img, listX - (imgW / 2.0f), itemY - (imgH / 2.0f), 0.5f, scale, scale, tintPtr);
+                        drawFrameAt(*baseLf, listX - (imgW / 2.0f), itemY - (imgH / 2.0f), 0.5f, tintPtr, scale, scale);
 
-                    if (isLocked && lockFrame && lockFrame->tex) {
-                        float lW = frameLogicalW(*lockFrame) * scale;
-                        float lH = frameLogicalH(*lockFrame) * scale;
-                        drawFrameAt(*lockFrame, listX - (lW / 2.0f), itemY - (lH / 2.0f), 0.51f, nullptr, scale, scale);
+                        if (isLocked && lockFrame && lockFrame->tex) {
+                            float lW = frameLogicalW(*lockFrame) * scale;
+                            float lH = frameLogicalH(*lockFrame) * scale;
+                            drawFrameAt(*lockFrame, listX - (lW / 2.0f), itemY - (lH / 2.0f), 0.51f, nullptr, scale, scale);
+                        }
+                    } else if (weekBannerFileExists(selectableWeeks[i])) {
+                        // File exists on disk but sprite is loading -> draw rotating white loading square
+                        drawRotatedRect(listX, itemY, 20.0f, 20.0f, loadingAngle, CWhite, 0.5f);
+                    } else {
+                        // File does NOT exist -> draw VCR text for week name (uppercase)
+                        u32 textCol = isSelected ? CWhite : C2D_Color32(110, 110, 110, 154);
+                        const std::string& weekDisplayName = (i >= 0 && i < (int)cachedWeekDisplayNames.size()) ? cachedWeekDisplayNames[i] : selectableWeeks[i];
+                        AddText(weekDisplayName, listX, itemY, isSelected ? 0.65f : 0.45f, true, isSelected ? 2.0f : 0.0f, textCol, 0.0f);
                     }
-                } else if (weekBannerFileExists(selectableWeeks[i])) {
-                    // File exists on disk but sprite is loading -> draw rotating white loading square
-                    drawRotatedRect(listX, itemY, 20.0f, 20.0f, loadingAngle, CWhite, 0.5f);
-                } else {
-                    // File does NOT exist -> draw VCR text for week name (uppercase)
-                    u32 textCol = isSelected ? CWhite : C2D_Color32(110, 110, 110, 154);
-                    const std::string& weekDisplayName = (i >= 0 && i < (int)cachedWeekDisplayNames.size()) ? cachedWeekDisplayNames[i] : selectableWeeks[i];
-                    AddText(weekDisplayName, listX, itemY, isSelected ? 0.65f : 0.45f, true, isSelected ? 2.0f : 0.0f, textCol, 0.0f);
                 }
+            }
+
+            // Sliding Song List
+            float songListX = 160.0f - (1.0f - transitionProgress) * 360.0f;
+
+            if (transitionProgress > 0.001f) {
+                setBottomScissor(0.0f, 32.0f, 320.0f, 208.0f);
+
+                for (const auto& line : cachedSongLines) {
+                    float textDrawY = line.y - songScrollY;
+                    if (textDrawY >= 10.0f && textDrawY <= 260.0f) {
+                        AddText(line.text, songListX, textDrawY, 0.45f, true, 0.0f, tracksColor, 290.0f);
+                    }
+                }
+
+                // Scroll indicator
+                if (songMaxScrollY > 0.0f) {
+                    float scrollTrackY = 40.0f;
+                    float scrollTrackH = 185.0f;
+                    float thumbH = std::max(20.0f, scrollTrackH * (185.0f / (185.0f + songMaxScrollY)));
+                    float thumbY = scrollTrackY + (songScrollY / songMaxScrollY) * (scrollTrackH - thumbH);
+                    float thumbX = songListX + 150.0f;
+                    if (thumbX >= 0.0f && thumbX <= 318.0f) {
+                        C2D_DrawRectSolid(thumbX, scrollTrackY, 0.70f, 3.0f, scrollTrackH, C2D_Color32(40, 40, 50, 180));
+                        C2D_DrawRectSolid(thumbX, thumbY, 0.71f, 3.0f, thumbH, tracksColor);
+                    }
+                }
+
+                disableBottomScissor();
+            }
+
+            // Top Header Bar to guarantee TRACKS & [L] are never covered by any background/week elements
+            float barH = 32.0f;
+            C2D_DrawRectSolid(0.0f, 0.0f, 0.86f, 320.0f, barH, C2D_Color32(0, 0, 0, 255));
+
+            float barCenterY = barH / 2.0f;
+
+            float tracksImgScale = 0.60f;
+            float tracksH = 32.0f * tracksImgScale;
+            float tracksImgY = barCenterY - (tracksH / 2.0f);
+
+            float lBtnScale = 0.50f;
+            float lBtnH = ButtonPrompt::getButtonHeight("l outline", lBtnScale);
+            float lBtnY = barCenterY - (lBtnH / 2.0f);
+            float tracksHeaderX = 10.0f;
+
+            ButtonPrompt::drawButton("l outline", tracksHeaderX, lBtnY, lBtnScale, 1.0f, 0.88f);
+
+            float lBtnW = ButtonPrompt::getButtonWidth("l outline", lBtnScale);
+            float tracksImgX = tracksHeaderX + lBtnW + 6.0f;
+
+            if (tracksImg.tex) {
+                drawImageScaled(tracksImg, tracksImgX, tracksImgY, 0.88f, tracksImgScale, tracksImgScale);
+            } else {
+                AddText("TRACKS", tracksImgX, barCenterY, 0.60f, false, 0.0f, tracksColor, 0.0f);
             }
         }
     }
@@ -581,15 +779,16 @@ void StoryMenuState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
 
 void StoryMenuState::updateSongList() {
     cachedSongLines.clear();
+    songMaxScrollY = 0.0f;
     if (selectableWeeks.empty() || curSelected < 0 || curSelected >= (int)selectableWeeks.size()) return;
 
     const std::string& weekName = selectableWeeks[curSelected];
     const WeekData& data = WeekData::weeksLoaded[weekName];
 
     float scale = 0.45f;
-    float wrapWidth = 130.0f;
-    float lineHeight = 24.0f * scale;
-    float currentY = 70.0f;
+    float wrapWidth = 260.0f;
+    float lineHeight = 20.0f;
+    float currentY = 50.0f;
 
     for (const auto& song : data.songs) {
         std::stringstream ss(song.name);
@@ -599,13 +798,9 @@ void StoryMenuState::updateSongList() {
         while (ss >> word) {
             std::string testLine = line.empty() ? word : line + " " + word;
 
-            C2D_Text gText;
-            C2D_TextFontParse(&gText, vcrFont, vcrFontBuf, testLine.c_str());
+            float estimatedW = (float)testLine.length() * (16.0f * scale);
 
-            float tw, th;
-            C2D_TextGetDimensions(&gText, scale, scale, &tw, &th);
-
-            if (tw > wrapWidth && !line.empty()) {
+            if (estimatedW > wrapWidth && !line.empty()) {
                 cachedSongLines.push_back({line, currentY});
                 line = word;
                 currentY += lineHeight;
@@ -616,7 +811,13 @@ void StoryMenuState::updateSongList() {
         if (!line.empty()) {
             cachedSongLines.push_back({line, currentY});
         }
-        currentY += lineHeight + 10.0f;
+        currentY += lineHeight + 8.0f;
+    }
+
+    if (currentY > 220.0f) {
+        songMaxScrollY = currentY - 215.0f;
+    } else {
+        songMaxScrollY = 0.0f;
     }
 }
 
@@ -676,8 +877,44 @@ void StoryMenuState::exitState() {
 
     if (uiSheet) { C2D_SpriteSheetFree(uiSheet); uiSheet = nullptr; }
     if (tracksSheet) { C2D_SpriteSheetFree(tracksSheet); tracksSheet = nullptr; }
+    if (baseLevelsSheet)  { C2D_SpriteSheetFree(baseLevelsSheet);  baseLevelsSheet  = nullptr; }
+    if (baseBannersSheet) { C2D_SpriteSheetFree(baseBannersSheet); baseBannersSheet = nullptr; }
+    if (baseDiffSheet)    { C2D_SpriteSheetFree(baseDiffSheet);    baseDiffSheet    = nullptr; }
+    baseLevelsFrames.clear();
+    baseBannersFrames.clear();
+    baseDiffFrames.clear();
 
     if (vcrFontBuf) { C2D_TextBufDelete(vcrFontBuf); vcrFontBuf = nullptr; }
+}
+
+const Frame* StoryMenuState::getBaseLevelFrame(const std::string& name) {
+    if (name.empty()) return nullptr;
+    std::string lower = name;
+    for (char& c : lower) c = (char)tolower((unsigned char)c);
+    for (const auto& f : baseLevelsFrames) {
+        if (f.name == lower) return &f;
+    }
+    return nullptr;
+}
+
+const Frame* StoryMenuState::getBaseBannerFrame(const std::string& name) {
+    if (name.empty()) return nullptr;
+    std::string lower = name;
+    for (char& c : lower) c = (char)tolower((unsigned char)c);
+    for (const auto& f : baseBannersFrames) {
+        if (f.name == lower) return &f;
+    }
+    return nullptr;
+}
+
+const Frame* StoryMenuState::getBaseDiffFrame(const std::string& name) {
+    if (name.empty()) return nullptr;
+    std::string lower = name;
+    for (char& c : lower) c = (char)tolower((unsigned char)c);
+    for (const auto& f : baseDiffFrames) {
+        if (f.name == lower) return &f;
+    }
+    return nullptr;
 }
 
 C2D_Image StoryMenuState::getWeekBackgroundImage(const std::string& name) {
@@ -789,7 +1026,7 @@ void StoryMenuState::triggerWindowLoad() {
             if (!bgName.empty()) {
                 ModHandler::get().currentModFolder = modFolder;
                 std::string p = Paths::image("menubackgrounds/" + bgName);
-                if (!Paths::fileExists(p)) p = Paths::image("menubackgrounds/placeholder");
+                if (!Paths::fileExists(p) && !getBaseBannerFrame(bgName)) p = Paths::image("menubackgrounds/placeholder");
                 ModHandler::get().currentModFolder = "";
 
                 if (Paths::fileExists(p)) {
@@ -825,7 +1062,7 @@ void StoryMenuState::triggerWindowLoad() {
         WeekData& wd = WeekData::weeksLoaded[weekName];
         ModHandler::get().currentModFolder = wd.isMod ? wd.modFolder : "";
         std::string p = Paths::image("storymenu/" + weekName);
-        if (!Paths::fileExists(p)) p = Paths::image("storymenu/placeholder");
+        if (!Paths::fileExists(p) && !getBaseLevelFrame(weekName)) p = Paths::image("storymenu/placeholder");
         ModHandler::get().currentModFolder = "";
         if (Paths::fileExists(p)) {
             AsyncLoadRequest req;
@@ -872,7 +1109,6 @@ void StoryMenuState::triggerDiffLoad() {
     activeDiffName = lower;
     if (activeDiffSheet) { Paths_freeSpriteSheet(activeDiffSheet); activeDiffSheet = nullptr; }
 
-    // Resolve path on main thread (opendir is not safe from worker)
     int n = (int)selectableWeeks.size();
     if (n > 0 && curSelected >= 0 && curSelected < n) {
         WeekData& wd = WeekData::weeksLoaded[selectableWeeks[curSelected]];
@@ -880,10 +1116,10 @@ void StoryMenuState::triggerDiffLoad() {
     }
     std::string p = Paths::image("menudifficulties/" + lower);
     if (!Paths::fileExists(p)) p = Paths::image("menudifficulties/" + diffStr);
-    if (!Paths::fileExists(p)) p = Paths::image("menudifficulties/placeholder");
+    if (!Paths::fileExists(p) && !getBaseDiffFrame(lower)) p = Paths::image("menudifficulties/placeholder");
     if (!Paths::fileExists(p)) p.clear();
 
-    activeDiffPathExists = !p.empty();
+    activeDiffPathExists = !p.empty() || (getBaseDiffFrame(lower) != nullptr);
     ModHandler::get().currentModFolder = "";
 
     AsyncLoadRequest req;
@@ -910,9 +1146,13 @@ bool StoryMenuState::weekBannerFileExists(const std::string& weekName) {
         std::string prevMod = ModHandler::get().currentModFolder;
         ModHandler::get().currentModFolder = wd.isMod ? wd.modFolder : "";
         std::string p = Paths::image("storymenu/" + weekName);
-        if (!Paths::fileExists(p)) p = Paths::image("storymenu/placeholder");
+        if (!Paths::fileExists(p) && getBaseLevelFrame(weekName)) {
+            exists = true;
+        } else {
+            if (!Paths::fileExists(p)) p = Paths::image("storymenu/placeholder");
+            exists = Paths::fileExists(p);
+        }
         ModHandler::get().currentModFolder = prevMod;
-        exists = Paths::fileExists(p);
     }
     bannerExistsCache[weekName] = exists;
     return exists;

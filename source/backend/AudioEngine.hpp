@@ -32,6 +32,8 @@ public:
 
     static void setVocalsVolume(float vol);
     static void playSound(const std::string& path, float vol = 1.0f);
+    static void precacheSound(const std::string& path);
+    static void stopSounds();
     
     // SFX Methods
     static void initMissSounds();

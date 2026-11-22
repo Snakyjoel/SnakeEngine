@@ -1,15 +1,43 @@
 #include "SpritemapParser.hpp"
-#include <fstream>
-#include <sstream>
+#include <cstdio>
 #include <cmath>
 #include <cstring>
 #include <functional>
 #include <algorithm>
-#include <algorithm>
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Minimal hand-rolled JSON helpers
-// ─────────────────────────────────────────────────────────────────────────────
+struct StringSpan {
+    const char* str = nullptr;
+    size_t len = 0;
+
+    StringSpan() = default;
+    StringSpan(const char* s, size_t l) : str(s), len(l) {}
+    StringSpan(const std::string& s) : str(s.data()), len(s.size()) {}
+
+    bool empty() const { return len == 0 || str == nullptr; }
+    char operator[](size_t i) const { return str[i]; }
+    std::string toString() const { return empty() ? std::string() : std::string(str, len); }
+};
+
+static size_t findKey(StringSpan src, const char* key, size_t startPos = 0) {
+    if (src.empty() || startPos >= src.len) return std::string::npos;
+    size_t keyLen = strlen(key);
+    const char* s = src.str;
+    size_t n = src.len;
+
+    for (size_t i = startPos; i + keyLen + 2 <= n; i++) {
+        if (s[i] == '"' && memcmp(s + i + 1, key, keyLen) == 0 && s[i + 1 + keyLen] == '"') {
+            size_t after = i + 1 + keyLen + 1;
+            while (after < n && (s[after] == ' ' || s[after] == '\t' || s[after] == '\r' || s[after] == '\n')) after++;
+            if (after < n && s[after] == ':') {
+                after++;
+                while (after < n && (s[after] == ' ' || s[after] == '\t' || s[after] == '\r' || s[after] == '\n')) after++;
+                return after;
+            }
+            i = after;
+        }
+    }
+    return std::string::npos;
+}
 
 static float fast_atof(const char* p, char** end = nullptr) {
     while (*p == ' ' || *p == '\t') p++;
@@ -46,142 +74,160 @@ static float fast_atof(const char* p, char** end = nullptr) {
     return res * sign;
 }
 
-// Extract the raw string value of a key from a JSON substring.
-// Handles both "key":"value" and "key":number forms.
-static std::string jsonGetRaw(const std::string& src, const std::string& key) {
-    std::string needle = "\"" + key + "\":";
-    size_t p = src.find(needle);
-    if (p == std::string::npos) return "";
-    p += needle.size();
-    // skip whitespace
-    while (p < src.size() && (src[p] == ' ' || src[p] == '\n' || src[p] == '\r' || src[p] == '\t')) p++;
-    if (p >= src.size()) return "";
-    if (src[p] == '"') {
-        // string value
+static StringSpan jsonGetRawSpan(StringSpan src, const char* key) {
+    size_t p = findKey(src, key, 0);
+    if (p == std::string::npos || p >= src.len) return StringSpan();
+    if (src.str[p] == '"') {
         size_t s = p + 1;
-        size_t e = src.find('"', s);
-        if (e == std::string::npos) return "";
-        return src.substr(s, e - s);
+        const char* end = (const char*)memchr(src.str + s, '"', src.len - s);
+        if (!end) return StringSpan();
+        return StringSpan(src.str + s, (size_t)(end - (src.str + s)));
     } else {
-        // numeric / boolean / array start
         size_t s = p;
         size_t e = s;
-        while (e < src.size() && src[e] != ',' && src[e] != '}' && src[e] != ']' && src[e] != '\n') e++;
-        std::string v = src.substr(s, e - s);
-        // trim
-        while (!v.empty() && (v.back() == ' ' || v.back() == '\r' || v.back() == '\n')) v.pop_back();
-        return v;
+        while (e < src.len && src.str[e] != ',' && src.str[e] != '}' && src.str[e] != ']' && src.str[e] != '\n') e++;
+        while (e > s && (src.str[e - 1] == ' ' || src.str[e - 1] == '\r' || src.str[e - 1] == '\n' || src.str[e - 1] == '\t')) e--;
+        return StringSpan(src.str + s, e - s);
     }
 }
 
-static float jsonGetFloat(const std::string& src, const std::string& key, float def = 0.f) {
-    std::string v = jsonGetRaw(src, key);
-    if (v.empty()) return def;
-    return fast_atof(v.c_str());
+static std::string jsonGetRaw(StringSpan src, const char* key) {
+    return jsonGetRawSpan(src, key).toString();
 }
 
-static int jsonGetInt(const std::string& src, const std::string& key, int def = 0) {
-    std::string v = jsonGetRaw(src, key);
+static float jsonGetFloat(StringSpan src, const char* key, float def = 0.f) {
+    StringSpan v = jsonGetRawSpan(src, key);
     if (v.empty()) return def;
-    return (int)fast_atof(v.c_str());
+    return fast_atof(v.str);
 }
 
-// Find the content of a JSON object value for a given key.
-// Returns the substring from '{' to the matching '}'.
-// Tolerates optional whitespace between the colon and the opening brace.
-static std::string jsonGetObject(const std::string& src, const std::string& key, size_t startPos = 0) {
-    std::string needle = "\"" + key + "\":";
-    size_t p = src.find(needle, startPos);
-    if (p == std::string::npos) return "";
-    p += needle.size();
-    // skip optional whitespace between ':' and '{'
-    while (p < src.size() && (src[p] == ' ' || src[p] == '\t' || src[p] == '\r' || src[p] == '\n')) p++;
-    if (p >= src.size() || src[p] != '{') return "";
+static int jsonGetInt(StringSpan src, const char* key, int def = 0) {
+    StringSpan v = jsonGetRawSpan(src, key);
+    if (v.empty()) return def;
+    return (int)fast_atof(v.str);
+}
+
+static StringSpan jsonGetObject(StringSpan src, const char* key, size_t startPos = 0) {
+    size_t p = findKey(src, key, startPos);
+    if (p == std::string::npos || p >= src.len || src.str[p] != '{') return StringSpan();
     int depth = 0;
     size_t s = p;
-    for (size_t i = p; i < src.size(); i++) {
-        if (src[i] == '{') depth++;
-        else if (src[i] == '}') { depth--; if (depth == 0) return src.substr(s, i - s + 1); }
+    for (size_t i = p; i < src.len; i++) {
+        if (src.str[i] == '{') depth++;
+        else if (src.str[i] == '}') {
+            depth--;
+            if (depth == 0) return StringSpan(src.str + s, i - s + 1);
+        }
     }
-    return "";
+    return StringSpan();
 }
 
-
-// Find the raw content between '[' and matching ']' for a given key.
-// Tolerates optional whitespace between the colon and the opening bracket.
-static std::string jsonGetArray(const std::string& src, const std::string& key, size_t startPos = 0) {
-    std::string needle = "\"" + key + "\":";
-    size_t p = src.find(needle, startPos);
-    if (p == std::string::npos) return "";
-    p += needle.size();
-    // skip optional whitespace between ':' and '['
-    while (p < src.size() && (src[p] == ' ' || src[p] == '\t' || src[p] == '\r' || src[p] == '\n')) p++;
-    if (p >= src.size() || src[p] != '[') return "";
+static StringSpan jsonGetArray(StringSpan src, const char* key, size_t startPos = 0) {
+    size_t p = findKey(src, key, startPos);
+    if (p == std::string::npos || p >= src.len || src.str[p] != '[') return StringSpan();
     int depth = 0;
     size_t s = p;
-    for (size_t i = p; i < src.size(); i++) {
-        if (src[i] == '[') depth++;
-        else if (src[i] == ']') { depth--; if (depth == 0) return src.substr(s, i - s + 1); }
+    for (size_t i = p; i < src.len; i++) {
+        if (src.str[i] == '[') depth++;
+        else if (src.str[i] == ']') {
+            depth--;
+            if (depth == 0) return StringSpan(src.str + s, i - s + 1);
+        }
     }
-    return "";
+    return StringSpan();
 }
 
-// Parse a 6-element float array "[a,b,c,d,tx,ty]" into an AffineMatrix
-static AffineMatrix parseMX(const std::string& src, size_t startPos = 0) {
-    AffineMatrix m;
-    std::string needle = "\"MX\":";
-    size_t p = src.find(needle, startPos);
-    if (p == std::string::npos) return m;
-    p += needle.size();
-    while (p < src.size() && (src[p] == ' ' || src[p] == '\n' || src[p] == '\r' || src[p] == '\t')) p++;
-    if (p >= src.size() || src[p] != '[') return m;
-    p++; // skip '['
-    float vals[6] = {1,0,0,1,0,0};
-    for (int i = 0; i < 6; i++) {
-        while (p < src.size() && (src[p] == ' ' || src[p] == ',' || src[p] == '\n' || src[p] == '\r' || src[p] == '\t')) p++;
-        if (p >= src.size() || src[p] == ']') break;
-        char* end;
-        vals[i] = fast_atof(src.c_str() + p, &end);
-        p = (size_t)(end - src.c_str());
-    }
-    m.a = vals[0]; m.b = vals[1]; m.c = vals[2]; m.d = vals[3];
-    m.tx = vals[4]; m.ty = vals[5];
-    return m;
-}
-
-// Parse "TRP":{"x":...,"y":...}
-static Pivot parseTRP(const std::string& src, size_t startPos = 0) {
-    Pivot p2;
-    std::string trpStr = jsonGetObject(src, "TRP");
-    if (trpStr.empty()) return p2;
-    p2.x = jsonGetFloat(trpStr, "x");
-    p2.y = jsonGetFloat(trpStr, "y");
-    return p2;
-}
-
-// Iterate over top-level JSON objects in an array string "[{...},{...},...]"
-// Calls callback(obj_string) for each top-level object
-static void forEachObject(const std::string& arr, std::function<void(const std::string&)> cb) {
+static void forEachObject(StringSpan arr, std::function<void(StringSpan)> cb) {
+    if (arr.empty()) return;
     int depth = 0;
     size_t start = std::string::npos;
-    for (size_t i = 0; i < arr.size(); i++) {
-        char c = arr[i];
+    for (size_t i = 0; i < arr.len; i++) {
+        char c = arr.str[i];
         if (c == '{') {
             if (depth == 0) start = i;
             depth++;
         } else if (c == '}') {
             depth--;
             if (depth == 0 && start != std::string::npos) {
-                cb(arr.substr(start, i - start + 1));
+                cb(StringSpan(arr.str + start, i - start + 1));
                 start = std::string::npos;
             }
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SpritemapSymbol helpers
-// ─────────────────────────────────────────────────────────────────────────────
+static AffineMatrix parseMX(StringSpan src, size_t startPos = 0) {
+    AffineMatrix m;
+    size_t p = findKey(src, "M3D", startPos);
+    if (p != std::string::npos && p < src.len && src.str[p] == '[') {
+        p++;
+        float vals[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+        for (int i = 0; i < 16; i++) {
+            while (p < src.len && (src.str[p] == ' ' || src.str[p] == ',' || src.str[p] == '\n' || src.str[p] == '\r' || src.str[p] == '\t')) p++;
+            if (p >= src.len || src.str[p] == ']') break;
+            char* end;
+            vals[i] = fast_atof(src.str + p, &end);
+            p = (size_t)(end - src.str);
+        }
+        m.a  = vals[0];
+        m.b  = vals[1];
+        m.c  = vals[4];
+        m.d  = vals[5];
+        m.tx = vals[12];
+        m.ty = vals[13];
+        return m;
+    }
+
+    p = findKey(src, "MX", startPos);
+    if (p == std::string::npos || p >= src.len || src.str[p] != '[') return m;
+    p++;
+    float vals[6] = {1,0,0,1,0,0};
+    for (int i = 0; i < 6; i++) {
+        while (p < src.len && (src.str[p] == ' ' || src.str[p] == ',' || src.str[p] == '\n' || src.str[p] == '\r' || src.str[p] == '\t')) p++;
+        if (p >= src.len || src.str[p] == ']') break;
+        char* end;
+        vals[i] = fast_atof(src.str + p, &end);
+        p = (size_t)(end - src.str);
+    }
+    m.a = vals[0]; m.b = vals[1]; m.c = vals[2]; m.d = vals[3];
+    m.tx = vals[4]; m.ty = vals[5];
+    return m;
+}
+
+static Pivot parseTRP(StringSpan src, size_t startPos = 0) {
+    Pivot p2;
+    StringSpan trpStr = jsonGetObject(src, "TRP", startPos);
+    if (trpStr.empty()) return p2;
+    p2.x = jsonGetFloat(trpStr, "x");
+    p2.y = jsonGetFloat(trpStr, "y");
+    return p2;
+}
+
+static float parseAlpha(StringSpan src, size_t startPos = 0) {
+    StringSpan cObj = jsonGetObject(src, "C", startPos);
+    if (cObj.empty()) return 1.0f;
+    return jsonGetFloat(cObj, "AM", 1.0f);
+}
+
+static bool readFileString(const std::string& path, std::string& out) {
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f) return false;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (sz <= 0) {
+        fclose(f);
+        return false;
+    }
+    out.resize((size_t)sz);
+    size_t readBytes = fread(&out[0], 1, (size_t)sz, f);
+    fclose(f);
+    if (readBytes != (size_t)sz) out.resize(readBytes);
+    if (out.size() >= 3 && (unsigned char)out[0] == 0xEF && (unsigned char)out[1] == 0xBB && (unsigned char)out[2] == 0xBF) {
+        out.erase(0, 3);
+    }
+    return !out.empty();
+}
 
 int SpritemapSymbol::duration() const {
     if (cachedDuration >= 0) return cachedDuration;
@@ -207,25 +253,18 @@ const SpritemapKeyframe* SpritemapSymbol::getKeyframe(int layerIdx, int frame) c
     return nullptr;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Parse spritemap#.json
-// ─────────────────────────────────────────────────────────────────────────────
-
 bool SpritemapParser::parseAtlas(const std::string& path, SpritemapData& out) {
-    std::ifstream f(path);
-    if (!f.is_open()) return false;
-    std::ostringstream ss;
-    ss << f.rdbuf();
-    std::string src = ss.str();
+    std::string src;
+    if (!readFileString(path, src)) return false;
+    StringSpan srcSpan(src);
 
-    // ATLAS.SPRITES array
-    std::string atlasObj = jsonGetObject(src, "ATLAS");
+    StringSpan atlasObj = jsonGetObject(srcSpan, "ATLAS");
     if (atlasObj.empty()) return false;
-    std::string spritesArr = jsonGetArray(atlasObj, "SPRITES");
+    StringSpan spritesArr = jsonGetArray(atlasObj, "SPRITES");
     if (spritesArr.empty()) return false;
 
-    forEachObject(spritesArr, [&](const std::string& item) {
-        std::string sprObj = jsonGetObject(item, "SPRITE");
+    forEachObject(spritesArr, [&](StringSpan item) {
+        StringSpan sprObj = jsonGetObject(item, "SPRITE");
         if (sprObj.empty()) return;
         SpritemapPiece piece;
         piece.name    = jsonGetRaw(sprObj, "name");
@@ -241,48 +280,45 @@ bool SpritemapParser::parseAtlas(const std::string& path, SpritemapData& out) {
     return !out.atlas.empty();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Parse a symbol's timeline from its JSON object string
-// ─────────────────────────────────────────────────────────────────────────────
-
-static SpritemapSymbol parseSymbol(const std::string& symStr) {
+static SpritemapSymbol parseSymbol(StringSpan symStr) {
     SpritemapSymbol sym;
     sym.name = jsonGetRaw(symStr, "SN");
 
-    std::string tlObj = jsonGetObject(symStr, "TL");
+    StringSpan tlObj = jsonGetObject(symStr, "TL");
     if (tlObj.empty()) return sym;
-    std::string layersArr = jsonGetArray(tlObj, "L");
+    StringSpan layersArr = jsonGetArray(tlObj, "L");
     if (layersArr.empty()) return sym;
 
-    forEachObject(layersArr, [&](const std::string& layerStr) {
+    forEachObject(layersArr, [&](StringSpan layerStr) {
         SpritemapLayer layer;
         layer.name = jsonGetRaw(layerStr, "LN");
+        layer.layerType = jsonGetRaw(layerStr, "LT");
+        layer.clippedBy = jsonGetRaw(layerStr, "Clpb");
 
-        std::string frArr = jsonGetArray(layerStr, "FR");
+        StringSpan frArr = jsonGetArray(layerStr, "FR");
         if (frArr.empty()) return;
 
-        forEachObject(frArr, [&](const std::string& frStr) {
+        forEachObject(frArr, [&](StringSpan frStr) {
             SpritemapKeyframe kf;
             kf.index    = jsonGetInt(frStr, "I");
             kf.duration = jsonGetInt(frStr, "DU");
 
-            std::string elemArr = jsonGetArray(frStr, "E");
+            StringSpan elemArr = jsonGetArray(frStr, "E");
             if (!elemArr.empty()) {
-                forEachObject(elemArr, [&](const std::string& elemStr) {
+                forEachObject(elemArr, [&](StringSpan elemStr) {
                     SpritemapElement elem;
 
-                    // Atlas Sprite Instance (ASI) — leaf node that directly refs atlas piece
-                    std::string asiObj = jsonGetObject(elemStr, "ASI");
+                    StringSpan asiObj = jsonGetObject(elemStr, "ASI");
                     if (!asiObj.empty()) {
                         elem.isAtlasSprite = true;
                         elem.asi.pieceName = jsonGetRaw(asiObj, "N");
                         elem.asi.mx = parseMX(asiObj);
+                        elem.asi.alpha = parseAlpha(asiObj);
                         kf.elements.push_back(elem);
                         return;
                     }
 
-                    // Symbol Instance (SI) — reference to another symbol
-                    std::string siObj = jsonGetObject(elemStr, "SI");
+                    StringSpan siObj = jsonGetObject(elemStr, "SI");
                     if (!siObj.empty()) {
                         elem.isAtlasSprite = false;
                         elem.si.symbolName  = jsonGetRaw(siObj, "SN");
@@ -290,6 +326,7 @@ static SpritemapSymbol parseSymbol(const std::string& symStr) {
                         elem.si.firstFrame  = jsonGetInt(siObj, "FF");
                         elem.si.mx = parseMX(siObj);
                         elem.si.trp = parseTRP(siObj);
+                        elem.si.alpha = parseAlpha(siObj);
                         kf.elements.push_back(elem);
                     }
                 });
@@ -304,45 +341,37 @@ static SpritemapSymbol parseSymbol(const std::string& symStr) {
     return sym;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Parse Animation.json
-// ─────────────────────────────────────────────────────────────────────────────
-
 bool SpritemapParser::parseAnimation(const std::string& path, SpritemapData& out) {
-    std::ifstream f(path);
-    if (!f.is_open()) return false;
-    std::ostringstream ss;
-    ss << f.rdbuf();
-    std::string src = ss.str();
+    std::string src;
+    if (!readFileString(path, src)) return false;
+    StringSpan srcSpan(src);
 
-    // Metadata (MD section)
-    std::string mdObj = jsonGetObject(src, "MD");
+    StringSpan mdObj = jsonGetObject(srcSpan, "MD");
     if (!mdObj.empty()) {
-        out.canvasW   = jsonGetFloat(mdObj, "W", 1280.f);
-        out.canvasH   = jsonGetFloat(mdObj, "H", 720.f);
+        out.canvasW = jsonGetFloat(mdObj, "W", 0.f);
+        if (out.canvasW == 0.f) out.canvasW = jsonGetFloat(mdObj, "w", 1280.f);
+        out.canvasH = jsonGetFloat(mdObj, "H", 0.f);
+        if (out.canvasH == 0.f) out.canvasH = jsonGetFloat(mdObj, "h", 720.f);
         out.frameRate = jsonGetInt(mdObj, "FRT", 24);
+        if (out.frameRate <= 0) out.frameRate = 24;
     }
 
-    // Main animation (AN section)
-    std::string anObj = jsonGetObject(src, "AN");
+    StringSpan anObj = jsonGetObject(srcSpan, "AN");
     out.rootSymbolName = jsonGetRaw(anObj, "SN");
     if (!anObj.empty() && !out.rootSymbolName.empty()) {
         SpritemapSymbol rootSym = parseSymbol(anObj);
         out.symbols[out.rootSymbolName] = std::move(rootSym);
     }
 
-    // Parse named animations from the main timeline (Layer 4 carries labels)
     if (!anObj.empty()) {
-        std::string tlObj = jsonGetObject(anObj, "TL");
+        StringSpan tlObj = jsonGetObject(anObj, "TL");
         if (!tlObj.empty()) {
-            std::string layersArr = jsonGetArray(tlObj, "L");
-            forEachObject(layersArr, [&](const std::string& layerStr) {
-                std::string frArr = jsonGetArray(layerStr, "FR");
+            StringSpan layersArr = jsonGetArray(tlObj, "L");
+            forEachObject(layersArr, [&](StringSpan layerStr) {
+                StringSpan frArr = jsonGetArray(layerStr, "FR");
                 if (frArr.empty()) return;
 
-                // Find root symbol name used in Layer 1 (SI frames)
-                // Also collect named keyframes (they have "N" field) as animation labels
-                forEachObject(frArr, [&](const std::string& frStr) {
+                forEachObject(frArr, [&](StringSpan frStr) {
                     std::string animName = jsonGetRaw(frStr, "N");
                     if (!animName.empty()) {
                         SpritemapAnimation anim;
@@ -351,14 +380,13 @@ bool SpritemapParser::parseAnimation(const std::string& path, SpritemapData& out
                         anim.duration   = jsonGetInt(frStr, "DU");
                         anim.symbolName = out.rootSymbolName;
 
-                        // Try to read loop type from the first SI element if present
-                        std::string elemArr = jsonGetArray(frStr, "E");
+                        StringSpan elemArr = jsonGetArray(frStr, "E");
                         if (!elemArr.empty()) {
-                            std::string firstElem;
-                            forEachObject(elemArr, [&](const std::string& elem) {
+                            StringSpan firstElem;
+                            forEachObject(elemArr, [&](StringSpan elem) {
                                 if (firstElem.empty()) firstElem = elem;
                             });
-                            std::string siObj = jsonGetObject(firstElem, "SI");
+                            StringSpan siObj = jsonGetObject(firstElem, "SI");
                             if (!siObj.empty()) {
                                 anim.loopType = jsonGetRaw(siObj, "LP");
                             }
@@ -371,13 +399,12 @@ bool SpritemapParser::parseAnimation(const std::string& path, SpritemapData& out
         }
     }
 
-    // Symbol definitions (SD section)
-    std::string sdObj = jsonGetObject(src, "SD");
+    StringSpan sdObj = jsonGetObject(srcSpan, "SD");
     if (sdObj.empty()) return false;
-    std::string symbolsArr = jsonGetArray(sdObj, "S");
+    StringSpan symbolsArr = jsonGetArray(sdObj, "S");
     if (symbolsArr.empty()) return false;
 
-    forEachObject(symbolsArr, [&](const std::string& symStr) {
+    forEachObject(symbolsArr, [&](StringSpan symStr) {
         SpritemapSymbol sym = parseSymbol(symStr);
         if (!sym.name.empty()) {
             out.symbols[sym.name] = std::move(sym);
@@ -387,9 +414,72 @@ bool SpritemapParser::parseAnimation(const std::string& path, SpritemapData& out
     return true;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Public entry point
-// ─────────────────────────────────────────────────────────────────────────────
+static AffineMatrix composeMX(const AffineMatrix& p, const AffineMatrix& c) {
+    AffineMatrix r;
+    r.a  = c.a * p.a  + c.b * p.c;
+    r.b  = c.a * p.b  + c.b * p.d;
+    r.c  = c.c * p.a  + c.d * p.c;
+    r.d  = c.c * p.b  + c.d * p.d;
+    r.tx = c.tx * p.a + c.ty * p.c + p.tx;
+    r.ty = c.tx * p.b + c.ty * p.d + p.ty;
+    return r;
+}
+
+static void computeSymbolBounds(const SpritemapData& data,
+                                const std::string& symName,
+                                int frame,
+                                const AffineMatrix& parentMX,
+                                int depth,
+                                float& outMinX, float& outMinY,
+                                float& outMaxX, float& outMaxY,
+                                bool& found) {
+    if (depth > 6) return;
+    auto sit = data.symbols.find(symName);
+    if (sit == data.symbols.end()) return;
+    const SpritemapSymbol& sym = sit->second;
+    int totalDur = sym.duration();
+    if (totalDur <= 0) return;
+    int curFrame = frame % totalDur;
+
+    for (size_t li = 0; li < sym.layers.size(); li++) {
+        if (sym.layers[li].layerType == "Clp") continue;
+        const SpritemapKeyframe* kf = sym.getKeyframe((int)li, curFrame);
+        if (!kf) continue;
+        for (const auto& elem : kf->elements) {
+            if (elem.isAtlasSprite) {
+                if (elem.asi.alpha <= 0.001f) continue;
+                auto pit = data.atlas.find(elem.asi.pieceName);
+                if (pit != data.atlas.end()) {
+                    const SpritemapPiece& p = pit->second;
+                    AffineMatrix m = composeMX(parentMX, elem.asi.mx);
+                    float w = (p.rotated ? (float)p.h : (float)p.w);
+                    float h = (p.rotated ? (float)p.w : (float)p.h);
+                    float cornersX[4] = { 0, w, 0, w };
+                    float cornersY[4] = { 0, 0, h, h };
+                    for (int i = 0; i < 4; i++) {
+                        float tx = m.a * cornersX[i] + m.c * cornersY[i] + m.tx;
+                        float ty = m.b * cornersX[i] + m.d * cornersY[i] + m.ty;
+                        if (!found) {
+                            outMinX = outMaxX = tx;
+                            outMinY = outMaxY = ty;
+                            found = true;
+                        } else {
+                            if (tx < outMinX) outMinX = tx;
+                            if (tx > outMaxX) outMaxX = tx;
+                            if (ty < outMinY) outMinY = ty;
+                            if (ty > outMaxY) outMaxY = ty;
+                        }
+                    }
+                }
+            } else {
+                if (elem.si.alpha <= 0.001f) continue;
+                AffineMatrix childMX = composeMX(parentMX, elem.si.mx);
+                computeSymbolBounds(data, elem.si.symbolName, elem.si.firstFrame, childMX, depth + 1,
+                                    outMinX, outMinY, outMaxX, outMaxY, found);
+            }
+        }
+    }
+}
 
 bool SpritemapParser::parse(const std::string& atlasJsonPath,
                             const std::string& animJsonPath,
@@ -397,26 +487,36 @@ bool SpritemapParser::parse(const std::string& atlasJsonPath,
     out.atlas.clear();
     out.symbols.clear();
     out.animations.clear();
+    out.hasVisualBounds = false;
 
-    printf("[JSON] Parsing atlas: %s\n", atlasJsonPath.c_str());
     bool atlasOk = parseAtlas(atlasJsonPath, out);
-    if (!atlasOk) {
-        printf("[JSON] parseAtlas failed!\n");
-    } else {
-        printf("[JSON] parseAtlas succeeded with %d pieces\n", (int)out.atlas.size());
-    }
-
-    printf("[JSON] Parsing anim: %s\n", animJsonPath.c_str());
     bool animOk  = parseAnimation(animJsonPath, out);
-    if (!animOk) {
-        printf("[JSON] parseAnimation failed!\n");
-    } else {
-        printf("[JSON] parseAnimation succeeded\n");
-    }
 
     if (atlasOk && animOk) {
         for (auto& pair : out.symbols) {
             pair.second.duration();
+        }
+
+        auto rootIt = out.symbols.find(out.rootSymbolName);
+        if (rootIt != out.symbols.end()) {
+            float minX = 0, minY = 0, maxX = 0, maxY = 0;
+            bool found = false;
+            AffineMatrix id;
+            int dur = rootIt->second.duration();
+            int step = dur > 30 ? (dur / 15) : 1;
+            if (step < 1) step = 1;
+            for (int f = 0; f < dur; f += step) {
+                computeSymbolBounds(out, out.rootSymbolName, f, id, 0, minX, minY, maxX, maxY, found);
+            }
+            if (found) {
+                out.minX = minX;
+                out.minY = minY;
+                out.maxX = maxX;
+                out.maxY = maxY;
+                out.centerX = (minX + maxX) * 0.5f;
+                out.centerY = (minY + maxY) * 0.5f;
+                out.hasVisualBounds = true;
+            }
         }
     }
 

@@ -301,75 +301,6 @@ static void parseUiXml(const std::string& xmlPath, C3D_Tex* tex, C2D_Image baseI
     }
 }
 
-static void parseNoteFastXml(const std::string& xmlPath, C3D_Tex* tex, C2D_Image baseImg, std::vector<NoteSprite>& subs) {
-    subs.clear();
-    subs.resize(3);
-    for (auto& s : subs) {
-        s.tex = tex;
-    }
-
-    std::ifstream f(xmlPath);
-    if (!f.is_open()) return;
-    float nw = baseImg.subtex->right  - baseImg.subtex->left;
-    float nh = baseImg.subtex->bottom - baseImg.subtex->top;
-    std::string line;
-    while (std::getline(f, line)) {
-        if (line.find("<SubTexture") == std::string::npos) continue;
-        auto getValString = [&](const std::string& key) {
-            size_t p = line.find(" " + key);
-            if (p == std::string::npos) return std::string("");
-            p = line.find("=", p + key.size() + 1);
-            if (p == std::string::npos) return std::string("");
-            p = line.find("\"", p + 1);
-            if (p == std::string::npos) return std::string("");
-            size_t e = line.find("\"", p + 1);
-            if (e == std::string::npos) return std::string("");
-            return line.substr(p + 1, e - p - 1);
-        };
-        auto getValFloat = [&](const std::string& key) {
-            std::string val = getValString(key);
-            return val.empty() ? 0.0f : (float)atof(val.c_str());
-        };
-
-        std::string name = getValString("name");
-        float x = getValFloat("x");
-        float y = getValFloat("y");
-        float w = getValFloat("width");
-        float h = getValFloat("height");
-        bool rotated = getValString("rotated") == "true";
-        float frameX = getValFloat("frameX");
-        float frameY = getValFloat("frameY");
-        float frameWidth = getValFloat("frameWidth");
-        float frameHeight = getValFloat("frameHeight");
-
-        int slot = -1;
-        if (name.find("NoteHoldEnd") != std::string::npos) { slot = 2; }
-        else if (name.find("Tail") != std::string::npos) { slot = 1; }
-        else if (name.find("Note") != std::string::npos) { slot = 0; }
-
-        if (slot != -1) {
-            NoteSprite& ns = subs[slot];
-            ns.tex = tex;
-            ns.rotated = rotated;
-            ns.w = w;
-            ns.h = h;
-            ns.frameX = frameX;
-            ns.frameY = frameY;
-            ns.frameWidth = frameWidth ? frameWidth : w;
-            ns.frameHeight = frameHeight ? frameHeight : h;
-
-            float pw = rotated ? h : w;
-            float ph = rotated ? w : h;
-            ns.sub.width = (u16)pw;
-            ns.sub.height = (u16)ph;
-            ns.sub.left = baseImg.subtex->left + (x * nw / baseImg.subtex->width);
-            ns.sub.top = baseImg.subtex->top + (y * nh / baseImg.subtex->height);
-            ns.sub.right = baseImg.subtex->left + ((x + pw) * nw / baseImg.subtex->width);
-            ns.sub.bottom = baseImg.subtex->top + ((y + ph) * nh / baseImg.subtex->height);
-        }
-    }
-}
-
 void OptionsMenuState::init() {
     if (!MusicPlayer::isPlaying()) {
         MusicPlayer::playMenuMusic();
@@ -404,12 +335,6 @@ void OptionsMenuState::init() {
         baseNoteImgNormal = C2D_SpriteSheetGetImage(noteSheetNormal, 0);
         if (baseNoteImgNormal.tex) C3D_TexSetFilter(baseNoteImgNormal.tex, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
         parseNoteXml("romfs:/shared/images/noteSkins/NOTE_assets.xml", baseNoteImgNormal.tex, baseNoteImgNormal, noteSubsNormal);
-    }
-    noteSheetFast = C2D_SpriteSheetLoad("romfs:/shared/images/noteSkins/NoteSheetFast.t3x");
-    if (noteSheetFast) {
-        baseNoteImgFast = C2D_SpriteSheetGetImage(noteSheetFast, 0);
-        if (baseNoteImgFast.tex) C3D_TexSetFilter(baseNoteImgFast.tex, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST, ClientPrefs::globalAntialiasing ? GPU_LINEAR : GPU_NEAREST);
-        parseNoteFastXml("romfs:/shared/images/noteSkins/NoteSheetFast.xml", baseNoteImgFast.tex, baseNoteImgFast, noteSubsFast);
     }
 
     colorWheelSheet = C2D_SpriteSheetLoad("romfs:/preload/images/menus/colorWheel.t3x");
@@ -454,124 +379,56 @@ std::string OptionsMenuState::getKeyName(unsigned int key) {
     }
 }
 
-void OptionsMenuState::drawNoteSprite(int noteData, float x, float y, float scale, bool fast) {
-    static const unsigned char FAST_COLORS[4][3] = {
-        {0xC2, 0x4B, 0x99}, // Left  - purple
-        {0x00, 0xFF, 0xFF}, // Down  - cyan
-        {0x12, 0xFA, 0x05}, // Up    - green
-        {0xF9, 0x39, 0x3F}, // Right - red
-    };
+void OptionsMenuState::drawNoteSprite(int noteData, float x, float y, float scale) {
+    if (!noteSheetNormal || noteSubsNormal.empty()) return;
+    int group = noteData;
+    int noteIdx = group * 6 + 2;
+    int tailIdx = group * 6 + 4;
+    int endIdx = group * 6 + 5;
 
-    if (fast) {
-        if (!noteSheetFast || noteSubsFast.empty()) return;
+    if (noteIdx >= (int)noteSubsNormal.size()) return;
 
-        unsigned char r, g, b;
-        if (ClientPrefs::noteColorsEnabled) {
-            r = ClientPrefs::noteColors[noteData][0];
-            g = ClientPrefs::noteColors[noteData][1];
-            b = ClientPrefs::noteColors[noteData][2];
-        } else {
-            r = FAST_COLORS[noteData][0];
-            g = FAST_COLORS[noteData][1];
-            b = FAST_COLORS[noteData][2];
-        }
-        C2D_ImageTint tint;
-        C2D_PlainImageTint(&tint, C2D_Color32(r, g, b, 255), 1.0f);
+    u32 color = C2D_Color32(ClientPrefs::noteColors[noteData][0],
+                            ClientPrefs::noteColors[noteData][1],
+                            ClientPrefs::noteColors[noteData][2], 255);
+    u8 r = (color >> 0)  & 0xFF;
+    u8 g = (color >> 8)  & 0xFF;
+    u8 b = (color >> 16) & 0xFF;
+    C2D_ImageTint tint;
+    C2D_PlainImageTint(&tint, C2D_Color32(r, g, b, 255), 0.5f);
 
-        static const float ANGLES[4] = {
-            -M_PI / 2.0f,
-             M_PI,
-             0.0f,
-             M_PI / 2.0f
-        };
-
-        NoteSprite noteSprite = noteSubsFast[0];
-        float origW = noteSprite.frameWidth ? noteSprite.frameWidth : noteSprite.w;
-        float origH = noteSprite.frameHeight ? noteSprite.frameHeight : noteSprite.h;
-        float expectedCenterX = x + (origW * scale / 2.0f);
-        float expectedCenterY = y + (origH * scale / 2.0f);
-        float noteDrawX, noteDrawY;
-        if (noteSprite.rotated) {
-            noteDrawX = expectedCenterX - noteSprite.h * scale * 0.5f;
-            noteDrawY = expectedCenterY - noteSprite.w * scale * 0.5f;
-        } else {
-            noteDrawX = expectedCenterX - noteSprite.w * scale * 0.5f;
-            noteDrawY = expectedCenterY - noteSprite.h * scale * 0.5f;
-        }
-
-        if (noteSubsFast.size() >= 2) {
-            NoteSprite tailSprite = noteSubsFast[1];
-            float tailW = tailSprite.w * scale;
-            float tailX = expectedCenterX - (tailW / 2.0f);
-            float tailY = expectedCenterY;
-            float tailScaleY = 2.5f * scale;
-            C2D_SetTintMode(C2D_TintMult);
-            renderNoteSprite(tailSprite, tailX, tailY, 0.49f, &tint, scale, tailScaleY);
-
-            if (noteSubsFast.size() >= 3) {
-                NoteSprite endSprite = noteSubsFast[2];
-                float endW = endSprite.w * scale;
-                float endX = expectedCenterX - (endW / 2.0f);
-                float endY = expectedCenterY + (tailSprite.h * tailScaleY) + 0.25f;
-                renderNoteSprite(endSprite, endX, endY, 0.49f, &tint, scale, scale);
-            }
-            C2D_SetTintMode(C2D_TintSolid);
-        }
-
-        C2D_SetTintMode(C2D_TintMult);
-        renderNoteSprite(noteSprite, noteDrawX, noteDrawY, 0.5f, &tint, scale, scale, ANGLES[noteData]);
-        C2D_SetTintMode(C2D_TintSolid);
+    NoteSprite noteSprite = noteSubsNormal[noteIdx];
+    float origW = noteSprite.frameWidth ? noteSprite.frameWidth : noteSprite.w;
+    float origH = noteSprite.frameHeight ? noteSprite.frameHeight : noteSprite.h;
+    float expectedCenterX = x + (origW * scale / 2.0f);
+    float expectedCenterY = y + (origH * scale / 2.0f);
+    float noteDrawX, noteDrawY;
+    if (noteSprite.rotated) {
+        noteDrawX = expectedCenterX - noteSprite.h * scale * 0.5f;
+        noteDrawY = expectedCenterY - noteSprite.w * scale * 0.5f;
     } else {
-        if (!noteSheetNormal || noteSubsNormal.empty()) return;
-        int group = noteData;
-        int noteIdx = group * 6 + 2;
-        int tailIdx = group * 6 + 4;
-        int endIdx = group * 6 + 5;
-
-        if (noteIdx >= (int)noteSubsNormal.size()) return;
-
-        u32 color = C2D_Color32(ClientPrefs::noteColors[noteData][0],
-                                ClientPrefs::noteColors[noteData][1],
-                                ClientPrefs::noteColors[noteData][2], 255);
-        u8 r = (color >> 0)  & 0xFF;
-        u8 g = (color >> 8)  & 0xFF;
-        u8 b = (color >> 16) & 0xFF;
-        C2D_ImageTint tint;
-        C2D_PlainImageTint(&tint, C2D_Color32(r, g, b, 255), 0.5f);
-
-        NoteSprite noteSprite = noteSubsNormal[noteIdx];
-        float origW = noteSprite.frameWidth ? noteSprite.frameWidth : noteSprite.w;
-        float origH = noteSprite.frameHeight ? noteSprite.frameHeight : noteSprite.h;
-        float expectedCenterX = x + (origW * scale / 2.0f);
-        float expectedCenterY = y + (origH * scale / 2.0f);
-        float noteDrawX, noteDrawY;
-        if (noteSprite.rotated) {
-            noteDrawX = expectedCenterX - noteSprite.h * scale * 0.5f;
-            noteDrawY = expectedCenterY - noteSprite.w * scale * 0.5f;
-        } else {
-            noteDrawX = expectedCenterX - noteSprite.w * scale * 0.5f;
-            noteDrawY = expectedCenterY - noteSprite.h * scale * 0.5f;
-        }
-
-        if (tailIdx < (int)noteSubsNormal.size()) {
-            NoteSprite tailSprite = noteSubsNormal[tailIdx];
-            float tailW = tailSprite.w * scale;
-            float tailX = expectedCenterX - (tailW / 2.0f);
-            float tailY = expectedCenterY;
-            float tailScaleY = 4.5f * scale;
-            renderNoteSprite(tailSprite, tailX, tailY, 0.49f, &tint, scale, tailScaleY);
-
-            if (endIdx < (int)noteSubsNormal.size()) {
-                NoteSprite endSprite = noteSubsNormal[endIdx];
-                float endW = endSprite.w * scale;
-                float endX = expectedCenterX - (endW / 2.0f);
-                float endY = expectedCenterY + (tailSprite.h * tailScaleY) - 1.5f;
-                renderNoteSprite(endSprite, endX, endY, 0.49f, &tint, scale, scale);
-            }
-        }
-
-        renderNoteSprite(noteSprite, noteDrawX, noteDrawY, 0.5f, &tint, scale, scale);
+        noteDrawX = expectedCenterX - noteSprite.w * scale * 0.5f;
+        noteDrawY = expectedCenterY - noteSprite.h * scale * 0.5f;
     }
+
+    if (tailIdx < (int)noteSubsNormal.size()) {
+        NoteSprite tailSprite = noteSubsNormal[tailIdx];
+        float tailW = tailSprite.w * scale;
+        float tailX = expectedCenterX - (tailW / 2.0f);
+        float tailY = expectedCenterY;
+        float tailScaleY = 4.5f * scale;
+        renderNoteSprite(tailSprite, tailX, tailY, 0.49f, &tint, scale, tailScaleY);
+
+        if (endIdx < (int)noteSubsNormal.size()) {
+            NoteSprite endSprite = noteSubsNormal[endIdx];
+            float endW = endSprite.w * scale;
+            float endX = expectedCenterX - (endW / 2.0f);
+            float endY = expectedCenterY + (tailSprite.h * tailScaleY) - 1.5f;
+            renderNoteSprite(endSprite, endX, endY, 0.49f, &tint, scale, scale);
+        }
+    }
+
+    renderNoteSprite(noteSprite, noteDrawX, noteDrawY, 0.5f, &tint, scale, scale);
 }
 
 void OptionsMenuState::initCheckboxesForCategory(int catIdx) {
@@ -1401,7 +1258,6 @@ void OptionsMenuState::exitState() {
     if (bgSheet) { C2D_SpriteSheetFree(bgSheet); bgSheet = nullptr; }
     if (bottomBGSheet) { C2D_SpriteSheetFree(bottomBGSheet); bottomBGSheet = nullptr; }
     if (noteSheetNormal) { C2D_SpriteSheetFree(noteSheetNormal); noteSheetNormal = nullptr; }
-    if (noteSheetFast) { C2D_SpriteSheetFree(noteSheetFast); noteSheetFast = nullptr; }
     if (colorWheelSheet) { C2D_SpriteSheetFree(colorWheelSheet); colorWheelSheet = nullptr; }
     if (copyPasteSheet) { C2D_SpriteSheetFree(copyPasteSheet); copyPasteSheet = nullptr; }
     if (vcrFontBuf) { C2D_TextBufDelete(vcrFontBuf); vcrFontBuf = nullptr; }

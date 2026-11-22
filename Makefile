@@ -179,8 +179,7 @@ endif
 export OFILES_SOURCES 	:=	$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
 export OFILES := $(OFILES_SOURCES)
 
-export HFILES	:=	$(PICAFILES:.v.pica=_shbin.h) $(SHLISTFILES:.shlist=_shbin.h) \
-			$(notdir $(T3S_FILES:.t3s=.h))
+export HFILES	:=	$(PICAFILES:.v.pica=_shbin.h) $(SHLISTFILES:.shlist=_shbin.h)
 
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
@@ -218,6 +217,7 @@ endif
 export ALL_ROMFS_OUT := $(ROMFS_T3XFILES) $(ROMFS_XMLFILES) $(ROMFS_JSONFILES) $(ROMFS_ADPFILES_FROM_OGG) $(ROMFS_ADPFILES) $(ROMFS_TTFFILES) $(ROMFS_OTFFILES) $(ROMFS_LUAFILES) $(ROMFS_TXTFILES) $(ROMFS_SNAKYFILES) $(ROMFS_RAWTEXFILES)
 
 all: $(BUILD) $(ROMFS_TARGET) $(ALL_ROMFS_OUT)
+	@python $(TOPDIR)/tools/clean_romfs.py "$(ROMFS_SOURCE)" "$(ROMFS_TARGET)"
 	@mkdir -p $(CURDIR)/export
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
@@ -259,7 +259,7 @@ $(ROMFS_TARGET)/%.bcfnt: $(ROMFS_SOURCE)/%.otf
 $(ROMFS_TARGET)/%.t3x: $(ROMFS_SOURCE)/%.t3s $(ROMFS_SOURCE)/%.png
 	@echo "Converting $< -> $@"
 	@mkdir -p $(dir $@)
-	@tex3ds --atlas -i $< -H $(BUILD)/$(notdir $*.h) -d $(DEPSDIR)/$(notdir $*.d) -o $@
+	@tex3ds --atlas -i $< -o $@
 
 $(ROMFS_TARGET)/%.adp: $(ROMFS_SOURCE)/%.ogg
 	@echo "Converting Audio $< -> $@"

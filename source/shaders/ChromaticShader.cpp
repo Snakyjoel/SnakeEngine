@@ -2,6 +2,8 @@
 #include <cmath>
 
 void ShaderManager::drawChromatic(const RT& rt, C3D_RenderTarget* dest, float offset, float x, float y, float scaleX, float scaleY) {
+    if (!rt.active || !rt.img.subtex) return;
+
     if (std::abs(offset) < 0.001f) {
         C2D_DrawImageAt(rt.img, x, y, 0.0f, nullptr, scaleX, scaleY);
         return;

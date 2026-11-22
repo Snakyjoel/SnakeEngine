@@ -16,7 +16,7 @@ std::vector<std::string> PauseSubState::buildMainItems() {
     if (PlayState::instance && PlayState::instance->curSongDifficulties.size() >= 2) {
         mainItems.push_back("Change Difficulty");
     }
-    if (ClientPrefs::debugInfo) {
+    if (ClientPrefs::debugMemoryViewer) {
         mainItems.push_back("Memory Debug");
     }
     mainItems.push_back("Options");

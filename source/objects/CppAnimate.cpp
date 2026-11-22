@@ -1,4 +1,5 @@
 #include "CppAnimate.hpp"
+#include "../backend/Paths.hpp"
 #include <algorithm>
 #include <cstring>
 #include <cmath>
@@ -80,6 +81,48 @@ const Frame* CppAnimate::currentFrame() const {
 
 void CppAnimate::drawCentered(float cx, float cy, float depth, float sx, float sy, C2D_ImageTint* tint) {
     if (!visible) return;
+    if (isSpritemapMode) {
+        if (!smTex) return;
+        GPU_TEXTURE_FILTER_PARAM filt = antialiasing ? GPU_LINEAR : GPU_NEAREST;
+        C3D_TexSetFilter(smTex, filt, filt);
+        std::string symName;
+        auto it = smAnims.find(curAnim);
+        if (it != smAnims.end()) {
+            symName = it->second.symbolName;
+        } else {
+            auto sit = smData.symbols.find(curAnim);
+            if (sit == smData.symbols.end()) return;
+            symName = curAnim;
+        }
+
+        float finalScaleX = spritemapScale * scaleX * sx;
+        float finalScaleY = spritemapScale * scaleY * sy;
+
+        float vcx = hasVisualCenter ? visualCenterX : (smData.hasVisualBounds ? smData.centerX : smData.canvasW * 0.5f);
+        float vcy = hasVisualCenter ? visualCenterY : (smData.hasVisualBounds ? smData.centerY : smData.canvasH * 0.5f);
+
+        float rad = angle * (3.14159265f / 180.0f);
+        float cosA = cosf(rad);
+        float sinA = sinf(rad);
+
+        float flipScaleX = finalScaleX * (flipX ? -1.0f : 1.0f);
+        float flipScaleY = finalScaleY * (flipY ? -1.0f : 1.0f);
+
+        AffineMatrix rootMX;
+        rootMX.a  = flipScaleX * cosA;
+        rootMX.b  = flipScaleX * sinA;
+        rootMX.c  = flipScaleY * (-sinA);
+        rootMX.d  = flipScaleY * cosA;
+        rootMX.tx = -vcx * rootMX.a - vcy * rootMX.c + cx + extraOffsetX;
+        rootMX.ty = -vcx * rootMX.b - vcy * rootMX.d + cy + extraOffsetY;
+
+        int drawFrame = smLogicalFrame;
+        if (it != smAnims.end() && smLogicalFrame >= 0 && smLogicalFrame < (int)it->second.indices.size()) {
+            drawFrame = it->second.indices[smLogicalFrame];
+        }
+        drawSymbol(symName, drawFrame, rootMX, depth, 0, tint, alpha);
+        return;
+    }
     const Frame* f = currentFrame();
     if (!f || !f->tex) return;
 
@@ -153,9 +196,9 @@ bool CppAnimate::loadSpritemap(const std::string& t3xPath,
     smFullSub.width  = (u16)smTex->width;
     smFullSub.height = (u16)smTex->height;
     smFullSub.left   = 0.0f;
-    smFullSub.top    = 0.0f;
+    smFullSub.top    = 1.0f;
     smFullSub.right  = 1.0f;
-    smFullSub.bottom = 1.0f;
+    smFullSub.bottom = 0.0f;
 
     // Precompute piece base UVs once at load time
     const Tex3DS_SubTexture* baseSub = smSubtex ? smSubtex : &smFullSub;
@@ -232,7 +275,7 @@ std::vector<std::string> CppAnimate::getSpritemapAnimNames() const {
     return names;
 }
 
-void CppAnimate::play(const std::string& name, bool forceRestart) {
+void CppAnimate::play(const std::string& name, bool forceRestart, int startFrame) {
     if (isSpritemapMode) {
         auto it = smAnims.find(name);
         std::string symName;
@@ -257,7 +300,7 @@ void CppAnimate::play(const std::string& name, bool forceRestart) {
         animFinished   = false;
         paused         = false;
         smFrameTimer   = 0.0f;
-        smLogicalFrame = 0;
+        smLogicalFrame = (startFrame >= 0 && startFrame < duration) ? startFrame : 0;
         smTotalFrames  = duration;
         return;
     }
@@ -265,10 +308,11 @@ void CppAnimate::play(const std::string& name, bool forceRestart) {
     // Original Sparrow path
     if (!hasAnim(name)) return;
     if (curAnim == name && !forceRestart && !animFinished) return;
+    const AnimData* animData = getCurAnimData();
     curAnim      = name;
     animFinished = false;
     paused       = false;
-    curFrameIdx  = 0;
+    curFrameIdx  = (animData && startFrame >= 0 && startFrame < (int)animData->frameIndices.size()) ? startFrame : 0;
     frameTimer   = 0.0f;
 }
 
@@ -300,6 +344,7 @@ void CppAnimate::update(float dt) {
                     break;
                 }
             }
+            if (onFrameChange) onFrameChange(curAnim, smLogicalFrame);
         }
         return;
     }
@@ -324,6 +369,7 @@ void CppAnimate::update(float dt) {
                 break;
             }
         }
+        if (onFrameChange) onFrameChange(curAnim, curFrameIdx);
     }
 }
 
@@ -361,14 +407,14 @@ void CppAnimate::draw(float x, float y, float depth, float sx, float sy, C2D_Ima
         rootMX.b  = flipScaleX * sinA;
         rootMX.c  = flipScaleY * (-sinA);
         rootMX.d  = flipScaleY * cosA;
-        rootMX.tx = -canvasCX * rootMX.a - canvasCY * rootMX.c + x;
-        rootMX.ty = -canvasCX * rootMX.b - canvasCY * rootMX.d + y;
+        rootMX.tx = -canvasCX * rootMX.a - canvasCY * rootMX.c + x + extraOffsetX;
+        rootMX.ty = -canvasCX * rootMX.b - canvasCY * rootMX.d + y + extraOffsetY;
         
         int drawFrame = smLogicalFrame;
         if (it != smAnims.end() && smLogicalFrame >= 0 && smLogicalFrame < (int)it->second.indices.size()) {
             drawFrame = it->second.indices[smLogicalFrame];
         }
-        drawSymbol(symName, drawFrame, rootMX, depth, 0);
+        drawSymbol(symName, drawFrame, rootMX, depth, 0, tint, alpha);
         return;
     }
 
@@ -417,8 +463,11 @@ void CppAnimate::drawSymbol(const std::string& symbolName,
                              int logicalFrame,
                              const AffineMatrix& parentMX,
                              float depth,
-                             int recursionDepth) const {
+                             int recursionDepth,
+                             const C2D_ImageTint* tint,
+                             float parentAlpha) const {
     if (recursionDepth > 8) return;
+    if (parentAlpha <= 0.001f) return;
     auto sit = smData.symbols.find(symbolName);
     if (sit == smData.symbols.end()) return;
     const SpritemapSymbol& sym = sit->second;
@@ -426,36 +475,94 @@ void CppAnimate::drawSymbol(const std::string& symbolName,
     if (totalDur <= 0) return;
     int frame = logicalFrame % totalDur;
 
-    // Layers: last in array = bottom-most (drawn first)
-    for (int li = (int)sym.layers.size() - 1; li >= 0; li--) {
-        const SpritemapKeyframe* kf = sym.getKeyframe(li, frame);
-        if (!kf) continue;
-        for (const auto& elem : kf->elements) {
+    auto renderKeyframe = [&](const SpritemapKeyframe* currentKf) {
+        for (const auto& elem : currentKf->elements) {
             if (elem.isAtlasSprite) {
+                float finalAlpha = parentAlpha * elem.asi.alpha;
+                if (finalAlpha <= 0.001f) continue;
                 AffineMatrix composed = compose(parentMX, elem.asi.mx);
-                drawPiece(elem.asi.pieceName, composed, depth);
+                drawPiece(elem.asi.pieceName, composed, depth, tint, finalAlpha);
             } else {
                 const SymbolInstance& si = elem.si;
+                float childAlpha = parentAlpha * si.alpha;
+                if (childAlpha <= 0.001f) continue;
+
                 auto childIt = smData.symbols.find(si.symbolName);
                 if (childIt == smData.symbols.end()) continue;
                 int childTotal = childIt->second.duration();
                 if (childTotal <= 0) continue;
 
+                int elapsed = logicalFrame - currentKf->index;
+                if (elapsed < 0) elapsed = 0;
+
                 int childFrame;
                 if (si.loopType == "SF") {
                     childFrame = si.firstFrame;
                 } else if (si.loopType == "PO") {
-                    childFrame = si.firstFrame + logicalFrame;
+                    childFrame = si.firstFrame + elapsed;
                     if (childFrame >= childTotal) childFrame = childTotal - 1;
                 } else {
-                    childFrame = (si.firstFrame + logicalFrame) % childTotal;
+                    childFrame = (si.firstFrame + elapsed) % childTotal;
                 }
 
                 AffineMatrix childMX  = applyPivot(si.mx, si.trp);
                 AffineMatrix composed = compose(parentMX, childMX);
-                drawSymbol(si.symbolName, childFrame, composed, depth, recursionDepth + 1);
+                drawSymbol(si.symbolName, childFrame, composed, depth, recursionDepth + 1, tint, childAlpha);
             }
         }
+    };
+
+    for (int li = (int)sym.layers.size() - 1; li >= 0; li--) {
+        const auto& layer = sym.layers[li];
+        if (layer.layerType == "Clp") {
+            continue;
+        }
+
+        const SpritemapKeyframe* kf = sym.getKeyframe(li, frame);
+        if (!kf) continue;
+
+        if (!layer.clippedBy.empty()) {
+            int maskIdx = -1;
+            for (int i = 0; i < (int)sym.layers.size(); i++) {
+                if (sym.layers[i].name == layer.clippedBy) {
+                    maskIdx = i;
+                    break;
+                }
+            }
+
+            const SpritemapKeyframe* maskKf = (maskIdx >= 0) ? sym.getKeyframe(maskIdx, frame) : nullptr;
+            if (maskKf && !maskKf->elements.empty()) {
+                C2D_Flush();
+                C3D_StencilTest(true, GPU_ALWAYS, 1, 0xFF, 0xFF);
+                C3D_StencilOp(GPU_STENCIL_REPLACE, GPU_STENCIL_REPLACE, GPU_STENCIL_REPLACE);
+                C3D_DepthTest(true, GPU_ALWAYS, (GPU_WRITEMASK)0);
+
+                renderKeyframe(maskKf);
+
+                C2D_Flush();
+                C3D_StencilTest(true, GPU_EQUAL, 1, 0xFF, 0x00);
+                C3D_StencilOp(GPU_STENCIL_KEEP, GPU_STENCIL_KEEP, GPU_STENCIL_KEEP);
+                C3D_DepthTest(true, GPU_GEQUAL, GPU_WRITE_ALL);
+
+                renderKeyframe(kf);
+
+                C2D_Flush();
+                C3D_StencilTest(true, GPU_ALWAYS, 0, 0xFF, 0xFF);
+                C3D_StencilOp(GPU_STENCIL_REPLACE, GPU_STENCIL_REPLACE, GPU_STENCIL_REPLACE);
+                C3D_DepthTest(true, GPU_ALWAYS, (GPU_WRITEMASK)0);
+
+                renderKeyframe(maskKf);
+
+                C2D_Flush();
+                C3D_StencilTest(false, GPU_ALWAYS, 0, 0xFF, 0xFF);
+                C3D_DepthTest(true, GPU_GEQUAL, GPU_WRITE_ALL);
+                continue;
+            } else {
+                continue;
+            }
+        }
+
+        renderKeyframe(kf);
     }
 }
 
@@ -463,7 +570,10 @@ void CppAnimate::drawSymbol(const std::string& symbolName,
 
 void CppAnimate::drawPiece(const std::string& pieceName,
                             const AffineMatrix& mx,
-                            float depth) const {
+                            float depth,
+                            const C2D_ImageTint* tint,
+                            float pieceAlpha) const {
+    if (pieceAlpha <= 0.001f) return;
     if (!smTex) return;
     auto pit = smData.atlas.find(pieceName);
     if (pit == smData.atlas.end()) return;
@@ -537,10 +647,23 @@ void CppAnimate::drawPiece(const std::string& pieceName,
     float cy = mx.b * (localW * 0.5f) + mx.d * (localH * 0.5f) + mx.ty;
 
     C2D_ImageTint alphaTint;
-    const C2D_ImageTint* usedTint = nullptr;
-    if (alpha < 1.0f) {
-        C2D_AlphaImageTint(&alphaTint, alpha);
-        usedTint = &alphaTint;
+    const C2D_ImageTint* usedTint = tint;
+    if (!usedTint) {
+        if (pieceAlpha < 0.999f) {
+            C2D_AlphaImageTint(&alphaTint, pieceAlpha);
+            usedTint = &alphaTint;
+        }
+    } else {
+        if (pieceAlpha < 0.999f) {
+            alphaTint = *usedTint;
+            for (int i = 0; i < 4; i++) {
+                u32 col = alphaTint.corners[i].color;
+                u8 a = (u8)((col >> 24) & 0xFF);
+                u8 newA = (u8)(a * pieceAlpha);
+                alphaTint.corners[i].color = (col & 0x00FFFFFF) | ((u32)newA << 24);
+            }
+            usedTint = &alphaTint;
+        }
     }
 
     float shearY = 0.0f;

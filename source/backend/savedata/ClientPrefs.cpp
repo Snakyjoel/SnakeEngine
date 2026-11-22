@@ -8,6 +8,14 @@ bool ClientPrefs::downscroll = false;
 bool ClientPrefs::ghostTapping = true;
 bool ClientPrefs::debugInfo = false;
 bool ClientPrefs::extendedDebug = false;
+bool ClientPrefs::scoreTxtScore = true;
+bool ClientPrefs::scoreTxtMisses = true;
+bool ClientPrefs::scoreTxtRating = true;
+bool ClientPrefs::scoreTxtFC = true;
+bool ClientPrefs::debugFps = false;
+bool ClientPrefs::debugMemory = false;
+bool ClientPrefs::debugHardware = false;
+bool ClientPrefs::debugMemoryViewer = false;
 bool ClientPrefs::middleScroll = false;
 bool ClientPrefs::opponentStrums = true;
 bool ClientPrefs::opponentNotes = true;
@@ -17,13 +25,13 @@ bool ClientPrefs::healthBar = true;
 bool ClientPrefs::scoreZoom = true;
 bool ClientPrefs::lowQuality = false;
 bool ClientPrefs::showRatings = true;
-bool ClientPrefs::fastNotes = false;
 bool ClientPrefs::globalAntialiasing = true;
 bool ClientPrefs::enable3DEffect = true;
 
 bool ClientPrefs::flashing = true;
 bool ClientPrefs::disableReset = false;
 bool ClientPrefs::botPlay = false;
+bool ClientPrefs::naughtyness = true;
 int ClientPrefs::noteOffset = 0;
 bool ClientPrefs::noteColorsEnabled = false;
 
@@ -51,6 +59,7 @@ float ClientPrefs::noteUnderlayAlpha = 0.0f;
 bool ClientPrefs::opponentUnderlay = true;
 bool ClientPrefs::acceptedEgg = false;
 bool ClientPrefs::eggInteractionOccurred = false;
+bool ClientPrefs::acceptedChallenge = false;
 int ClientPrefs::fpsLimit = 60;
 
 unsigned int ClientPrefs::noteKeys[4][2] = {
@@ -105,6 +114,30 @@ void ClientPrefs::loadSettings() {
     val = json_object_get(root, "extendedDebug");
     if (val && json_is_boolean(val)) extendedDebug = json_is_true(val);
 
+    val = json_object_get(root, "scoreTxtScore");
+    if (val && json_is_boolean(val)) scoreTxtScore = json_is_true(val);
+
+    val = json_object_get(root, "scoreTxtMisses");
+    if (val && json_is_boolean(val)) scoreTxtMisses = json_is_true(val);
+
+    val = json_object_get(root, "scoreTxtRating");
+    if (val && json_is_boolean(val)) scoreTxtRating = json_is_true(val);
+
+    val = json_object_get(root, "scoreTxtFC");
+    if (val && json_is_boolean(val)) scoreTxtFC = json_is_true(val);
+
+    val = json_object_get(root, "debugFps");
+    if (val && json_is_boolean(val)) debugFps = json_is_true(val);
+
+    val = json_object_get(root, "debugMemory");
+    if (val && json_is_boolean(val)) debugMemory = json_is_true(val);
+
+    val = json_object_get(root, "debugHardware");
+    if (val && json_is_boolean(val)) debugHardware = json_is_true(val);
+
+    val = json_object_get(root, "debugMemoryViewer");
+    if (val && json_is_boolean(val)) debugMemoryViewer = json_is_true(val);
+
     val = json_object_get(root, "camZooms");
     if (val && json_is_boolean(val)) camZooms = json_is_true(val);
 
@@ -123,9 +156,6 @@ void ClientPrefs::loadSettings() {
     val = json_object_get(root, "showRatings");
     if (val && json_is_boolean(val)) showRatings = json_is_true(val);
 
-    val = json_object_get(root, "fastNotes");
-    if (val && json_is_boolean(val)) fastNotes = json_is_true(val);
-
     val = json_object_get(root, "globalAntialiasing");
     if (val && json_is_boolean(val)) globalAntialiasing = json_is_true(val);
 
@@ -140,6 +170,9 @@ void ClientPrefs::loadSettings() {
 
     val = json_object_get(root, "botPlay");
     if (val && json_is_boolean(val)) botPlay = json_is_true(val);
+
+    val = json_object_get(root, "naughtyness");
+    if (val && json_is_boolean(val)) naughtyness = json_is_true(val);
 
     val = json_object_get(root, "noteColorsEnabled");
     if (val && json_is_boolean(val)) noteColorsEnabled = json_is_true(val);
@@ -256,6 +289,9 @@ void ClientPrefs::loadSettings() {
     val = json_object_get(root, "eggInteractionOccurred");
     if (val && json_is_boolean(val)) eggInteractionOccurred = json_is_true(val);
 
+    val = json_object_get(root, "acceptedChallenge");
+    if (val && json_is_boolean(val)) acceptedChallenge = json_is_true(val);
+
     val = json_object_get(root, "fpsLimit");
     if (val && json_is_integer(val)) fpsLimit = (int)json_integer_value(val);
     
@@ -276,18 +312,26 @@ void ClientPrefs::saveSettings() {
     json_object_set_new(root, "ghostTapping", ghostTapping ? json_true() : json_false());
     json_object_set_new(root, "debugInfo", debugInfo ? json_true() : json_false());
     json_object_set_new(root, "extendedDebug", extendedDebug ? json_true() : json_false());
+    json_object_set_new(root, "scoreTxtScore", scoreTxtScore ? json_true() : json_false());
+    json_object_set_new(root, "scoreTxtMisses", scoreTxtMisses ? json_true() : json_false());
+    json_object_set_new(root, "scoreTxtRating", scoreTxtRating ? json_true() : json_false());
+    json_object_set_new(root, "scoreTxtFC", scoreTxtFC ? json_true() : json_false());
+    json_object_set_new(root, "debugFps", debugFps ? json_true() : json_false());
+    json_object_set_new(root, "debugMemory", debugMemory ? json_true() : json_false());
+    json_object_set_new(root, "debugHardware", debugHardware ? json_true() : json_false());
+    json_object_set_new(root, "debugMemoryViewer", debugMemoryViewer ? json_true() : json_false());
     json_object_set_new(root, "camZooms", camZooms ? json_true() : json_false());
     json_object_set_new(root, "timeBarType", json_integer(timeBarType));
     json_object_set_new(root, "healthBar", healthBar ? json_true() : json_false());
     json_object_set_new(root, "scoreZoom", scoreZoom ? json_true() : json_false());
     json_object_set_new(root, "lowQuality", lowQuality ? json_true() : json_false());
     json_object_set_new(root, "showRatings", showRatings ? json_true() : json_false());
-    json_object_set_new(root, "fastNotes", fastNotes ? json_true() : json_false());
     json_object_set_new(root, "globalAntialiasing", globalAntialiasing ? json_true() : json_false());
     json_object_set_new(root, "enable3DEffect", enable3DEffect ? json_true() : json_false());
     json_object_set_new(root, "flashing", flashing ? json_true() : json_false());
     json_object_set_new(root, "disableReset", disableReset ? json_true() : json_false());
     json_object_set_new(root, "botPlay", botPlay ? json_true() : json_false());
+    json_object_set_new(root, "naughtyness", naughtyness ? json_true() : json_false());
     json_object_set_new(root, "noteColorsEnabled", noteColorsEnabled ? json_true() : json_false());
     json_object_set_new(root, "noteOffset", json_integer(noteOffset));
     json_object_set_new(root, "drawGrid", drawGrid ? json_true() : json_false());
@@ -313,6 +357,7 @@ void ClientPrefs::saveSettings() {
     json_object_set_new(root, "opponentUnderlay", opponentUnderlay ? json_true() : json_false());
     json_object_set_new(root, "acceptedEgg", acceptedEgg ? json_true() : json_false());
     json_object_set_new(root, "eggInteractionOccurred", eggInteractionOccurred ? json_true() : json_false());
+    json_object_set_new(root, "acceptedChallenge", acceptedChallenge ? json_true() : json_false());
     json_object_set_new(root, "fpsLimit", json_integer(fpsLimit));
 
     

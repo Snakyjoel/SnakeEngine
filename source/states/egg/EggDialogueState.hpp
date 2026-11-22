@@ -18,18 +18,13 @@ public:
 private:
     enum class Branch {
         INTRO,
-        CONFIRM_GIVE,
-        GIVEN,
-        REFUSED,
-        REFUSE_DUEL,
-        ACCEPT_DUEL
+        ACCEPTED,
+        REFUSED
     };
 
     enum class ChoiceType {
         NONE,
-        GIVE_OR_KEEP,
-        CONFIRM_SURE,
-        ACCEPT_OR_REFUSE
+        YES_OR_NO
     };
 
     enum class SoundEffect {
@@ -60,6 +55,9 @@ private:
     float charTimer = 0.0f;
     bool lineComplete = false;
     int bleepCounter = 0;
+
+    bool isLockPage = false;
+    float postLockTimer = 0.0f;
 
     float blinkTimer = 0.0f;
     bool exiting = false;

@@ -155,6 +155,7 @@ public:
     bool animFinished = false;
     bool isPlaceholder = false;
     bool specialAnim = false;
+    bool isExternalAnim = false;
     std::string curCharacterName = "";
     std::string charTexturePath = "";
     C2D_SpriteSheet sheet = nullptr; 
@@ -178,7 +179,6 @@ private:
     Animation* currentAnimData = nullptr;
 
     // External Anim Support
-    bool isExternalAnim = false;
     std::vector<Frame> externalFrames;
     Animation externalAnimData;
 };

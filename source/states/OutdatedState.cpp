@@ -37,12 +37,12 @@ void OutdatedState::init() {
     
     if (comparison < 0) {
         if (updateSource == "gamejolt") {
-            bgLogoSheet = SpritesheetCache::get().load("preload/images/gamejolt");
+            bgLogoSheet = SpritesheetCache::get().load("preload/images/updateCheck/gamejolt");
         } else {
-            bgLogoSheet = SpritesheetCache::get().load("preload/images/gamebanana");
+            bgLogoSheet = SpritesheetCache::get().load("preload/images/updateCheck/gamebanana");
         }
     } else {
-        hifellaSheet = SpritesheetCache::get().load("preload/images/hifella");
+        hifellaSheet = SpritesheetCache::get().load("preload/images/updateCheck/hifella");
     }
 
     std::string titleStr = (comparison < 0) ? "OUTDATED VERSION!" : "HOLY MOLY THANKS FOR TESTING!";

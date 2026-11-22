@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
+#include <dirent.h>
 
 static std::string lastDifficultyName = "Normal";
 
@@ -85,6 +87,93 @@ int FreeplayState::savedDifficulty = 1;
 std::string FreeplayState::savedSongName = "";
 std::string FreeplayState::savedCategory = "all";
 std::string FreeplayState::currentChar = "bf";
+std::string FreeplayState::pendingDJAnim = "";
+bool FreeplayState::pendingRankAnim = false;
+std::string FreeplayState::pendingSongName = "";
+std::string FreeplayState::pendingDiff = "";
+std::string FreeplayState::pendingRating = "";
+
+void FreeplayState::setRankVignetteColor(const std::string& rating) {
+    if (rating == "GP") {
+        rankVignetteR = 0xFF; rankVignetteG = 0xD7; rankVignetteB = 0x00;
+    } else if (rating == "P") {
+        rankVignetteR = 0xFF; rankVignetteG = 0xA8; rankVignetteB = 0xFF;
+    } else if (rating == "E") {
+        rankVignetteR = 0xFF; rankVignetteG = 0xFF; rankVignetteB = 0xB9;
+    } else if (rating == "G" || rating == "GREAT") {
+        rankVignetteR = 0xEF; rankVignetteG = 0xFD; rankVignetteB = 0xFF;
+    } else if (rating == "g" || rating == "GOOD") {
+        rankVignetteR = 0xF3; rankVignetteG = 0xA3; rankVignetteB = 0x80;
+    } else if (rating == "L" || rating == "LOSS") {
+        rankVignetteR = 0x6B; rankVignetteG = 0x8C; rankVignetteB = 0xFB;
+    } else {
+        rankVignetteR = 255;  rankVignetteG = 255;  rankVignetteB = 255;
+    }
+}
+
+void FreeplayState::startRankAnim(const std::string& songName, const std::string& diff, const std::string& rating) {
+    auto getRankWeight = [](const std::string& r) -> int {
+        if (r == "GP") return 6;
+        if (r == "P") return 5;
+        if (r == "E") return 4;
+        if (r == "G" || r == "GREAT") return 3;
+        if (r == "g" || r == "GOOD") return 2;
+        if (r == "L" || r == "LOSS") return 1;
+        return 0;
+    };
+    std::string existingRating = Highscores::getRating(songName, diff);
+    if (!existingRating.empty() && getRankWeight(rating) < getRankWeight(existingRating)) {
+        isRankAnimActive = false;
+        djState = DJ_IDLE;
+        playDJAnim("idle", true);
+        return;
+    }
+
+    isRankAnimActive = true;
+    rankAnimTimer = 0.0f;
+    rankCameraShake = 0.0f;
+    rankVignetteAlpha = 0.0f;
+    currentRankRating = rating;
+    setRankVignetteColor(rating);
+    MusicPlayer::setVolume(0.0f);
+
+    for (size_t i = 0; i < songs.size(); i++) {
+        if (songs[i].name == songName) {
+            curSelected = (int)i;
+            lerpSelected = (float)i;
+            break;
+        }
+    }
+
+    for (size_t i = 0; i < curWeekDiffs.size(); i++) {
+        std::string lowA = curWeekDiffs[i];
+        std::string lowB = diff;
+        for (char& c : lowA) c = (char)tolower((unsigned char)c);
+        for (char& c : lowB) c = (char)tolower((unsigned char)c);
+        if (lowA == lowB) {
+            curDifficulty = (int)i;
+            break;
+        }
+    }
+    updateDifficulties();
+
+    if (!songs.empty() && curSelected >= 0 && curSelected < (int)songs.size()) {
+        targetColor[0] = songs[curSelected].info.color[0];
+        targetColor[1] = songs[curSelected].info.color[1];
+        targetColor[2] = songs[curSelected].info.color[2];
+        curColor[0] = targetColor[0];
+        curColor[1] = targetColor[1];
+        curColor[2] = targetColor[2];
+    }
+
+    if (rating == "L" || rating == "LOSS") {
+        djState = DJ_LOSS;
+        playDJAnim("lossIntro", true);
+    } else {
+        djState = DJ_FISTPUMP;
+        playDJAnim("fistPumpIntro", true);
+    }
+}
 
 FreeplayState::FreeplayState(bool isSubState)
     : isSubState(isSubState), hasFinishedExit(false), isExiting(false), hasExited(false), exitTimer(0.0f)
@@ -110,6 +199,10 @@ static inline float easeBackOut(float t, float s = 1.70158f) {
     return t * t * ((s + 1.0f) * t + s) + 1.0f;
 }
 
+static inline float easeBackIn(float t, float s = 1.70158f) {
+    return t * t * ((s + 1.0f) * t - s);
+}
+
 static inline float easeCubicOut(float t) {
     float f = 1.0f - t;
     return 1.0f - f * f * f;
@@ -125,6 +218,32 @@ void FreeplayState::openSubState(bool playIntro) {
     hasFinishedExit = false;
     exitTimer = 0.0f;
     introTimer = playIntro ? 0.0f : 1.0f;
+    selectedSong = false;
+    confirmTimer = 0.0f;
+    isTransitioningToCS = false;
+    csTransitionTimer = 0.0f;
+    timeIdling = 0.0f;
+    seenIdleEasterEgg = false;
+    if (isRankAnimActive) {
+        introTimer = 1.0f;
+    } else if (pendingRankAnim) {
+        introTimer = 1.0f;
+        pendingRankAnim = false;
+        pendingDJAnim.clear();
+        startRankAnim(pendingSongName, pendingDiff, pendingRating);
+    } else if (!pendingDJAnim.empty()) {
+        std::string animToPlay = pendingDJAnim;
+        pendingDJAnim.clear();
+        djState = (animToPlay == "loss" || animToPlay == "Fist Pump Loss") ? DJ_LOSS : DJ_FISTPUMP;
+        playDJAnim(animToPlay, true);
+    } else if (playIntro) {
+        djState = DJ_INTRO;
+        playDJAnim("intro", true);
+    } else {
+        djState = DJ_IDLE;
+        playDJAnim("idle", true);
+    }
+
     if (!songs.empty()) {
         if (curSelected < 0 || curSelected >= (int)songs.size()) {
             curSelected = (songs.size() > 1) ? 1 : 0;
@@ -145,6 +264,72 @@ void FreeplayState::openSubState(bool playIntro) {
         updateDifficulties();
     }
     MusicPlayer::play("romfs:/preload/music/freeplayAndCredits.adp", 0.7f);
+    if (isRankAnimActive) {
+        MusicPlayer::setVolume(0.0f);
+    }
+}
+
+void FreeplayState::playDJAnim(const std::string& anim, bool force, int startFrame) {
+    if (bfdjAnimate.hasAnim(anim)) {
+        bfdjAnimate.play(anim, force, startFrame);
+    }
+}
+
+void FreeplayState::stopTVSounds() {
+    if (tvAudioPlaying) {
+        tvAudioPlaying = false;
+        AudioEngine::stopSounds();
+        MusicPlayer::setVolume(0.7f);
+    }
+    tvIsOn = false;
+}
+
+void FreeplayState::resetAFKTimer() {
+    timeIdling = 0.0f;
+    seenIdleEasterEgg = false;
+}
+
+void FreeplayState::confirmSong(int chosenIndex) {
+    stopTVSounds();
+    if (selectedSong || songs.empty() || chosenIndex < 0 || chosenIndex >= (int)songs.size()) return;
+
+    if (songs[chosenIndex].name == "Random") {
+        if (songs.size() <= 1) {
+            AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
+            return;
+        }
+        chosenIndex = 1 + (rand() % ((int)songs.size() - 1));
+        curSelected = chosenIndex;
+        lerpSelected = (float)curSelected;
+    }
+
+    selectedSong = true;
+    confirmTimer = 0.0f;
+    confirmedSongIndex = chosenIndex;
+
+    FreeplaySong& fs = songs[chosenIndex];
+    confirmedSongName = fs.name;
+    confirmedIntroVideo = fs.info.introVideo;
+
+    if (WeekData::weeksLoaded.count(fs.week)) {
+        confirmedModFolder = WeekData::weeksLoaded[fs.week].modFolder;
+    } else {
+        confirmedModFolder = ModHandler::get().currentModFolder;
+    }
+
+    std::string diff = (curDifficulty >= 0 && curDifficulty < (int)curWeekDiffs.size()) ? curWeekDiffs[curDifficulty] : lastDifficultyName;
+    std::string suffix = "";
+    if (diff == "Easy" || diff == "easy") suffix = "easy";
+    else if (diff == "Hard" || diff == "hard") suffix = "hard";
+    else if (diff != "Normal" && diff != "normal") {
+        suffix = diff;
+        for (char& c : suffix) c = (char)tolower((unsigned char)c);
+    }
+    confirmedDiffSuffix = suffix;
+
+    AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
+    djState = DJ_CONFIRM;
+    playDJAnim("confirm", true);
 }
 
 static void drawRotatedRect(float cx, float cy, float w, float h, float angleRad, u32 color, float depth) {
@@ -196,6 +381,9 @@ void FreeplayState::init() {
     
     if (!isSubState) {
         MusicPlayer::play("romfs:/preload/music/freeplayAndCredits.adp", 0.7f);
+    if (isRankAnimActive) {
+        MusicPlayer::setVolume(0.0f);
+    }
     }
 
     VCRFontFix();
@@ -462,9 +650,151 @@ void FreeplayState::init() {
         }
     }
 
-    bfdjAnimate.loadSheet("preload/images/freeplay/bf/bfdj");
-    bfdjAnimate.addAnim("Boyfriend DJ", "Boyfriend DJ", 24.0f, true);
-    bfdjAnimate.play("Boyfriend DJ");
+    std::string t3xPath = Paths::getPath("spritemap1.t3x", "images/freeplay/bf", "preload");
+    std::string atlasJsonPath = Paths::getPath("spritemap1.json", "images/freeplay/bf", "preload");
+    std::string animJsonPath = Paths::getPath("Animation.json", "images/freeplay/bf", "preload");
+
+    if (bfdjAnimate.loadSpritemap(t3xPath, atlasJsonPath, animJsonPath)) {
+        bfdjAnimate.addSpritemapAnim("intro", "Intro", {}, 24.0f, false);
+        bfdjAnimate.addSpritemapAnim("idle", "Idle", {}, 24.0f, true);
+        bfdjAnimate.addSpritemapAnim("confirm", "Confirm", {}, 24.0f, false);
+        std::vector<int> fpIndices;
+        for (int i = 4; i < 42; i++) fpIndices.push_back(i);
+        bfdjAnimate.addSpritemapAnim("fistPump", "Fist Pump", fpIndices, 24.0f, false);
+
+        std::vector<int> lossIndices;
+        for (int i = 4; i < 168; i++) lossIndices.push_back(i);
+        bfdjAnimate.addSpritemapAnim("loss", "Fist Pump Loss", lossIndices, 24.0f, false);
+
+        std::vector<int> fpIntroIndices = {0, 1, 2, 3, 4};
+        bfdjAnimate.addSpritemapAnim("fistPumpIntro", "Fist Pump", fpIntroIndices, 24.0f, true);
+
+        std::vector<int> lossIntroIndices = {0, 1, 2, 3, 4};
+        bfdjAnimate.addSpritemapAnim("lossIntro", "Fist Pump Loss", lossIntroIndices, 24.0f, true);
+
+        bfdjAnimate.addSpritemapAnim("afk", "AFK", {}, 24.0f, false);
+        bfdjAnimate.addSpritemapAnim("tv", "Watching TV", {}, 24.0f, false);
+        bfdjAnimate.addSpritemapAnim("toCS", "To Character Select", {}, 24.0f, false);
+
+        std::vector<int> tvLoopIndices;
+        for (int i = 112; i < 166; i++) {
+            tvLoopIndices.push_back(i);
+        }
+        bfdjAnimate.addSpritemapAnim("tvLoop", "Watching TV", tvLoopIndices, 24.0f, true);
+
+        bfdjAnimate.addSpritemapAnim("Intro", "Intro", {}, 24.0f, false);
+        bfdjAnimate.addSpritemapAnim("Idle", "Idle", {}, 24.0f, true);
+        bfdjAnimate.addSpritemapAnim("Boyfriend DJ", "Idle", {}, 24.0f, true);
+        bfdjAnimate.addSpritemapAnim("Confirm", "Confirm", {}, 24.0f, false);
+        bfdjAnimate.addSpritemapAnim("Fist Pump", "Fist Pump", fpIndices, 24.0f, false);
+        bfdjAnimate.addSpritemapAnim("Fist Pump Loss", "Fist Pump Loss", lossIndices, 24.0f, false);
+        bfdjAnimate.addSpritemapAnim("AFK", "AFK", {}, 24.0f, false);
+        bfdjAnimate.addSpritemapAnim("idleEasterEgg", "AFK", {}, 24.0f, false);
+        bfdjAnimate.addSpritemapAnim("Watching TV", "Watching TV", {}, 24.0f, false);
+        bfdjAnimate.addSpritemapAnim("cartoon", "Watching TV", {}, 24.0f, false);
+        bfdjAnimate.addSpritemapAnim("To Character Select", "To Character Select", {}, 24.0f, false);
+        bfdjAnimate.addSpritemapAnim("charSelect", "To Character Select", {}, 24.0f, false);
+    } else {
+        bfdjAnimate.loadSheet("preload/images/freeplay/bf/bfdj");
+        bfdjAnimate.addAnim("idle", "Boyfriend DJ", 24.0f, true);
+        bfdjAnimate.addAnim("Boyfriend DJ", "Boyfriend DJ", 24.0f, true);
+    }
+
+    bfdjAnimate.onAnimFinished = [this](const std::string& name) {
+        if (name == "intro" || name == "Intro") {
+            djState = DJ_IDLE;
+            playDJAnim("idle", true);
+        } else if (name == "afk" || name == "AFK" || name == "idleEasterEgg") {
+            djState = DJ_IDLE;
+            playDJAnim("idle", true);
+        } else if (name == "fistPump" || name == "Fist Pump") {
+            djState = DJ_IDLE;
+            playDJAnim("idle", true);
+        } else if (name == "loss" || name == "Fist Pump Loss") {
+            djState = DJ_IDLE;
+            playDJAnim("idle", true);
+        } else if (name == "tv" || name == "Watching TV" || name == "cartoon") {
+            playDJAnim("tvLoop", true);
+        }
+    };
+
+    bfdjAnimate.onFrameChange = [this](const std::string& anim, int frame) {
+        if (anim == "tv" || anim == "Watching TV" || anim == "cartoon") {
+            if (frame == 79) {
+                AudioEngine::playSound("romfs:/preload/sounds/remote-click.adp", 1.0f);
+            } else if (frame == 84) {
+                if (!tvIsOn) {
+                    AudioEngine::playSound("romfs:/preload/sounds/tv-on.adp", 1.0f);
+                    tvIsOn = true;
+                } else {
+                    AudioEngine::playSound("romfs:/preload/sounds/channel-switch.adp", 1.0f);
+                }
+                MusicPlayer::setVolume(0.15f);
+                static std::vector<std::string> cartoonSounds;
+                static bool cartoonsScanned = false;
+                if (!cartoonsScanned) {
+                    cartoonsScanned = true;
+                    std::unordered_set<std::string> seenBaseNames;
+                    auto scanDir = [&](const std::string& path) {
+                        DIR* dir = opendir(path.c_str());
+                        if (!dir) return;
+                        struct dirent* entry;
+                        while ((entry = readdir(dir)) != nullptr) {
+                            std::string name = entry->d_name;
+                            if (name == "." || name == "..") continue;
+                            if (name.size() > 4) {
+                                std::string ext = name.substr(name.size() - 4);
+                                for (char& c : ext) c = (char)tolower((unsigned char)c);
+                                if (ext == ".adp" || ext == ".ogg" || ext == ".wav") {
+                                    std::string base = name.substr(0, name.size() - 4);
+                                    if (seenBaseNames.insert(base).second) {
+                                        cartoonSounds.push_back(path + "/" + name);
+                                    }
+                                }
+                            }
+                        }
+                        closedir(dir);
+                    };
+
+                    std::string modPath = ModHandler::get().getModPath("sounds/cartoons");
+                    if (!modPath.empty()) scanDir(modPath);
+                    scanDir("romfs:/preload/sounds/cartoons");
+                }
+
+                if (!cartoonSounds.empty()) {
+                    static int lastPick = -1;
+                    int pick = rand() % cartoonSounds.size();
+                    if (cartoonSounds.size() > 1 && pick == lastPick) {
+                        pick = (pick + 1) % cartoonSounds.size();
+                    }
+                    lastPick = pick;
+                    AudioEngine::playSound(cartoonSounds[pick], 1.0f);
+                    tvAudioPlaying = true;
+                    cartoonTimer = 15.0f;
+                }
+            }
+        }
+    };
+
+    if (isRankAnimActive) {
+        introTimer = 1.0f;
+    } else if (pendingRankAnim) {
+        introTimer = 1.0f;
+        pendingRankAnim = false;
+        pendingDJAnim.clear();
+        startRankAnim(pendingSongName, pendingDiff, pendingRating);
+    } else if (!pendingDJAnim.empty()) {
+        std::string animToPlay = pendingDJAnim;
+        pendingDJAnim.clear();
+        djState = (animToPlay == "loss" || animToPlay == "Fist Pump Loss") ? DJ_LOSS : DJ_FISTPUMP;
+        playDJAnim(animToPlay, true);
+    } else if (introTimer < 0.99f) {
+        djState = DJ_INTRO;
+        playDJAnim("intro", true);
+    } else {
+        djState = DJ_IDLE;
+        playDJAnim("idle", true);
+    }
 
     highscoreAnimTime = 0.0f;
     numbersAnimTime = 0.0f;
@@ -674,6 +1004,157 @@ void FreeplayState::update(float dt) {
         return;
     }
 
+    if (pendingRankAnim) {
+        pendingRankAnim = false;
+        pendingDJAnim.clear();
+        startRankAnim(pendingSongName, pendingDiff, pendingRating);
+    }
+
+    if (isRankAnimActive) {
+        if (MusicBeatState::transPhase != TransitionPhase::NONE) {
+            bfdjAnimate.update(dt);
+            return;
+        }
+        float prevTimer = rankAnimTimer;
+        rankAnimTimer += dt;
+
+        if (prevTimer < 0.5f && rankAnimTimer >= 0.5f) {
+            if (currentRankRating == "L" || currentRankRating == "LOSS") {
+                AudioEngine::playSound("romfs:/preload/sounds/ranks/rankinbad.adp", 1.0f);
+            } else if (currentRankRating == "P" || currentRankRating == "GP") {
+                AudioEngine::playSound("romfs:/preload/sounds/ranks/rankinperfect.adp", 1.0f);
+            } else {
+                AudioEngine::playSound("romfs:/preload/sounds/ranks/rankinnormal.adp", 1.0f);
+            }
+        }
+
+        if (prevTimer < 1.4f && rankAnimTimer >= 1.4f) {
+            rankVignetteAlpha = 1.0f;
+            rankCameraShake = 6.0f;
+            if (currentRankRating == "L" || currentRankRating == "LOSS") {
+                djState = DJ_LOSS;
+                playDJAnim("loss", true);
+                AudioEngine::playSound("romfs:/preload/sounds/ranks/loss.adp", 1.0f);
+            } else if (currentRankRating == "g" || currentRankRating == "GOOD") {
+                djState = DJ_FISTPUMP;
+                playDJAnim("fistPump", true);
+                AudioEngine::playSound("romfs:/preload/sounds/ranks/good.adp", 1.0f);
+            } else if (currentRankRating == "G" || currentRankRating == "GREAT") {
+                djState = DJ_FISTPUMP;
+                playDJAnim("fistPump", true);
+                AudioEngine::playSound("romfs:/preload/sounds/ranks/great.adp", 1.0f);
+            } else if (currentRankRating == "E") {
+                djState = DJ_FISTPUMP;
+                playDJAnim("fistPump", true);
+                AudioEngine::playSound("romfs:/preload/sounds/ranks/excellent.adp", 1.0f);
+            } else if (currentRankRating == "P" || currentRankRating == "GP") {
+                djState = DJ_FISTPUMP;
+                playDJAnim("fistPump", true);
+                AudioEngine::playSound("romfs:/preload/sounds/ranks/perfect.adp", 1.0f);
+            } else {
+                djState = DJ_FISTPUMP;
+                playDJAnim("fistPump", true);
+                AudioEngine::playSound("romfs:/preload/sounds/ranks/loss.adp", 1.0f);
+            }
+        }
+
+        if (rankAnimTimer >= 1.6f) {
+            float fadeT = std::min(1.0f, (rankAnimTimer - 1.6f) / 0.9f);
+            MusicPlayer::setVolume(0.7f * fadeT);
+        }
+
+        if (rankAnimTimer >= 1.4f) {
+            float slamElapsed = rankAnimTimer - 1.4f;
+            rankVignetteAlpha = std::max(0.0f, 1.0f - (slamElapsed / 0.6f));
+            rankCameraShake = std::max(0.0f, 6.0f * (1.0f - (slamElapsed / 0.35f)));
+        }
+
+        bfdjAnimate.update(dt);
+        textScrollTime += dt;
+        highscoreAnimTime += dt;
+        numbersAnimTime += dt;
+        starWaveTimer += dt;
+        for (auto& pair : heartBounceAnim) {
+            if (pair.second > 0.0f) {
+                pair.second += dt;
+                if (pair.second > 0.4f) pair.second = 0.0f;
+            } else if (pair.second < 0.0f) {
+                pair.second -= dt;
+                if (pair.second < -0.4f) pair.second = 0.0f;
+            }
+        }
+
+        if (rankAnimTimer >= 2.5f) {
+            isRankAnimActive = false;
+            rankCameraShake = 0.0f;
+            rankVignetteAlpha = 0.0f;
+            MusicPlayer::setVolume(0.7f);
+            if (djState != DJ_IDLE) {
+                djState = DJ_IDLE;
+                playDJAnim("idle", true);
+            }
+        }
+        return;
+    }
+
+    if (selectedSong) {
+        confirmTimer += dt;
+        bfdjAnimate.update(dt);
+        textScrollTime += dt;
+        highscoreAnimTime += dt;
+        numbersAnimTime += dt;
+        starWaveTimer += dt;
+        for (auto& pair : heartBounceAnim) {
+            if (pair.second > 0.0f) {
+                pair.second += dt;
+                if (pair.second > 0.4f) pair.second = 0.0f;
+            } else if (pair.second < 0.0f) {
+                pair.second -= dt;
+                if (pair.second < -0.4f) pair.second = 0.0f;
+            }
+        }
+        if (confirmTimer >= 0.85f || bfdjAnimate.animFinished) {
+            MusicPlayer::stop();
+            ModHandler::get().currentModFolder = confirmedModFolder;
+            PlayState::blueBalls = 0;
+            MusicBeatState::useFadeTransition = true;
+            if (!confirmedIntroVideo.empty()) {
+                switchState(new VideoState(confirmedIntroVideo, new PlayState(confirmedSongName, confirmedDiffSuffix, confirmedModFolder)));
+            } else {
+                switchState(new PlayState(confirmedSongName, confirmedDiffSuffix, confirmedModFolder));
+            }
+            return;
+        }
+        return;
+    }
+
+    if (isTransitioningToCS) {
+        csTransitionTimer += dt;
+        bfdjAnimate.update(dt);
+        textScrollTime += dt;
+        highscoreAnimTime += dt;
+        numbersAnimTime += dt;
+        starWaveTimer += dt;
+        float musicVol = 0.7f * (1.0f - clampf(csTransitionTimer / 0.8f, 0.0f, 1.0f));
+        MusicPlayer::setVolume(musicVol);
+        for (auto& pair : heartBounceAnim) {
+            if (pair.second > 0.0f) {
+                pair.second += dt;
+                if (pair.second > 0.4f) pair.second = 0.0f;
+            } else if (pair.second < 0.0f) {
+                pair.second -= dt;
+                if (pair.second < -0.4f) pair.second = 0.0f;
+            }
+        }
+        if (csTransitionTimer >= 0.85f) {
+            MusicPlayer::stop();
+            MusicBeatState::skipTransition = true;
+            switchState(new VideoState("introSelect", new CharacterSelectState(true), true));
+            return;
+        }
+        return;
+    }
+
     if (introTimer < 1.0f) {
         float introDt = std::min(dt, 1.0f / 30.0f);
         introTimer += introDt * 1.8f;
@@ -681,10 +1162,33 @@ void FreeplayState::update(float dt) {
     }
 
     u32 kDown = hidKeysDown();
+    if (kDown != 0) {
+        resetAFKTimer();
+    }
+
+    if (djState == DJ_IDLE) {
+        timeIdling += dt;
+        if (timeIdling >= 60.0f && !seenIdleEasterEgg) {
+            seenIdleEasterEgg = true;
+            djState = DJ_AFK;
+            playDJAnim("afk", true);
+        } else if (timeIdling >= 120.0f) {
+            djState = DJ_TV;
+            tvIsOn = false;
+            playDJAnim("tv", true);
+        }
+    } else if (djState == DJ_TV && tvAudioPlaying) {
+        cartoonTimer -= dt;
+        if (cartoonTimer <= 0.0f) {
+            cartoonTimer = 15.0f;
+            playDJAnim("tv", true, 59);
+        }
+    }
 
     int prevSelectedForEgg = curSelected;
 
     if (keyJustPressed(KEY_B)) {
+        stopTVSounds();
         AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
         isExiting = true;
         exitTimer = 0.0f;
@@ -726,14 +1230,14 @@ void FreeplayState::update(float dt) {
         std::string songName = songs[curSelected].name;
         if (songName != "Random") {
             if (favorites.count(songName) > 0) {
-            favorites.erase(songName);
-            heartBounceAnim[songName] = -0.01f;
-            AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.7f);
-        } else {
-            favorites.insert(songName);
-            heartBounceAnim[songName] = 0.01f;
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
-        }
+                favorites.erase(songName);
+                heartBounceAnim[songName] = -0.01f;
+                AudioEngine::playSound("romfs:/preload/sounds/unfavorite.adp", 1.0f);
+            } else {
+                favorites.insert(songName);
+                heartBounceAnim[songName] = 0.01f;
+                AudioEngine::playSound("romfs:/preload/sounds/favorite.adp", 1.0f);
+            }
         saveFavorites();
 
         rebuildCategories();
@@ -882,55 +1386,19 @@ void FreeplayState::update(float dt) {
         }
 
         if (keyJustPressed(KEY_X)) {
+            stopTVSounds();
             AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
-            MusicPlayer::stop();
-            switchState(new VideoState("introSelect", new CharacterSelectState(true), true));
+            isTransitioningToCS = true;
+            csTransitionTimer = 0.0f;
+            djState = DJ_CHAR_SELECT;
+            playDJAnim("toCS", true);
             return;
         }
 
         if (keyJustPressed(KEY_A | KEY_START)) {
             if (songs.empty() || curSelected < 0 || curSelected >= (int)songs.size()) return;
-
-            int chosenIndex = curSelected;
-            if (songs[chosenIndex].name == "Random") { // When como cuando te sientes bien random asi a la verga osi osi
-                if (songs.size() <= 1) {
-                    AudioEngine::playSound("romfs:/preload/sounds/cancelMenu.adp", 0.7f);
-                    return;
-                }
-                chosenIndex = 1 + (rand() % ((int)songs.size() - 1));
-                curSelected = chosenIndex;
-                lerpSelected = (float)curSelected;
-            }
-
-            AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
-            FreeplaySong& fs = songs[chosenIndex];
-            std::string lname = fs.name;
-            for (char& c : lname) c = (char)tolower((unsigned char)c);
-            
-            std::string selectedModFolder = "";
-            if (WeekData::weeksLoaded.count(fs.week)) {
-                selectedModFolder = WeekData::weeksLoaded[fs.week].modFolder;
-                ModHandler::get().currentModFolder = selectedModFolder;
-            } else {
-                selectedModFolder = ModHandler::get().currentModFolder;
-            }
-            MusicPlayer::stop();
-            
-            std::string diff = (curDifficulty >= 0 && curDifficulty < (int)curWeekDiffs.size()) ? curWeekDiffs[curDifficulty] : lastDifficultyName;
-            std::string suffix = "";
-            if (diff == "Easy" || diff == "easy") suffix = "easy";
-            else if (diff == "Hard" || diff == "hard") suffix = "hard";
-            else if (diff != "Normal" && diff != "normal") {
-                suffix = diff;
-                for (char& c : suffix) c = (char)tolower((unsigned char)c);
-            }
-
-            PlayState::blueBalls = 0;
-            if (!fs.info.introVideo.empty()) {
-                switchState(new VideoState(fs.info.introVideo, new PlayState(fs.name, suffix, selectedModFolder)));
-            } else {
-                switchState(new PlayState(fs.name, suffix, selectedModFolder));
-            }
+            confirmSong(curSelected);
+            return;
         }
         
         u32 kHeld = hidKeysHeld();
@@ -980,6 +1448,12 @@ void FreeplayState::update(float dt) {
                                     fclose(f);
                                 }
                             }
+                            if (iconEggCombo >= 10 && iconEggCombo % 10 == 0) {
+                                if (djState != DJ_AFK && djState != DJ_TV) {
+                                    djState = DJ_FISTPUMP;
+                                    playDJAnim("fistPump", true);
+                                }
+                            }
 
                             iconEggTextBounce = -10.0f;
                             iconEggActive = true;
@@ -1016,6 +1490,7 @@ void FreeplayState::update(float dt) {
             touchHoldTime += dt;
             if (std::abs(touch.py - touchStartY) > 5) {
                 isDragging = true;
+                resetAFKTimer();
             }
             if (isDragging) {
                 float dist = touch.py - lastTouchY;
@@ -1040,35 +1515,7 @@ void FreeplayState::update(float dt) {
                 }
                 if (tappedIndex != -1) {
                     if (curSelected == tappedIndex) {
-                        int chosenIndex = curSelected;
-                        if (songs[chosenIndex].name == "Random") {
-                            if (songs.size() <= 1) return;
-                            chosenIndex = 1 + (rand() % ((int)songs.size() - 1));
-                            curSelected = chosenIndex;
-                            lerpSelected = (float)curSelected;
-                        }
-
-                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
-                        FreeplaySong& fs = songs[chosenIndex];
-                        std::string selectedModFolder = "";
-                        if (WeekData::weeksLoaded.count(fs.week)) {
-                            selectedModFolder = WeekData::weeksLoaded[fs.week].modFolder;
-                            ModHandler::get().currentModFolder = selectedModFolder;
-                        } else {
-                            selectedModFolder = ModHandler::get().currentModFolder;
-                        }
-                        MusicPlayer::stop();
-                        
-                        std::string diff = (curDifficulty >= 0 && curDifficulty < (int)curWeekDiffs.size()) ? curWeekDiffs[curDifficulty] : lastDifficultyName;
-                        std::string suffix = "";
-                        if (diff == "Easy" || diff == "easy") suffix = "easy";
-                        else if (diff == "Hard" || diff == "hard") suffix = "hard";
-                        else if (diff != "Normal" && diff != "normal") {
-                            suffix = diff;
-                            for (char& c : suffix) c = (char)tolower((unsigned char)c);
-                        }
-                        PlayState::blueBalls = 0;
-                        switchState(new PlayState(fs.name, suffix, selectedModFolder));
+                        confirmSong(tappedIndex);
                         return;
                     } else {
                         curSelected = tappedIndex;
@@ -1251,6 +1698,12 @@ void FreeplayState::update(float dt) {
             // Trigger loss state, flashing text starts
             iconEggLossTimer = 1.0f; // For blinking and fade out!
             iconEggLastCombo = iconEggCombo; // Save combo to display
+            if (iconEggLastCombo >= 3) {
+                if (djState != DJ_AFK && djState != DJ_TV) {
+                    djState = DJ_LOSS;
+                    playDJAnim("loss", true);
+                }
+            }
             
             iconEggCombo = 0;
             iconEggActive = false;
@@ -1351,10 +1804,35 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     float introEaseOut = easeCubicOut(introTimer);
     float renderAlpha = introEaseOut * exitAlpha;
 
+    float darkA = 0.0f;
+    if (isRankAnimActive) {
+        if (rankAnimTimer < 1.4f) {
+            darkA = 0.85f;
+        } else {
+            float slamT = (rankAnimTimer - 1.4f) / 0.7f;
+            if (slamT > 1.0f) slamT = 1.0f;
+            darkA = 0.85f * (1.0f - slamT * slamT);
+        }
+    }
+
+    float csFrontY = 0.0f;
+    float csMidY = 0.0f;
+    float csBackY = 0.0f;
+    float csFadeAlpha = 0.0f;
+    if (isTransitioningToCS) {
+        float csT = clampf(csTransitionTimer / 0.8f, 0.0f, 1.0f);
+        float csEase = easeBackIn(csT);
+        csFrontY = -100.0f * csEase;
+        csMidY   = -60.0f  * csEase;
+        csBackY  = -20.0f  * csEase;
+        csFadeAlpha = csT * csT;
+    }
+
     // 1. Top black title bar & elements
     float topBarT = clampf(introTimer / 0.85f, 0.0f, 1.0f);
     float topBarEase = easeQuartOut(topBarT);
     float topIntroY = -45.0f * (1.0f - topBarEase) - (45.0f * exitT * exitT);
+    float topBarY = topIntroY + csFrontY;
 
     // 2. Song capsules
     float tCapsule = clampf((introTimer - 0.10f) / 0.90f, 0.0f, 1.0f);
@@ -1373,8 +1851,8 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
 
     // 5. Bottom Screen rotated black bars
     float barClampsEase = easeCubicOut(introTimer);
-    float barTopY = -5.0f - (125.0f * (1.0f - barClampsEase)) - (125.0f * exitT * exitT);
-    float barBotY = 245.0f + (125.0f * (1.0f - barClampsEase)) + (125.0f * exitT * exitT);
+    float barTopY = -5.0f - (125.0f * (1.0f - barClampsEase)) - (125.0f * exitT * exitT) + csMidY;
+    float barBotY = 245.0f + (125.0f * (1.0f - barClampsEase)) + (125.0f * exitT * exitT) + csMidY;
 
     // 6. Bottom Screen Album Art & Week Title
     float tAlbum = clampf((introTimer - 0.06f) / 0.94f, 0.0f, 1.0f);
@@ -1385,6 +1863,16 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     float tIcon = clampf((introTimer - 0.15f) / 0.85f, 0.0f, 1.0f);
     float iconPopScale = easeBackOut(tIcon, 2.0f);
     float botIntroBottomY = 120.0f * (1.0f - iconPopScale) + (120.0f * exitT * exitT);
+
+    float rankShakeOffsetX = 0.0f;
+    float rankShakeOffsetY = 0.0f;
+    if (isRankAnimActive && rankCameraShake > 0.01f) {
+        rankShakeOffsetX = ((float)((rand() % 100) - 50) / 50.0f) * rankCameraShake;
+        rankShakeOffsetY = ((float)((rand() % 100) - 50) / 50.0f) * (rankCameraShake * 0.7f);
+        topIntroX += rankShakeOffsetX;
+        topIntroY += rankShakeOffsetY;
+        botIntroLeftX += rankShakeOffsetX;
+    }
 
     C2D_SceneBegin(top);
     if (isSubState && isExiting) {
@@ -1398,7 +1886,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     // Difficulty selector
     if (!songs.empty()) {
         float diffCenterX = 60.0f; // Center pivot for difficulty moved more to the left
-        float diffY = 40.0f + topIntroY;
+        float diffY = 40.0f + topIntroY + csFrontY;
         const std::string& lowerDiff = cachedCurDiffLower;
 
         C2D_Image dImg = getDifficultyImage(lowerDiff);
@@ -1434,7 +1922,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             diffDrawX = diffCenterX - (dW_scaled / 2.0f);
 
             // Draw difficulty sprite with displacement offset
-            C2D_DrawImageAt(dImg, diffDrawX + diffOffsetX, diffY, 0.08f, &diffTint, scale, scale);
+            C2D_DrawImageAt(dImg, diffDrawX + diffOffsetX, diffY, 0.5f, &diffTint, scale, scale);
         } else {
             if (!isDiffCached) {
                 // Still loading from SD card: draw rotating loading square
@@ -1460,7 +1948,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 float dW_scaled = dW * scale;
                 diffDrawX = diffCenterX - (dW_scaled / 2.0f);
 
-                C2D_DrawText(&diffTextObj, C2D_WithColor, diffDrawX + diffOffsetX, diffY, 0.08f, scale, scale, C2D_Color32(255, 255, 255, (u8)(exitAlpha * 255.0f)));
+                C2D_DrawText(&diffTextObj, C2D_WithColor, diffDrawX + diffOffsetX, diffY, 0.5f, scale, scale, C2D_Color32(255, 255, 255, (u8)(exitAlpha * 255.0f)));
             }
         }
 
@@ -1503,12 +1991,12 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         float drawX = 400.0f - bgW + bgRbgSlideX;
         C2D_ImageTint tint;
         C2D_AlphaImageTint(&tint, exitAlpha);
-        drawFrameAt(bfBgFrame, drawX, 0, 0.1f, &tint);
+        drawFrameAt(bfBgFrame, drawX, csMidY, 0.1f, &tint);
     }
 
     // Black title bar
-    C2D_DrawRectSolid(0, topIntroY - 60.0f, 0.9f, 400, 30.0f + 60.0f, C2D_Color32(0, 0, 0, (u8)(exitAlpha * 255.0f)));
-    AddTextDepth("FREEPLAY", 10, 5 + topIntroY, 0.7f, false, 0.0f, C2D_Color32(255, 255, 255, (u8)(exitAlpha * 255.0f)), 0.0f, 0.95f);
+    C2D_DrawRectSolid(0, topBarY - 60.0f, 0.90f, 400, 30.0f + 60.0f, C2D_Color32(0, 0, 0, (u8)(exitAlpha * 255.0f)));
+    AddTextDepth("FREEPLAY", 10, 5 + topBarY, 0.7f, false, 0.0f, C2D_Color32(255, 255, 255, (u8)(exitAlpha * 255.0f)), 0.0f, 0.93f);
 
     // Draw custom OST text on the right side of the title bar
     std::string ostName = "OFFICIAL OST";
@@ -1530,12 +2018,16 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     float ostW, ostH;
     C2D_TextGetDimensions(&ostTextObj, 0.7f, 0.7f, &ostW, &ostH);
     float ostX = 390.0f - ostW; // 10px margin on the right
-    float ostY = 5.0f + topIntroY;
-    C2D_DrawText(&ostTextObj, C2D_WithColor, ostX, ostY, 0.95f, 0.7f, 0.7f, C2D_Color32(255, 255, 255, (u8)(exitAlpha * 255.0f)));
+    float ostY = 5.0f + topBarY;
+    C2D_DrawText(&ostTextObj, C2D_WithColor, ostX, ostY, 0.93f, 0.7f, 0.7f, C2D_Color32(255, 255, 255, (u8)(exitAlpha * 255.0f)));
     C2D_Flush();
 
     // Draw category organizer in the title bar, centered between FREEPLAY and OST
-    drawCategoryOrganizer(topIntroY, exitAlpha, ostX);
+    drawCategoryOrganizer(topBarY, exitAlpha, ostX);
+
+    if (isRankAnimActive && darkA > 0.005f) {
+        C2D_DrawRectSolid(0, topBarY - 60.0f, 0.96f, 400, 30.0f + 60.0f, C2D_Color32(0, 0, 0, (u8)(darkA * 255.0f)));
+    }
 
     // Draw scrolling background text
     auto drawScrollingText = [&](const std::string& text, float y, float scale, float speed, float dir, u32 color, u32 bgColor = 0) {
@@ -1566,7 +2058,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         AddTextDepth(text, startX + (tw + spacing) * 2, y, scale, false, 0.0f, color, 0.0f, 0.05f);
     };
 
-    float currTextY = 35.0f + topIntroY;
+    float currTextY = 35.0f + topIntroY + csBackY;
     u32 colorMoreWays = C2D_Color32(
         std::min(255, (int)curColor[0] + 0x30),
         std::min(255, (int)curColor[1] + 0x30),
@@ -1605,10 +2097,23 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     currTextY += 20.0f;
     drawScrollingText("BOYFRIEND ", currTextY, 1.0f, 70.0f, 1.0f, colorBoyfriend, colorLastBg);
 
-    if (bfdjAnimate.curAnim == "Boyfriend DJ") {
-        float bfScale = 0.85f;
-        float bfX = 5.0f + botIntroLeftX;
-        float bfY = 240.0f - bfdjAnimate.height() * bfScale + 5.0f;
+    if (!bfdjAnimate.curAnim.empty()) {
+        float bfScale = 0.92f;
+        float bfX, bfY;
+        if (bfdjAnimate.smData.canvasW > 0.0f) {
+            float finalScaleX = bfdjAnimate.spritemapScale * bfScale;
+            float finalScaleY = bfdjAnimate.spritemapScale * bfScale;
+            float canvasCX = bfdjAnimate.smData.canvasW * 0.5f;
+            float canvasCY = bfdjAnimate.smData.canvasH * 0.5f;
+            float targetLeft = 14.0f + botIntroLeftX;
+            float targetBottom = 246.0f + csMidY;
+            bfX = targetLeft - (-276.3f - canvasCX) * finalScaleX;
+            bfY = targetBottom - (167.0f - canvasCY) * finalScaleY;
+        } else {
+            bfX = 5.0f + botIntroLeftX;
+            bfY = 240.0f - bfdjAnimate.height() * bfScale + 11.0f + csMidY;
+        }
+        bfdjAnimate.alpha = exitAlpha;
         C2D_ImageTint tint;
         C2D_AlphaImageTint(&tint, exitAlpha);
         bfdjAnimate.draw(bfX, bfY, 0.3f, bfScale, bfScale, &tint);
@@ -1617,11 +2122,16 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     // Draw cleared box and accuracy inside
     float scale = 0.65f;
     float cbX = 400.0f - (82.4f * scale) - 10.0f;
-    float cbY = 32.0f + topIntroY;
-    accuracyDisplay.draw(cbX, cbY, 0.5f, exitAlpha, scale);
+    float cbY = 32.0f + topIntroY + csFrontY;
+    float accDim = isRankAnimActive ? (1.0f - darkA * 0.85f) : 1.0f;
+    accuracyDisplay.draw(cbX, cbY, 0.40f, exitAlpha * accDim, scale);
+
+    if (isRankAnimActive && darkA > 0.005f) {
+        C2D_DrawRectSolid(0, 0, 0.55f, 400, 240, C2D_Color32(0, 0, 0, (u8)(darkA * 255.0f)));
+    }
 
     // Song list (on top)
-    float centerY = 130.0f;
+    float centerY = 130.0f + csFrontY;
     for (size_t i = 0; i < songs.size(); i++) {
         FreeplaySong& fs = songs[i];
         bool isSelected = ((int)i == curSelected);
@@ -1637,17 +2147,170 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         float itemOffsetX = -std::min(distFloat, 2.0f) * 30.0f;  // Max offset of 60px
         float itemCenterX = 270.0f + itemOffsetX + topIntroX;
 
+        float capDepth = (isRankAnimActive && isSelected) ? 0.80f : 0.65f;
+
         // Draw capsule for all songs
         if (capsuleFrame.tex) {
             // Position capsule centered horizontally at song item location
             float capsuleW = frameLogicalW(capsuleFrame);
+            float capsuleH = frameLogicalH(capsuleFrame);
             float capsuleX = itemCenterX - (capsuleW / 2.0f);
+            float capsuleY = itemY - 5;
+            float targetX = capsuleX;
+            float targetY = capsuleY;
+            float capScale = 1.0f;
+            float ratingStampScale = 1.0f;
+            float tiltAngle = 0.0f;
             
-            float itemAlpha = isSelected ? exitAlpha : (0.6f * exitAlpha);
+            std::string rating = (fs.name != "Random") ? Highscores::getRating(fs.name, currentDifficultyStr) : "";
+            if (isRankAnimActive && isSelected && !currentRankRating.empty()) {
+                rating = currentRankRating;
+            }
+            bool showRating = !rating.empty();
+
+            float rankDim = (isRankAnimActive && !isSelected) ? (1.0f - darkA * 0.70f) : 1.0f;
+            float itemAlpha = (isSelected ? exitAlpha : (0.6f * exitAlpha)) * rankDim;
+            if (isRankAnimActive) {
+                if (!isSelected) {
+                    // Shaking ripple on other items when ranked capsule slams at t = 1.4s
+                    int distFromSelected = std::abs((int)i - curSelected);
+                    if (distFromSelected > 0 && distFromSelected <= 5 && rankAnimTimer >= 1.4f) {
+                        float slamElapsed = rankAnimTimer - 1.4f;
+                        float delay = (float)(distFromSelected - 1) / 20.0f;
+                        if (slamElapsed >= delay) {
+                            float effectTime = slamElapsed - delay;
+                            float angleT = effectTime / 0.5f;
+                            if (angleT < 1.0f) {
+                                float p = angleT - 1.0f;
+                                float s = 1.70158f;
+                                float easeBackOut = p * p * ((s + 1.0f) * p + s) + 1.0f;
+                                float baseAngleDeg = (i % 2 == 0 ? 1.0f : -1.0f) * (7.0f - (float)distFromSelected * 1.0f);
+                                tiltAngle = (baseAngleDeg * (3.14159265f / 180.0f)) * (1.0f - easeBackOut);
+                            }
+                            float shakeT = effectTime / 0.6f;
+                            if (shakeT < 1.0f) {
+                                float shakeDecay = (1.0f - shakeT * shakeT) * (3.0f / (float)distFromSelected);
+                                float phase = (rankAnimTimer * 55.0f) + (float)i * 2.3f;
+                                capsuleX += sinf(phase) * shakeDecay;
+                                capsuleY += cosf(phase * 1.2f) * (shakeDecay * 0.6f);
+                            }
+                        }
+                    }
+                } else {
+                    float screenCenterX = 200.0f - (capsuleW * 0.5f);
+                    float screenCenterY = 115.0f;
+                    
+                    if (rankAnimTimer < 0.5f) {
+                        // Phase 1: Anticipation / Intro (0.0s - 0.5s)
+                        capScale = 1.15f;
+                        capsuleX = screenCenterX;
+                        capsuleY = screenCenterY;
+                        showRating = false;
+                        tiltAngle = 0.0f;
+                    } else if (rankAnimTimer < 0.9f) {
+                        // Phase 2: The Rank Stamp (0.5s - 0.9s)
+                        capScale = 1.15f;
+                        showRating = true;
+
+                        float stampT = (rankAnimTimer - 0.5f) / 0.12f;
+                        if (stampT < 1.0f) {
+                            float p = 1.0f - stampT;
+                            ratingStampScale = 1.0f + 3.0f * (p * p);
+                        } else {
+                            ratingStampScale = 1.0f;
+                        }
+
+                        float tiltT = (rankAnimTimer - 0.5f) / 0.35f;
+                        if (tiltT < 1.0f) {
+                            float p = tiltT - 1.0f;
+                            float s = 1.70158f;
+                            float easeBackOut = p * p * ((s + 1.0f) * p + s) + 1.0f;
+                            tiltAngle = (-3.5f * (3.14159265f / 180.0f)) * (1.0f - easeBackOut);
+                        } else {
+                            tiltAngle = 0.0f;
+                        }
+
+                        float impactT = std::min(1.0f, (rankAnimTimer - 0.5f) / 0.25f);
+                        float impactDecay = 1.0f - impactT;
+                        capsuleX = screenCenterX - 3.0f * impactDecay + sinf(rankAnimTimer * 60.0f) * 2.0f * impactDecay;
+                        capsuleY = screenCenterY - 5.0f * impactDecay + cosf(rankAnimTimer * 50.0f) * 1.5f * impactDecay;
+                    } else if (rankAnimTimer < 1.4f) {
+                        // Phase 3: Drift directly to the curSelected item slot (0.9s - 1.4s)
+                        float driftT = (rankAnimTimer - 0.9f) / 0.5f;
+                        float easeQuartIn = driftT * driftT * driftT * driftT;
+
+                        capsuleX = screenCenterX + (targetX - screenCenterX) * easeQuartIn;
+                        capsuleY = screenCenterY + (targetY - screenCenterY) * easeQuartIn;
+                        capScale = 1.15f + (1.0f - 1.15f) * easeQuartIn;
+                        showRating = true;
+                        tiltAngle = 0.0f;
+                    } else {
+                        // Phase 4: THE SLAM & RECOIL (1.4s+)
+                        showRating = true;
+                        tiltAngle = 0.0f;
+                        capsuleX = targetX;
+                        capsuleY = targetY;
+
+                        float slamElapsed = rankAnimTimer - 1.4f;
+                        float recoilT = slamElapsed;
+                        float recoilY = 3.5f * sinf(recoilT * 28.0f) * expf(-recoilT * 10.0f);
+                        capsuleY += recoilY;
+                        capScale = 1.0f + 0.12f * sinf(recoilT * 28.0f) * expf(-recoilT * 10.0f);
+
+                        float shakeDecay = std::max(0.0f, 1.0f - (recoilT / 0.35f));
+                        capsuleX += sinf(rankAnimTimer * 60.0f) * 1.0f * shakeDecay;
+                    }
+                    itemAlpha = exitAlpha;
+                }
+            } else if (selectedSong && isSelected && ((int)(confirmTimer * 18.0f) % 2 == 1)) {
+                itemAlpha = 0.2f * exitAlpha;
+            }
+
+            float capCenterX = capsuleX + (capsuleW * 0.5f);
+            float capCenterY = capsuleY + (capsuleH * 0.5f);
+            float cosA = cosf(tiltAngle);
+            float sinA = sinf(tiltAngle);
+
+            // Expanding Afterimage effect of the rank color on slam
+            if (isRankAnimActive && isSelected && rankAnimTimer >= 1.4f && rankAnimTimer < 2.0f) {
+                float slamElapsed = rankAnimTimer - 1.4f;
+                float fadeProg = slamElapsed / 0.55f;
+                if (fadeProg < 1.0f) {
+                    float p = 1.0f - fadeProg;
+                    float easeProg = 1.0f - (p * p * p);
+                    float afterScale = 1.0f + 1.25f * easeProg;
+                    float afterAlpha = (p * p) * 0.85f * exitAlpha;
+                    if (afterAlpha > 0.005f) {
+                        C2D_ImageTint afterTint;
+                        C2D_PlainImageTint(&afterTint, C2D_Color32(rankVignetteR, rankVignetteG, rankVignetteB, (u8)(afterAlpha * 255.0f)), 1.0f);
+                        float afterW = capsuleW * afterScale;
+                        float afterH = capsuleH * afterScale;
+                        float afterX = targetX + (capsuleW * 0.5f) - (afterW * 0.5f);
+                        float afterY = targetY + (capsuleH * 0.5f) - (afterH * 0.5f);
+                        C2D_Flush();
+                        C3D_DepthTest(true, GPU_GEQUAL, GPU_WRITE_COLOR);
+                        drawFrameAt(capsuleFrame, afterX, afterY, capDepth - 0.02f, &afterTint, afterScale, afterScale);
+                        C2D_Flush();
+                        C3D_DepthTest(true, GPU_GEQUAL, GPU_WRITE_ALL);
+                    }
+                }
+            }
 
             C2D_ImageTint capTint;
-            C2D_AlphaImageTint(&capTint, itemAlpha);
-            drawFrameAt(capsuleFrame, capsuleX, itemY - 5, 0.2f, &capTint);
+            if (isRankAnimActive && !isSelected && darkA > 0.005f) {
+                u8 dimVal = (u8)(255.0f * (1.0f - darkA * 0.65f));
+                C2D_PlainImageTint(&capTint, C2D_Color32(dimVal, dimVal, dimVal, (u8)(itemAlpha * 255.0f)), 1.0f);
+            } else {
+                C2D_AlphaImageTint(&capTint, itemAlpha);
+            }
+            if (fabsf(tiltAngle) > 0.001f) {
+                C2D_Image capImg = { capsuleFrame.tex, &capsuleFrame.uv };
+                C2D_DrawImageAtRotated(capImg, capCenterX, capCenterY, capDepth, tiltAngle, &capTint, capScale, capScale);
+            } else {
+                float drawCapX = capsuleX - (capScale - 1.0f) * capsuleW * 0.5f;
+                float drawCapY = capsuleY - (capScale - 1.0f) * capsuleH * 0.5f;
+                drawFrameAt(capsuleFrame, drawCapX, drawCapY, capDepth, &capTint, capScale, capScale);
+            }
 
             // Draw heart for favorites
             bool isFav = (fs.name != "Random") && (favorites.count(fs.name) > 0);
@@ -1655,107 +2318,136 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             bool shouldDrawHeart = isFav || (animTime < 0.0f);
             
             if (shouldDrawHeart && hasFavFrame) {
-                // Heart scaled down by 1.77083f to match new high-res letterStuff (255x216 vs 144x122)
-                float heartScale = 0.8f / 1.77083f;
-                float heartW = favFrame.w * heartScale;
-                float heartH = favFrame.h * heartScale;
-                
-                // Sway animation (rotation around bottom-center)
-                float swayAngle = 0.15f * sinf(highscoreAnimTime * 3.5f);
-                
-                // Scalebeat animation (every 1.5 seconds)
                 float timeInPeriod = fmodf(highscoreAnimTime, 1.5f);
                 float beatScale = 1.0f;
                 if (timeInPeriod < 0.15f) {
                     float beatProgress = timeInPeriod / 0.15f;
                     beatScale = 1.0f + 0.12f * sinf(beatProgress * 3.14159265f);
                 }
-                
-                // Pivot point (bottom center of the heart)
-                float pivotX = capsuleX + capsuleW - (heartW * 0.5f);
-                float pivotY = itemY - 5 + (heartH * 0.5f);
-                
+
                 float hScaleMult = 1.0f;
                 float hAlphaMult = 1.0f;
-                
+
                 if (animTime > 0.0f) {
-                    // Jump-in animation (Back Ease Out tween)
                     float progress = animTime / 0.2f;
                     if (progress > 1.0f) progress = 1.0f;
                     float t = progress - 1.0f;
                     float s = 1.70158f;
                     hScaleMult = t * t * ((s + 1.0f) * t + s) + 1.0f;
                 } else if (animTime < 0.0f) {
-                    // Jump-out animation (Shrink)
                     float progress = -animTime / 0.15f;
                     if (progress > 1.0f) progress = 1.0f;
                     hScaleMult = 1.0f - progress;
                     hAlphaMult = 1.0f - progress;
                 }
-                
-                // Rotated center coordinates
-                float centerX = pivotX + (heartH * 0.5f) * sinf(swayAngle);
-                float centerY = pivotY - (heartH * 0.5f) * cosf(swayAngle);
-                
+
+                float heartScale = 0.8f / 1.77083f;
+                float curHeartScale = heartScale * hScaleMult * beatScale * capScale;
+                float heartW = favFrame.w * heartScale;
+                float heartH = favFrame.h * heartScale;
+
+                float swayAngle = 0.15f * sinf(highscoreAnimTime * 3.5f);
+                float totalHeartAngle = tiltAngle + swayAngle;
+
+                float localPivotX = ((capsuleW * 0.5f) - (heartW * 0.5f)) * capScale;
+                float localPivotY = (-(capsuleH * 0.5f) + (heartH * 0.5f)) * capScale;
+
+                float curPivotX = capCenterX + (localPivotX * cosA - localPivotY * sinA);
+                float curPivotY = capCenterY + (localPivotX * sinA + localPivotY * cosA);
+
+                float finalHeartX = curPivotX + (heartH * capScale * 0.5f) * sinf(totalHeartAngle);
+                float finalHeartY = curPivotY - (heartH * capScale * 0.5f) * cosf(totalHeartAngle);
+
                 C2D_Image img = { favFrame.tex, &favFrame.uv };
                 C2D_ImageTint heartTint;
                 C2D_PlainImageTint(&heartTint, C2D_Color32(255, 0, 0, (u8)(itemAlpha * hAlphaMult * 255.0f)), 1.0f);
-                C2D_DrawImageAtRotated(img, centerX, centerY, 0.25f, swayAngle, &heartTint, heartScale * hScaleMult * beatScale, heartScale * hScaleMult * beatScale);
+                C2D_DrawImageAtRotated(img, finalHeartX, finalHeartY, capDepth + 0.025f, totalHeartAngle, &heartTint, curHeartScale, curHeartScale);
             }
             
             // Draw rating letter
-            std::string rating = (fs.name != "Random") ? Highscores::getRating(fs.name, currentDifficultyStr) : "";
-            if (!rating.empty()) {
+            if (showRating) {
                 Frame rFrame = getRatingFrame(rating);
                 if (rFrame.tex) {
-                    // Rating scaled down by 1.77083f to match new high-res letterStuff
                     float rScale = 0.8f / 1.77083f;
                     float rH = rFrame.h * rScale;
-                    
-                    // Fixed position inside the capsule (using 27.0f height of the capsule)
-                    float rX = capsuleX + capsuleW - 30.0f;
-                    float rY = (itemY - 5) + (27.0f * 0.5f) - (rH * 0.5f);
-                    
+                    float rW = frameLogicalW(rFrame) * rScale;
+                    float finalRScale = rScale * capScale * ratingStampScale;
+
+                    float localRX = ((capsuleW * 0.5f) - 30.0f + (rW * 0.5f)) * capScale;
+                    float localRY = (13.5f - (capsuleH * 0.5f)) * capScale;
+
+                    float worldRX = capCenterX + (localRX * cosA - localRY * sinA);
+                    float worldRY = capCenterY + (localRX * sinA + localRY * cosA);
+
                     C2D_ImageTint rTint;
-                    C2D_PlainImageTint(&rTint, getRatingColor(rating, (u8)(itemAlpha * 255.0f)), 1.0f);
-                    drawFrameAt(rFrame, rX, rY, 0.25f, &rTint, rScale, rScale);
+                    u8 rAlpha = (u8)(itemAlpha * 255.0f);
+                    C2D_PlainImageTint(&rTint, getRatingColor(rating, rAlpha), 1.0f);
+
+                    float rotOffset = rFrame.rotated ? -(3.14159265f / 2.0f) : 0.0f;
+                    float finalAngle = tiltAngle + rotOffset;
+                    C2D_Image rImg = { rFrame.tex, &rFrame.uv };
+                    C2D_DrawImageAtRotated(rImg, worldRX, worldRY, capDepth + 0.015f, finalAngle, &rTint, finalRScale, finalRScale);
                 }
             }
             
-            // Flush capsule image draw queue to render it before the scissor is configured
-            C2D_Flush();
-            
             // Draw text inside capsule area with clipping
-            // Text area in capsule: X: 21, Y: 7, Width: 121, Height: 13
-            float textBoxX = capsuleX + CAPSULE_TEXT_START_X;
-            float textBoxY = itemY - 5 + CAPSULE_TEXT_START_Y;
-            float textBoxXEnd = textBoxX + CAPSULE_TEXT_WIDTH;
+            float localTextOffsetX = (CAPSULE_TEXT_START_X - (capsuleW * 0.5f)) * capScale;
+            float localTextOffsetY = (CAPSULE_TEXT_START_Y - (capsuleH * 0.5f)) * capScale;
+            float textBoxX = capCenterX + (localTextOffsetX * cosA - localTextOffsetY * sinA);
+            float textBoxY = capCenterY + (localTextOffsetX * sinA + localTextOffsetY * cosA);
             
-            // Set scissor box in physical coordinates (CW rotation)
-            u32 phys_left = (u32)(240.0f - (textBoxY + CAPSULE_TEXT_HEIGHT));
-            u32 phys_right = (u32)(240.0f - textBoxY);
-            u32 phys_top = (u32)(400.0f - textBoxXEnd);
-            u32 phys_bottom = (u32)(400.0f - textBoxX);
-            C3D_SetScissor(GPU_SCISSOR_NORMAL, phys_left, phys_top, phys_right, phys_bottom);
+            float clipTop = capCenterY - (capsuleH * 0.5f - 2.0f) * capScale;
+            float clipBottom = capCenterY + (capsuleH * 0.5f - 2.0f) * capScale;
+            float clipLeft = capCenterX - (capsuleW * 0.5f - 18.0f) * capScale;
+            float clipRight = capCenterX + (capsuleW * 0.5f - 38.0f) * capScale;
+
+            float sLeft = std::max(0.0f, std::min(240.0f, clipTop));
+            float sRight = std::max(0.0f, std::min(240.0f, clipBottom));
+            float sTop = std::max(0.0f, std::min(400.0f, clipLeft));
+            float sBottom = std::max(0.0f, std::min(400.0f, clipRight));
+
+            bool applyScissor = (sLeft < sRight && sTop < sBottom);
+            if (applyScissor) {
+                C2D_Flush();
+                u32 phys_left = (u32)(240.0f - sRight);
+                u32 phys_right = (u32)(240.0f - sLeft);
+                u32 phys_top = (u32)(400.0f - sBottom);
+                u32 phys_bottom = (u32)(400.0f - sTop);
+                C3D_SetScissor(GPU_SCISSOR_NORMAL, phys_left, phys_top, phys_right, phys_bottom);
+            }
             
-            u32 textCol = C2D_Color32(255, 255, 255, (u8)(itemAlpha * 255.0f));
+            u8 textDim = (isRankAnimActive && !isSelected && darkA > 0.005f) ? (u8)(255.0f * (1.0f - darkA * 0.65f)) : 255;
+            u32 textCol = C2D_Color32(textDim, textDim, textDim, (u8)(itemAlpha * 255.0f));
             if (isSelected) {
-                // Draw scrolling text for selected song
-                float displayX = textBoxX - scrollOffset;
-                AddText(fs.name, displayX, textBoxY - 1.0f, 0.45f, false, 0.0f, textCol, 0.0f);
+                float displayX = isRankAnimActive ? textBoxX : (textBoxX - scrollOffset);
+                AddTextDepth(fs.name, displayX, textBoxY - 1.0f, 0.45f * capScale, false, 0.0f, textCol, 0.0f, capDepth + 0.035f);
             } else {
-                // Draw static text left-aligned for non-selected songs
-                AddText(fs.name, textBoxX, textBoxY - 1.0f, 0.45f, false, 0.0f, textCol, 0.0f);
+                AddTextDepth(fs.name, textBoxX, textBoxY - 1.0f, 0.45f * capScale, false, 0.0f, textCol, 0.0f, capDepth + 0.035f);
             }
 
-            // Disable scissor box
-            C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
+            if (applyScissor) {
+                C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
+            }
         } else {
             // Fallback: just text without capsule (spaced by 55)
-            float itemAlpha = isSelected ? exitAlpha : (0.6f * exitAlpha);
-            u32 textCol = C2D_Color32(255, 255, 255, (u8)(itemAlpha * 255.0f));
-            AddText(fs.name, itemCenterX, itemY, scale, true, 2.0f, textCol, 0.0f);
+            float rankDim = (isRankAnimActive && !isSelected) ? (1.0f - darkA * 0.70f) : 1.0f;
+            float itemAlpha = (isSelected ? exitAlpha : (0.6f * exitAlpha)) * rankDim;
+            if (selectedSong && isSelected && ((int)(confirmTimer * 18.0f) % 2 == 1)) {
+                itemAlpha = 0.2f * exitAlpha;
+            }
+            u8 textDim = (isRankAnimActive && !isSelected && darkA > 0.005f) ? (u8)(255.0f * (1.0f - darkA * 0.65f)) : 255;
+            u32 textCol = C2D_Color32(textDim, textDim, textDim, (u8)(itemAlpha * 255.0f));
+            AddTextDepth(fs.name, itemCenterX, itemY, scale, true, 2.0f, textCol, 0.0f, capDepth + 0.03f);
         }
+    }
+
+    if (isRankAnimActive && rankVignetteAlpha > 0.005f) {
+        float flashAlpha = rankVignetteAlpha * 0.35f;
+        C2D_DrawRectSolid(0, 0, 0.98f, 400, 240, C2D_Color32(rankVignetteR, rankVignetteG, rankVignetteB, (u8)(flashAlpha * 255.0f)));
+    }
+
+    if (csFadeAlpha > 0.005f) {
+        C2D_DrawRectSolid(0, 0, 0.99f, 400, 240, C2D_Color32(0, 0, 0, (u8)(csFadeAlpha * 255.0f)));
     }
 
     if (!g_isRightEye && bottom) {
@@ -1774,7 +2466,14 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             if (bgImg.tex) {
                 C2D_ImageTint tint;
                 C2D_PlainImageTint(&tint, C2D_Color32((int)curColor[0], (int)curColor[1], (int)curColor[2], (u8)(renderAlpha * 255.0f)), 1.0f);
-                drawCenteredBG(bgImg, 320.0f, 240.0f, 0.11f, &tint);
+                float minScaleX = 320.0f / bgImg.subtex->width;
+                float minScaleY = 240.0f / bgImg.subtex->height;
+                float scale = std::max(0.95f, std::max(minScaleX, minScaleY));
+                float drawW = bgImg.subtex->width * scale;
+                float drawH = bgImg.subtex->height * scale;
+                float drawX = (320.0f - drawW) / 2.0f;
+                float drawY = (240.0f - drawH) / 2.0f + csBackY;
+                C2D_DrawImageAt(bgImg, drawX, drawY, 0.11f, &tint, scale, scale);
             }
         }
 
@@ -1804,7 +2503,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                     float hsW = frameLogicalW(hsFrame) * scale;
                     float hsH = frameLogicalH(hsFrame) * scale;
                     float hsX = 10.0f + botIntroLeftX;
-                    float hsY = 10.0f + topIntroY;
+                    float hsY = 10.0f + topIntroY + csFrontY;
                     
                     drawFrameAt(hsFrame, hsX, hsY, 0.71f, &uiTint, scale, scale);
                     
@@ -1856,7 +2555,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             // Draw week name using Alphabet font (to the right of the album photo, using storyName)
             if (fs.name != "Random" && !cachedWeekLines.lines.empty()) {
                 for (size_t i = 0; i < cachedWeekLines.lines.size(); i++) {
-                    Alphabet::draw(cachedWeekLines.lines[i], 140.0f + botIntroRightX, cachedWeekLines.startY + (float)i * cachedWeekLines.lineHeight, cachedWeekLines.scale, exitAlpha, false);
+                    Alphabet::draw(cachedWeekLines.lines[i], 140.0f + botIntroRightX, cachedWeekLines.startY + csFrontY + (float)i * cachedWeekLines.lineHeight, cachedWeekLines.scale, exitAlpha, false);
                 }
 
                 // Draw difficulty stars and fire loop above storyName
@@ -1873,7 +2572,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                     float fireScale = 0.30f;
                     float starSpacing = 16.0f;
                     float startStarX = 140.0f + botIntroRightX;
-                    float starCenterY = cachedWeekLines.startY - 14.0f;
+                    float starCenterY = cachedWeekLines.startY + csFrontY - 14.0f;
                     float fireCenterY = starCenterY - 14.0f;
 
                 const float cycleDuration = 100.0f / 24.0f;
@@ -2038,7 +2737,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 float defaultY = 240.0f - iconH - 28.0f;
                 
                 float iconX = defaultX + iconEggXOffset;
-                float iconY = defaultY + iconBounceY + botIntroBottomY + iconEggYOffset;
+                float iconY = defaultY + iconBounceY + botIntroBottomY + iconEggYOffset + csFrontY;
                 
                 C2D_ImageTint iconTint;
                 C2D_AlphaImageTint(&iconTint, exitAlpha);
@@ -2056,7 +2755,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 float defaultX = 320.0f - 75.0f - 15.0f;
                 float defaultY = 240.0f - 75.0f - 28.0f;
                 float iconCenterX = defaultX + 75.0f / 2.0f;
-                float iconCenterY = defaultY + 75.0f / 2.0f + botIntroBottomY;
+                float iconCenterY = defaultY + 75.0f / 2.0f + botIntroBottomY + csFrontY;
                 
                 drawRotatedRect(iconCenterX, iconCenterY, 20.0f, 20.0f, loadingAngle, C2D_Color32(255, 255, 255, (u8)(exitAlpha * 255.0f)), 0.7f);
             }
@@ -2099,7 +2798,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                     else { r = 1; b = x_col; }
                     comboCol = C2D_Color32((int)(r*255), (int)(g*255), (int)(b*255), (u8)(drawAlpha * 255.0f));
                 }
-                AddTextCentered(comboStr, 160.0f, 65.0f + textYOffset, 0.5f, 1.5f, comboCol, 0.0f);
+                AddTextCentered(comboStr, 160.0f, 65.0f + textYOffset + csFrontY, 0.5f, 1.5f, comboCol, 0.0f);
             }
             
             // Draw BEST (yellow, solid but fades)
@@ -2107,7 +2806,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 std::string bestStr = "BEST: " + std::to_string(iconEggBest);
                 float bestAlpha = (iconEggCombo >= 5) ? exitAlpha : (exitAlpha * iconEggLossTimer);
                 u32 bestCol = C2D_Color32(255, 255, 0, (u8)(bestAlpha * 255.0f)); // Yellow
-                AddTextCentered(bestStr, 160.0f, 80.0f + textYOffset, 0.4f, 1.5f, bestCol, 0.0f);
+                AddTextCentered(bestStr, 160.0f, 80.0f + textYOffset + csFrontY, 0.4f, 1.5f, bestCol, 0.0f);
             }
         }
 
@@ -2116,7 +2815,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         C2D_Image albumImg = getAlbumImage(albumName);
         float angleRad = albumRotation * (3.14159265f / 180.0f);
         float albumCenterX = 70.0f + botIntroLeftX;  // centered horizontally on the left half
-        float albumCenterY = 120.0f; // centered vertically
+        float albumCenterY = 120.0f + csFrontY; // centered vertically
         if (albumImg.tex) {
             float albW = albumImg.subtex->width;
             float albH = albumImg.subtex->height;
@@ -2139,7 +2838,7 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             float scaleY = scaleX; // keep aspect ratio
             
             float textCenterX = 70.0f + botIntroLeftX;
-            float textCenterY = 185.0f;
+            float textCenterY = 185.0f + csFrontY;
             
             C2D_ImageTint tint;
             C2D_ImageTint* tintPtr = &tint;
@@ -2163,19 +2862,29 @@ void FreeplayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
             }
         }
     }
-    float promptAlpha = renderAlpha;
-    if (promptAlpha > 0.001f) {
-        float promptY = 210.0f + 25.0f * (1.0f - introEaseOut) + (25.0f * exitT * exitT);
-        float favWidth = cachedFavPromptWidth;
-        ButtonPrompt::drawPrompt("y", "Favorite", 8.0f, promptY, 0.60f, promptAlpha);
-        ButtonPrompt::drawPrompt("x", "Change Character", 8.0f + favWidth + 12.0f, promptY, 0.60f, promptAlpha);
-    }
+        float promptAlpha = renderAlpha;
+        if (promptAlpha > 0.001f) {
+            float promptY = 210.0f + 25.0f * (1.0f - introEaseOut) + (25.0f * exitT * exitT) + csFrontY;
+            float favWidth = cachedFavPromptWidth;
+            ButtonPrompt::drawPrompt("y", "Favorite", 8.0f, promptY, 0.60f, promptAlpha);
+            ButtonPrompt::drawPrompt("x", "Change Character", 8.0f + favWidth + 12.0f, promptY, 0.60f, promptAlpha);
+        }
+
+        if (isRankAnimActive && darkA > 0.005f) {
+            C2D_DrawRectSolid(0, 0, 0.96f, 320, 240, C2D_Color32(0, 0, 0, (u8)(darkA * 255.0f)));
+        }
+
+        if (csFadeAlpha > 0.005f) {
+            C2D_DrawRectSolid(0, 0, 0.99f, 320, 240, C2D_Color32(0, 0, 0, (u8)(csFadeAlpha * 255.0f)));
+        }
     }
 }
 
 void FreeplayState::exitState() {
     if (hasExited) return;
     hasExited = true;
+
+    stopTVSounds();
 
     savedDifficulty = curDifficulty;
     if (!songs.empty() && curSelected >= 0 && curSelected < (int)songs.size()) {
@@ -3112,7 +3821,7 @@ void FreeplayState::drawCategoryOrganizer(float topIntroY, float exitAlpha, floa
     float centerY = 15.0f + topIntroY;
     // baseScale scaled down by 1.77083f to match new high-res letterStuff
     float baseScale = 0.6f / 1.77083f;  // Fit inside 30px bar (sprites ~25px * 0.6 = 15px)
-    float depth = 0.96f;     // Above the black bar (z=0.9f) and OST text (z=0.95f)
+    float depth = 0.94f;     // Above the black bar (z=0.90f) and OST text (z=0.93f)
 
     // Draw Left and Right arrows — Texture is LA44 (black text)
     Frame arrowF = getArrowFrame();

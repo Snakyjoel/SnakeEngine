@@ -186,6 +186,11 @@ void Stage::draw(float camX, float camY, float camZoom, bool frontLayer, float s
             tintPtr = &tint;
         }
 
+        if (img.tex) {
+            GPU_TEXTURE_FILTER_PARAM filter = (s.antialiasing && ClientPrefs::globalAntialiasing) ? GPU_LINEAR : GPU_NEAREST;
+            C3D_TexSetFilter(img.tex, filter, filter);
+        }
+
         if (frameRotated) {
             // Sprite stored 90° CW in atlas: compensate with -90° (CCW) rotation.
             constexpr float angleRad = -1.57079632679f;

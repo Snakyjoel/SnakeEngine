@@ -17,7 +17,6 @@ IMA_STEP_TABLE = (
 )
 
 def find_ffmpeg():
-    # 1. Local tool in repository
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_ffmpeg = os.path.join(script_dir, "SnakeTools", "source", "bin", "ffmpeg.exe")
     if os.path.exists(repo_ffmpeg):
@@ -26,6 +25,24 @@ def find_ffmpeg():
     if os.path.exists(repo_ffmpeg_alt):
         return os.path.abspath(repo_ffmpeg_alt)
     return "ffmpeg"
+
+def decode_audio_to_pcm(in_path, target_sr, channels=None):
+    ffmpeg = find_ffmpeg()
+    cmd = [
+        ffmpeg, '-y', '-v', 'error',
+        '-i', in_path,
+    ]
+    if target_sr and int(target_sr) > 0:
+        cmd.extend(['-ar', str(target_sr)])
+    if channels:
+        cmd.extend(['-ac', str(channels)])
+    cmd.extend(['-acodec', 'pcm_s16le', '-f', 'wav', '-'])
+
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    wav_bytes, err = proc.communicate()
+    if proc.returncode != 0:
+        raise RuntimeError(f"FFmpeg decode error: {err.decode('utf-8', errors='ignore')}")
+    return wav_bytes
 
 def encode_channel(samples):
     pred = 0
@@ -92,67 +109,74 @@ def encode_channel(samples):
     return out_bytes[:b_idx]
 
 def convert_ogg_to_adp(in_path, out_path, target_sr=44100):
-    ffmpeg = find_ffmpeg()
-    cmd = [
-        ffmpeg, '-y', '-v', 'error',
-        '-i', in_path,
-        '-ar', str(target_sr),
-        '-f', 'wav', '-'
-    ]
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    wav_bytes, err = proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"FFmpeg decode error: {err.decode('utf-8', errors='ignore')}")
-
+    wav_bytes = decode_audio_to_pcm(in_path, target_sr)
+    
     with wave.open(io.BytesIO(wav_bytes), 'rb') as wf:
         channels = wf.getnchannels()
-        actual_sr = wf.getframerate()
-        raw_pcm = wf.readframes(100000000)
+
+    if channels > 2:
+        wav_bytes = decode_audio_to_pcm(in_path, target_sr, channels=2)
+        with wave.open(io.BytesIO(wav_bytes), 'rb') as wf:
+            channels = wf.getnchannels()
+            actual_sr = wf.getframerate()
+            sampwidth = wf.getsampwidth()
+            num_frames = wf.getnframes()
+            raw_pcm = wf.readframes(num_frames)
+    else:
+        with wave.open(io.BytesIO(wav_bytes), 'rb') as wf:
+            actual_sr = wf.getframerate()
+            sampwidth = wf.getsampwidth()
+            num_frames = wf.getnframes()
+            raw_pcm = wf.readframes(num_frames)
+
+    if sampwidth != 2:
+        raise RuntimeError(f"Expected 16-bit PCM (sampwidth=2), got sampwidth={sampwidth}")
+    if channels not in (1, 2):
+        raise RuntimeError(f"Unsupported channel count: {channels}")
 
     samples = array.array('h')
     samples.frombytes(raw_pcm)
+    if sys.byteorder == 'big':
+        samples.byteswap()
 
     if channels == 1:
+        # pad to even sample count so adpcm nibbles fill complete bytes
+        if len(samples) % 2 != 0:
+            samples.append(samples[-1] if len(samples) > 0 else 0)
         num_samples = len(samples)
         raw_adp = encode_channel(samples)
-    elif channels == 2:
+    else:
+        if len(samples) % 2 != 0:
+            samples = samples[:-1]
         left_samples = samples[0::2]
         right_samples = samples[1::2]
+        if len(left_samples) % 2 != 0:
+            left_samples.append(left_samples[-1] if len(left_samples) > 0 else 0)
+            right_samples.append(right_samples[-1] if len(right_samples) > 0 else 0)
         num_samples = len(left_samples)
         encoded_l = encode_channel(left_samples)
         encoded_r = encode_channel(right_samples)
 
-        # Interleave byte by byte
         total_len = len(encoded_l)
         raw_adp = bytearray(total_len * 2)
-        raw_adp[0::2] = encoded_l
-        raw_adp[1::2] = encoded_r
-    else:
-        # Downmix to stereo if > 2 channels
-        # (FFmpeg can do -ac 2)
-        cmd[6:6] = ['-ac', '2']
-        channels = 2
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        wav_bytes, err = proc.communicate()
-        with wave.open(io.BytesIO(wav_bytes), 'rb') as wf:
-            raw_pcm = wf.readframes(100000000)
-        samples = array.array('h')
-        samples.frombytes(raw_pcm)
-        left_samples = samples[0::2]
-        right_samples = samples[1::2]
-        num_samples = len(left_samples)
-        encoded_l = encode_channel(left_samples)
-        encoded_r = encode_channel(right_samples)
-        raw_adp = bytearray(len(encoded_l) * 2)
         raw_adp[0::2] = encoded_l
         raw_adp[1::2] = encoded_r
 
     header = struct.pack('<4sIIB7s', b'SADP', int(actual_sr), int(num_samples), int(channels), b'\x00' * 7)
 
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-    with open(out_path, 'wb') as f:
-        f.write(header)
-        f.write(raw_adp)
+    tmp_path = f"{out_path}.tmp.{os.getpid()}"
+    try:
+        with open(tmp_path, 'wb') as f:
+            f.write(header)
+            f.write(raw_adp)
+        os.replace(tmp_path, out_path)
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
@@ -162,4 +186,3 @@ if __name__ == '__main__':
     out_file = sys.argv[2]
     sr = int(sys.argv[3]) if len(sys.argv) > 3 else 44100
     convert_ogg_to_adp(in_file, out_file, sr)
-

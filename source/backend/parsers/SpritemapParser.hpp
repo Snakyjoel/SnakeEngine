@@ -41,6 +41,7 @@ struct Pivot {
 struct AtlasSpriteInstance {
     std::string pieceName;  // key into atlas ("0", "18", ...)
     AffineMatrix mx;
+    float alpha = 1.0f;
 };
 
 // Instance of another symbol placed in a keyframe (SI node)
@@ -50,6 +51,7 @@ struct SymbolInstance {
     int firstFrame;         // FF — which frame of the child to show / start at
     AffineMatrix mx;
     Pivot trp;              // transform reference point (pivot)
+    float alpha = 1.0f;
 };
 
 // A single element in a keyframe — either an ASI or an SI
@@ -69,6 +71,8 @@ struct SpritemapKeyframe {
 // One layer inside a symbol's timeline
 struct SpritemapLayer {
     std::string name;
+    std::string layerType;
+    std::string clippedBy;
     std::vector<SpritemapKeyframe> keyframes;
 };
 
@@ -111,6 +115,12 @@ struct SpritemapData {
     // Canvas size from MD section
     float canvasW = 1280, canvasH = 720;
     int frameRate = 24;
+
+    // Visual bounds and center
+    float minX = 0.0f, minY = 0.0f;
+    float maxX = 0.0f, maxY = 0.0f;
+    float centerX = 0.0f, centerY = 0.0f;
+    bool hasVisualBounds = false;
 };
 
 class SpritemapParser {

@@ -16,6 +16,16 @@ void ShaderManager::drawPixelate(const RT& rt, C3D_RenderTarget* dest, float pix
     if (downW < 1.0f) downW = 1.0f;
     if (downH < 1.0f) downH = 1.0f;
     
+    int neededH = (h > 240.0f) ? 512 : 256;
+    if (!helperRT.active || !helperRT.target || helperRT.tex.height < neededH) {
+        if (helperRT.active) helperRT.cleanup();
+        helperRT.init(512, neededH);
+        if (!helperRT.active || !helperRT.target) {
+            C2D_DrawImageAt(rt.img, x, y, 0.0f, nullptr, scaleX, scaleY);
+            return;
+        }
+    }
+    
     C2D_SceneBegin(helperRT.target);
     C2D_TargetClear(helperRT.target, C2D_Color32(0, 0, 0, 0));
     

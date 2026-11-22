@@ -3,11 +3,14 @@
 #include <cmath>
 
 void ShaderManager::drawTiling(const RT& rt, C3D_RenderTarget* dest, float count, float x, float y, float scaleX, float scaleY) {
+    if (!rt.active || !rt.img.subtex) return;
+
     int N = (int)std::round(count);
     if (N <= 1) {
         C2D_DrawImageAt(rt.img, x, y, 0.0f, nullptr, scaleX, scaleY);
         return;
     }
+    if (N > 64) N = 64;
     
     C2D_Flush();
     

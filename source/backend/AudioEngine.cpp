@@ -687,8 +687,10 @@ void AudioEngine::shutdown() {
     }
 }
 
-void AudioEngine::playSound(const std::string& path, float vol) {
+void AudioEngine::precacheSound(const std::string& path) {
     std::string actualPath = path;
+    if (soundCache.find(actualPath) != soundCache.end()) return;
+
     FILE* checkF = fopen(actualPath.c_str(), "rb");
     if (!checkF) {
         if (actualPath.find(".ogg") != std::string::npos) {
@@ -715,81 +717,105 @@ void AudioEngine::playSound(const std::string& path, float vol) {
         }
     }
 
+    if (soundCache.find(actualPath) != soundCache.end()) {
+        if (checkF) fclose(checkF);
+        return;
+    }
+
+    if (!checkF) checkF = fopen(actualPath.c_str(), "rb");
+    if (!checkF) return;
+
     SoundData sound;
+    AdpcmEncoder::Header adpHead;
+    if (fread(&adpHead, sizeof(adpHead), 1, checkF) == 1 &&
+        memcmp(adpHead.magic, "SADP", 4) == 0 && adpHead.numSamples > 0) {
+        sound.samplesPerChannel = adpHead.numSamples;
+        sound.channels = adpHead.channels;
+        sound.rate = adpHead.sampleRate;
+        uint32_t totalSamples = adpHead.numSamples * adpHead.channels;
+        uint32_t bufferSize = totalSamples * sizeof(int16_t);
+        sound.buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
+        if (sound.buffer) {
+            fseek(checkF, 0, SEEK_END);
+            long fileSize = ftell(checkF);
+            long adpBytes = fileSize - (long)sizeof(AdpcmEncoder::Header);
+            fseek(checkF, sizeof(AdpcmEncoder::Header), SEEK_SET);
+            if (adpBytes > 0) {
+                uint8_t* adpData = (uint8_t*)malloc(adpBytes);
+                if (adpData) {
+                    size_t readBytes = fread(adpData, 1, adpBytes, checkF);
+                    uint32_t decoded = 0;
+                    if (adpHead.channels == 2) {
+                        AdpcmDecoder::State stateL, stateR;
+                        AdpcmDecoder::decodeIMAStereo(adpData, (uint32_t)readBytes, sound.buffer, decoded, stateL, stateR);
+                    } else {
+                        AdpcmDecoder::State state;
+                        AdpcmDecoder::decodeIMA(adpData, (uint32_t)readBytes, sound.buffer, decoded, state);
+                    }
+                    free(adpData);
+                }
+            }
+            DSP_FlushDataCache(sound.buffer, bufferSize);
+        }
+        fclose(checkF);
+        if (!sound.buffer) return;
+        soundCache.emplace(actualPath, sound);
+        if (actualPath != path) soundCache.emplace(path, sound);
+    } else {
+        fseek(checkF, 0, SEEK_SET);
+        OggVorbis_File sfxVf;
+        if (ov_open_callbacks(checkF, &sfxVf, NULL, 0, s_vorbisCallbacks) < 0) {
+            fclose(checkF);
+            return;
+        }
+
+        vorbis_info* vi = ov_info(&sfxVf, -1);
+        long totalSamples = ov_pcm_total(&sfxVf, -1);
+        sound.samplesPerChannel = totalSamples;
+        sound.channels = vi->channels;
+        sound.rate = vi->rate;
+
+        uint32_t bufferSize = totalSamples * vi->channels * sizeof(int16_t);
+        sound.buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
+        if (sound.buffer) {
+            uint32_t totalRead = 0;
+            int bitstream = 0;
+            while (totalRead < bufferSize) {
+                long ret = ov_read(&sfxVf, (char*)sound.buffer + totalRead, bufferSize - totalRead, &bitstream);
+                if (ret <= 0) break;
+                totalRead += ret;
+            }
+            DSP_FlushDataCache(sound.buffer, bufferSize);
+        }
+        ov_clear(&sfxVf);
+
+        if (!sound.buffer) return;
+        soundCache.emplace(actualPath, sound);
+        if (actualPath != path) soundCache.emplace(path, sound);
+    }
+}
+
+void AudioEngine::playSound(const std::string& path, float vol) {
+    std::string actualPath = path;
     auto it = soundCache.find(actualPath);
     if (it == soundCache.end()) {
-        if (!checkF) checkF = fopen(actualPath.c_str(), "rb");
-        if (!checkF) return;
-        
-        AdpcmEncoder::Header adpHead;
-        if (fread(&adpHead, sizeof(adpHead), 1, checkF) == 1 &&
-            memcmp(adpHead.magic, "SADP", 4) == 0 && adpHead.numSamples > 0) {
-            sound.samplesPerChannel = adpHead.numSamples;
-            sound.channels = adpHead.channels;
-            sound.rate = adpHead.sampleRate;
-            uint32_t totalSamples = adpHead.numSamples * adpHead.channels;
-            uint32_t bufferSize = totalSamples * sizeof(int16_t);
-            sound.buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
-            if (sound.buffer) {
-                fseek(checkF, 0, SEEK_END);
-                long fileSize = ftell(checkF);
-                long adpBytes = fileSize - (long)sizeof(AdpcmEncoder::Header);
-                fseek(checkF, sizeof(AdpcmEncoder::Header), SEEK_SET);
-                if (adpBytes > 0) {
-                    uint8_t* adpData = (uint8_t*)malloc(adpBytes);
-                    if (adpData) {
-                        size_t readBytes = fread(adpData, 1, adpBytes, checkF);
-                        uint32_t decoded = 0;
-                        if (adpHead.channels == 2) {
-                            AdpcmDecoder::State stateL, stateR;
-                            AdpcmDecoder::decodeIMAStereo(adpData, (uint32_t)readBytes, sound.buffer, decoded, stateL, stateR);
-                        } else {
-                            AdpcmDecoder::State state;
-                            AdpcmDecoder::decodeIMA(adpData, (uint32_t)readBytes, sound.buffer, decoded, state);
-                        }
-                        free(adpData);
-                    }
-                }
-                DSP_FlushDataCache(sound.buffer, bufferSize);
+        precacheSound(path);
+        it = soundCache.find(actualPath);
+        if (it == soundCache.end()) {
+            if (actualPath.find(".ogg") != std::string::npos) {
+                std::string alt = actualPath;
+                alt.replace(alt.find(".ogg"), 4, ".adp");
+                it = soundCache.find(alt);
+            } else if (actualPath.find(".adp") != std::string::npos) {
+                std::string alt = actualPath;
+                alt.replace(alt.find(".adp"), 4, ".ogg");
+                it = soundCache.find(alt);
             }
-            fclose(checkF);
-            if (!sound.buffer) return;
-            soundCache.emplace(actualPath, sound);
-        } else {
-            fseek(checkF, 0, SEEK_SET);
-            OggVorbis_File sfxVf;
-            if (ov_open_callbacks(checkF, &sfxVf, NULL, 0, s_vorbisCallbacks) < 0) {
-                fclose(checkF);
-                return;
-            }
-            
-            vorbis_info* vi = ov_info(&sfxVf, -1);
-            long totalSamples = ov_pcm_total(&sfxVf, -1);
-            sound.samplesPerChannel = totalSamples;
-            sound.channels = vi->channels;
-            sound.rate = vi->rate;
-            
-            uint32_t bufferSize = totalSamples * vi->channels * sizeof(int16_t);
-            sound.buffer = (int16_t*)linearMemAlign(bufferSize, 0x80);
-            if (sound.buffer) {
-                uint32_t totalRead = 0;
-                int bitstream = 0;
-                while (totalRead < bufferSize) {
-                    long ret = ov_read(&sfxVf, (char*)sound.buffer + totalRead, bufferSize - totalRead, &bitstream);
-                    if (ret <= 0) break;
-                    totalRead += ret;
-                }
-                DSP_FlushDataCache(sound.buffer, bufferSize);
-            }
-            ov_clear(&sfxVf);
-            
-            if (!sound.buffer) return;
-            soundCache.emplace(actualPath, sound);
         }
-    } else {
-        if (checkF) fclose(checkF);
-        sound = it->second;
+        if (it == soundCache.end()) return;
     }
+
+    SoundData sound = it->second;
 
     int ch = sndChannelIdx;
     sndChannelIdx++;
@@ -812,6 +838,12 @@ void AudioEngine::playSound(const std::string& path, float vol) {
     sfxWaveBuf[sfxBufIdx].nsamples = sound.samplesPerChannel;
     sfxWaveBuf[sfxBufIdx].status = NDSP_WBUF_FREE;
     ndspChnWaveBufAdd(ch, &sfxWaveBuf[sfxBufIdx]);
+}
+
+void AudioEngine::stopSounds() {
+    for (int c = 2; c <= 4; c++) {
+        ndspChnReset(c);
+    }
 }
 
 AudioEngine::SfxData AudioEngine::missSfx[3] = { {nullptr, 0, 0, 0}, {nullptr, 0, 0, 0}, {nullptr, 0, 0, 0} };
@@ -1011,6 +1043,9 @@ void MusicPlayer::fillBuffer(int idx) {
                         AdpcmDecoder::decodeIMA(adpTmp, (uint32_t)r, buf, decoded, adpDecState);
                     }
                     adpSamplesRead += decoded / mChannels;
+                    if (decoded < samplesNeeded) {
+                        memset(buf + decoded, 0, (samplesNeeded - decoded) * sizeof(int16_t));
+                    }
                 } else {
                     fseek(adpFile, sizeof(AdpcmEncoder::Header), SEEK_SET);
                     adpDecState.predictor = 0;
@@ -1026,6 +1061,9 @@ void MusicPlayer::fillBuffer(int idx) {
                             AdpcmDecoder::decodeIMA(adpTmp, (uint32_t)r2, buf, decoded, adpDecState);
                         }
                         adpSamplesRead += decoded / mChannels;
+                        if (decoded < samplesNeeded) {
+                            memset(buf + decoded, 0, (samplesNeeded - decoded) * sizeof(int16_t));
+                        }
                     } else {
                         memset(buf, 0, totalBytes);
                     }

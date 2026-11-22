@@ -3,9 +3,39 @@
 #include "backend/savedata/ClientPrefs.hpp"
 #include <cmath>
 #include <algorithm>
+#include <cstdlib>
+#include <3ds/services/cfgu.h>
 
 extern C2D_Font globalVCRFont;
 extern C2D_Font globalPixelFont;
+
+static std::string getUsername() {
+    std::string name = "";
+    if (R_SUCCEEDED(cfguInit())) {
+        u8 buf[0x1C] = {0};
+        if (R_SUCCEEDED(CFGU_GetConfigInfoBlk2(sizeof(buf), 0x000A0000, buf))) {
+            u16* utf16 = (u16*)buf;
+            for (int i = 0; i < 11; i++) {
+                if (utf16[i] == 0) break;
+                if (utf16[i] >= 32 && utf16[i] < 127) {
+                    name += (char)utf16[i];
+                }
+            }
+        }
+        cfguExit();
+    }
+    if (name.empty()) {
+        const char* envUser = getenv("USER");
+        if (!envUser) envUser = getenv("USERNAME");
+        if (envUser && envUser[0] != '\0') {
+            name = envUser;
+        }
+    }
+    if (name.empty()) {
+        name = "Player";
+    }
+    return name;
+}
 
 static int16_t* allocAudioBuffer(uint32_t samples) {
     int16_t* buf = (int16_t*)linearMemAlign(samples * sizeof(int16_t), 0x80);
@@ -190,80 +220,50 @@ void EggDialogueState::setBranch(Branch branch) {
     activeChoice = ChoiceType::NONE;
     choiceIndex = 0;
     bleepCounter = 0;
+    isLockPage = false;
+    postLockTimer = 0.0f;
+
+    std::string user = getUsername();
 
     switch (branch) {
         case Branch::INTRO:
             lines = {
-                "...",
-                "... ...",
-                "Oh.",
-                "Hey there.",
-                "You've got that egg,\ndon't you?",
-                "The one from\nbehind the tree.",
-                "Mind handing it back?",
-                "It's... kind of mine,\nyou see."
+                "You've arrived, finally...",
+                "I've been waiting for you\nfor quite a while.",
+                "I see you still hold onto\nthat gift from that man.",
+                "I won't lie to you,\nit does look interesting.",
+                "Even more so considering\nhe shouldn't even be here.",
+                "Yet for some reason...",
+                "The two of you knew each other.",
+                "And I'm not talking to you,\nBoyfriend...",
+                "I'm talking to you, " + user + ".",
+                "You knew what you were doing there.",
+                "You knew what you were looking for.",
+                "Regardless...",
+                "I would like to cordially ask\nthat you return that egg to me,\nand we forget all about this.",
+                "Does that sound alright?"
             };
             break;
 
-        case Branch::CONFIRM_GIVE:
+        case Branch::ACCEPTED:
             lines = {
-                "Wait, really?",
-                "Just like that?",
-                "Are you sure?\nNo takesies-backsies."
-            };
-            break;
-
-        case Branch::GIVEN:
-            lines = {
-                "Wow. Thanks.",
-                "(You handed over the Egg.)",
-                "(It feels like nothing\nchanged, yet somehow...\neverything did.)",
-                "Take care now."
+                "Excellent...",
+                "It's reassuring to know there are still\npeople with some sense nowadays.",
+                "Take care, friend..."
             };
             break;
 
         case Branch::REFUSED:
             lines = {
                 "...",
-                "Oh.",
-                "I see.",
-                "Holding onto it\npretty tight, huh?",
-                "But let's be honest\nfor a second...",
-                "It's not like you actually\ncare about a plain old egg.",
-                "You just figured that\nif you held onto it\nlong enough...",
-                "...something was\nbound to happen.",
-                "Weren't you?",
-                "Heh.",
-                "You have that look.",
-                "The look of someone\nalways expecting a little\nsomething extra.",
-                "Well...",
-                "Far be it from me\nto disappoint someone\nso curious.",
-                "Tell you what.",
-                "How about a little match?",
-                "A duel.",
-                "If you can actually beat me,\nyou'll get to see what's\non the other side.",
-                "Sound fair?"
-            };
-            break;
-
-        case Branch::REFUSE_DUEL:
-            lines = {
-                "Aw. Really?",
-                "After carrying it with you\nall this way?",
-                "Well, I can't force you.",
-                "In that case, I'll just\nbe taking this back now.",
-                "(Before you could react,\nthe egg gently slipped\nright out of your hands.)",
-                "(You don't have\nthe Egg anymore.)",
-                "A shame.\nYou were this close to finding\nwhat you were looking for.",
-                "Take care, kiddo."
-            };
-            break;
-
-        case Branch::ACCEPT_DUEL:
-            lines = {
-                "Heh. That's the spirit.",
-                "Let's see if you're as good\nat keeping up as you are\nat looking for trouble.",
-                "Don't blink."
+                "I see. I see.",
+                "You're looking for more,\naren't you?",
+                "Hardly surprising.",
+                "...",
+                "...",
+                "Be careful with what\nyou're doing.",
+                "...",
+                "Curiosity killed the cat."
             };
             break;
     }
@@ -273,6 +273,7 @@ void EggDialogueState::setBranch(Branch branch) {
         charsShown = 0;
         charTimer = 0.0f;
         lineComplete = false;
+        isLockPage = (currentBranch == Branch::REFUSED && lineIndex == (int)lines.size() - 1);
     }
 }
 
@@ -286,32 +287,16 @@ void EggDialogueState::nextLine() {
         charTimer = 0.0f;
         lineComplete = false;
         bleepCounter = 0;
+        isLockPage = (currentBranch == Branch::REFUSED && lineIndex == (int)lines.size() - 1);
+        postLockTimer = 0.0f;
     } else {
         switch (currentBranch) {
             case Branch::INTRO:
-                activeChoice = ChoiceType::GIVE_OR_KEEP;
+                activeChoice = ChoiceType::YES_OR_NO;
                 choiceIndex = 0;
                 break;
 
-            case Branch::CONFIRM_GIVE:
-                activeChoice = ChoiceType::CONFIRM_SURE;
-                choiceIndex = 0;
-                break;
-
-            case Branch::GIVEN:
-                ClientPrefs::acceptedEgg = false;
-                ClientPrefs::saveSettings();
-                exiting = true;
-                exitTimer = 0.0f;
-                toDuel = false;
-                break;
-
-            case Branch::REFUSED:
-                activeChoice = ChoiceType::ACCEPT_OR_REFUSE;
-                choiceIndex = 0;
-                break;
-
-            case Branch::REFUSE_DUEL:
+            case Branch::ACCEPTED:
                 ClientPrefs::acceptedEgg = false;
                 ClientPrefs::eggInteractionOccurred = true;
                 ClientPrefs::saveSettings();
@@ -320,11 +305,13 @@ void EggDialogueState::nextLine() {
                 toDuel = false;
                 break;
 
-            case Branch::ACCEPT_DUEL:
+            case Branch::REFUSED:
+                ClientPrefs::acceptedChallenge = true;
+                ClientPrefs::eggInteractionOccurred = true;
+                ClientPrefs::saveSettings();
                 exiting = true;
                 exitTimer = 0.0f;
-                toDuel = true;
-                playSound(SoundEffect::WHITE_SWELL);
+                toDuel = false;
                 break;
         }
     }
@@ -332,16 +319,11 @@ void EggDialogueState::nextLine() {
 
 void EggDialogueState::confirmChoice(int index) {
     playSound(SoundEffect::CONFIRM);
-
-    if (activeChoice == ChoiceType::GIVE_OR_KEEP) {
-        activeChoice = ChoiceType::NONE;
-        setBranch(index == 0 ? Branch::CONFIRM_GIVE : Branch::REFUSED);
-    } else if (activeChoice == ChoiceType::CONFIRM_SURE) {
-        activeChoice = ChoiceType::NONE;
-        setBranch(index == 0 ? Branch::GIVEN : Branch::REFUSED);
-    } else if (activeChoice == ChoiceType::ACCEPT_OR_REFUSE) {
-        activeChoice = ChoiceType::NONE;
-        setBranch(index == 0 ? Branch::ACCEPT_DUEL : Branch::REFUSE_DUEL);
+    activeChoice = ChoiceType::NONE;
+    if (index == 0) {
+        setBranch(Branch::ACCEPTED);
+    } else {
+        setBranch(Branch::REFUSED);
     }
 }
 
@@ -382,9 +364,19 @@ void EggDialogueState::update(float dt) {
             lineComplete = true;
         }
 
-        if ((kDown & (KEY_A | KEY_START)) || (kDown & KEY_TOUCH)) {
+        if (!isLockPage && ((kDown & (KEY_A | KEY_START)) || (kDown & KEY_TOUCH))) {
             charsShown = (int)currentText.size();
             lineComplete = true;
+        }
+    } else if (isLockPage) {
+        postLockTimer += dt;
+        if (postLockTimer >= 0.5f && !exiting) {
+            ClientPrefs::acceptedChallenge = true;
+            ClientPrefs::eggInteractionOccurred = true;
+            ClientPrefs::saveSettings();
+            exiting = true;
+            exitTimer = 0.0f;
+            toDuel = false;
         }
     } else if (activeChoice == ChoiceType::NONE) {
         if ((kDown & (KEY_A | KEY_START)) || (kDown & KEY_TOUCH)) {
@@ -449,7 +441,7 @@ void EggDialogueState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         C2D_TextOptimize(&topText);
         C2D_DrawText(&topText, C2D_WithColor | C2D_AlignCenter, 200.0f, textY, 0.5f, scale, scale, C2D_Color32(255, 255, 255, 255));
 
-        if (lineComplete && activeChoice == ChoiceType::NONE && !exiting) {
+        if (lineComplete && activeChoice == ChoiceType::NONE && !exiting && !isLockPage) {
             if (((int)blinkTimer % 2) == 0) {
                 C2D_TextFontParse(&promptText, font, topTextBuf, "v");
                 C2D_TextOptimize(&promptText);
@@ -472,8 +464,8 @@ void EggDialogueState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         if (activeChoice != ChoiceType::NONE && font && bottomTextBuf) {
             C2D_TextBufClear(bottomTextBuf);
 
-            std::string leftLabel = (activeChoice == ChoiceType::ACCEPT_OR_REFUSE) ? "[ ACCEPT ]" : "[ YES ]";
-            std::string rightLabel = (activeChoice == ChoiceType::ACCEPT_OR_REFUSE) ? "[ REFUSE ]" : "[ NO ]";
+            std::string leftLabel = "[ YES ]";
+            std::string rightLabel = "[ NO ]";
 
             std::string fullLeft = (choiceIndex == 0 ? "> " : "  ") + leftLabel + (choiceIndex == 0 ? " <" : "  ");
             std::string fullRight = (choiceIndex == 1 ? "> " : "  ") + rightLabel + (choiceIndex == 1 ? " <" : "  ");

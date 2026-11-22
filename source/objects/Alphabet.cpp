@@ -2,150 +2,194 @@
 #include "../backend/SpritesheetCache.hpp"
 #include <algorithm>
 #include <ctype.h>
+#include <unordered_map>
 
-static const Frame* findAlphabetFrame(CachedSpritesheet* sheet, char c) {
+struct CharOffset {
+    float x;
+    float y;
+};
+
+static const Frame* findAlphabetFrame(CachedSpritesheet* sheet, const std::string& key, CharOffset& outOffset) {
     if (!sheet) return nullptr;
 
+    outOffset = {0.0f, 0.0f};
+
     static CachedSpritesheet* cachedSheet = nullptr;
-    static const Frame* charCache[256] = { nullptr };
-    static bool searched[256] = { false };
+    static std::unordered_map<std::string, const Frame*> frameCache;
+    static std::unordered_map<std::string, CharOffset> offsetCache;
 
     if (cachedSheet != sheet) {
         cachedSheet = sheet;
-        std::fill(std::begin(charCache), std::end(charCache), nullptr);
-        std::fill(std::begin(searched), std::end(searched), false);
+        frameCache.clear();
+        offsetCache.clear();
     }
 
-    unsigned char idx = (unsigned char)c;
-    if (searched[idx]) {
-        return charCache[idx];
+    auto it = frameCache.find(key);
+    if (it != frameCache.end()) {
+        outOffset = offsetCache[key];
+        return it->second;
     }
-    
-    // Step 1: Check new format first: e.g. "character-a0000", "character-zero0000", symbols
-    std::string newPrefix;
-    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
-        newPrefix = "character-" + std::string(1, tolower((unsigned char)c));
-    } else if (c >= '0' && c <= '9') {
-        switch (c) {
-            case '0': newPrefix = "character-zero"; break;
-            case '1': newPrefix = "character-one"; break;
-            case '2': newPrefix = "character-two"; break;
-            case '3': newPrefix = "character-three"; break;
-            case '4': newPrefix = "character-four"; break;
-            case '5': newPrefix = "character-five"; break;
-            case '6': newPrefix = "character-six"; break;
-            case '7': newPrefix = "character-seven"; break;
-            case '8': newPrefix = "character-eight"; break;
-            case '9': newPrefix = "character-nine"; break;
-        }
-    } else {
-        switch (c) {
-            case '&': newPrefix = "character-ampersand"; break;
-            case '<': newPrefix = "character-anglebracket-left"; break;
-            case '>': newPrefix = "character-anglebracket-right"; break;
-            case '*': newPrefix = "character-asterisk"; break;
-            case '@': newPrefix = "character-at"; break;
-            case '\\': newPrefix = "character-backslash"; break;
-            case '`': newPrefix = "character-backtick"; break;
-            case '^': newPrefix = "character-caret"; break;
-            case ':': newPrefix = "character-colon"; break;
-            case ',': newPrefix = "character-comma"; break;
-            case '{': newPrefix = "character-curlybracket-left"; break;
-            case '}': newPrefix = "character-curlybracket-right"; break;
-            case '$': newPrefix = "character-dollar"; break;
-            case '"': newPrefix = "character-doublequote"; break;
-            case '=': newPrefix = "character-equal"; break;
-            case '!': newPrefix = "character-exclamationmark"; break;
-            case '-': newPrefix = "character-hyphen"; break;
-            case '%': newPrefix = "character-percent"; break;
-            case '.': newPrefix = "character-period"; break;
-            case '+': newPrefix = "character-plus"; break;
-            case '#': newPrefix = "character-pound"; break;
-            case '?': newPrefix = "character-questionmark-alt"; break;
-            case '(': newPrefix = "character-roundbracket-left"; break;
-            case ')': newPrefix = "character-roundbracket-right"; break;
-            case ';': newPrefix = "character-semicolon"; break;
-            case '\'': newPrefix = "character-singlequote"; break;
-            case '/': newPrefix = "character-slash"; break;
-            case '[': newPrefix = "character-squarebracket-left"; break;
-            case ']': newPrefix = "character-squarebracket-right"; break;
-            case '~': newPrefix = "character-tilde"; break;
-            case '_': newPrefix = "character-underscore"; break;
-            case '|': newPrefix = "character-verticalbar"; break;
-            default: break;
+
+    std::string animPrefix;
+    CharOffset customOffset = {0.0f, 0.0f};
+
+    // Symbols and special animations (bold)
+    if (key == "'") { animPrefix = "apostrophe"; customOffset = {0.0f, 40.0f}; }
+    else if (key == "\"") { animPrefix = "quote"; customOffset = {0.0f, 40.0f}; }
+    else if (key == "!") { animPrefix = "exclamation"; }
+    else if (key == "?") { animPrefix = "question"; }
+    else if (key == ".") { animPrefix = "period"; }
+    else if (key == ",") { animPrefix = "comma"; customOffset = {0.0f, -4.0f}; }
+    else if (key == "\\") { animPrefix = "back slash"; }
+    else if (key == "/") { animPrefix = "forward slash"; }
+    else if (key == "¡") { animPrefix = "inverted exclamation"; customOffset = {0.0f, -20.0f}; }
+    else if (key == "¿") { animPrefix = "inverted question"; customOffset = {0.0f, -20.0f}; }
+    else if (key == "•") { animPrefix = "bullet"; }
+    else if (key == "*") { animPrefix = "*"; customOffset = {0.0f, 40.0f}; }
+    else if (key == "+") { animPrefix = "+"; customOffset = {0.0f, 12.0f}; }
+    else if (key == "-") { animPrefix = "-"; customOffset = {0.0f, 16.0f}; }
+    else if (key == "<") { animPrefix = "<"; customOffset = {0.0f, -2.0f}; }
+    else if (key == ">") { animPrefix = ">"; customOffset = {0.0f, -2.0f}; }
+    else if (key == ":") { animPrefix = ":"; customOffset = {0.0f, 8.0f}; }
+    else if (key == ";") { animPrefix = ";"; customOffset = {0.0f, 4.0f}; }
+    else if (key == "^") { animPrefix = "^"; customOffset = {0.0f, 38.0f}; }
+    else if (key == "~") { animPrefix = "~"; customOffset = {0.0f, 20.0f}; }
+    else if (key == "ç") { animPrefix = "ç"; customOffset = {0.0f, -11.0f}; }
+    else if (key == "&") { animPrefix = "&"; customOffset = {0.0f, 2.0f}; }
+    else if (key == "]") { animPrefix = "]"; customOffset = {0.0f, -1.0f}; }
+    else {
+        // Direct character name (a-z, 0-9, á, é, í, ó, ú, ñ, etc.)
+        animPrefix = key;
+    }
+
+    std::string targetPsychBold = animPrefix + " bold instance 10000";
+    for (const auto& f : sheet->frames) {
+        if (f.name == targetPsychBold) {
+            frameCache[key] = &f;
+            offsetCache[key] = customOffset;
+            outOffset = customOffset;
+            return &f;
         }
     }
-    
-    if (!newPrefix.empty()) {
-        std::string targetName = newPrefix + "0000";
-        for (const auto& f : sheet->frames) {
-            if (f.name == targetName) {
-                charCache[idx] = &f;
-                searched[idx] = true;
-                return &f;
-            }
+
+    // Fallback
+    std::string boldStart = animPrefix + " bold";
+    for (const auto& f : sheet->frames) {
+        if (f.name.find(boldStart) == 0) {
+            frameCache[key] = &f;
+            offsetCache[key] = customOffset;
+            outOffset = customOffset;
+            return &f;
         }
     }
-    
-    // Step 2: Fallback to old format (original Psych / FNF) for custom skins/mods
-    char uc = toupper((unsigned char)c);
-    std::string oldPrefix;
-    if (uc >= 'A' && uc <= 'Z') {
-        oldPrefix = std::string(1, uc);
-    } else {
-        switch (uc) {
-            case '_': oldPrefix = "_"; break;
-            case '\'': oldPrefix = "-apostraphie-"; break;
-            case ',': oldPrefix = "-comma-"; break;
-            case '.': oldPrefix = "-comma-"; break;
-            case '-': oldPrefix = "-dash-"; break;
-            case '!': oldPrefix = "-exclamation point-"; break;
-            case '?': oldPrefix = "-question mark-"; break;
-            case '"': oldPrefix = "-start quote-"; break;
-            case ':': oldPrefix = ":"; break;
-            case '(': oldPrefix = "("; break;
-            case ')': oldPrefix = ")"; break;
-            case '#': oldPrefix = "#"; break;
-            case '%': oldPrefix = "%"; break;
-            case '$': oldPrefix = "$"; break;
-            default: break;
+
+    // Fallback for character-prefix format
+    std::string legacyPrefix = "character-" + animPrefix + "0000";
+    for (const auto& f : sheet->frames) {
+        if (f.name == legacyPrefix) {
+            frameCache[key] = &f;
+            offsetCache[key] = {0.0f, 0.0f};
+            outOffset = {0.0f, 0.0f};
+            return &f;
         }
     }
-    if (!oldPrefix.empty()) {
-        std::string targetName = oldPrefix + "0000";
-        for (const auto& f : sheet->frames) {
-            if (f.name == targetName) {
-                charCache[idx] = &f;
-                searched[idx] = true;
-                return &f;
-            }
+
+    // Fallback to old uppercase
+    std::string upperPrefix = animPrefix;
+    std::transform(upperPrefix.begin(), upperPrefix.end(), upperPrefix.begin(), ::toupper);
+    upperPrefix += "0000";
+    for (const auto& f : sheet->frames) {
+        if (f.name == upperPrefix) {
+            frameCache[key] = &f;
+            offsetCache[key] = {0.0f, 0.0f};
+            outOffset = {0.0f, 0.0f};
+            return &f;
         }
     }
-    
-    charCache[idx] = nullptr;
-    searched[idx] = true;
+
+    // Fallback to '?'
+    if (key != "?") {
+        return findAlphabetFrame(sheet, "?", outOffset);
+    }
+
+    frameCache[key] = nullptr;
+    offsetCache[key] = {0.0f, 0.0f};
     return nullptr;
+}
+
+// Helper
+static std::vector<std::string> utf8Split(const std::string& str) {
+    std::vector<std::string> chars;
+    for (size_t i = 0; i < str.length();) {
+        unsigned char c = (unsigned char)str[i];
+        size_t len = 1;
+        if ((c & 0x80) == 0) len = 1;
+        else if ((c & 0xE0) == 0xC0) len = 2;
+        else if ((c & 0xF0) == 0xE0) len = 3;
+        else if ((c & 0xF8) == 0xF0) len = 4;
+
+        if (i + len <= str.length()) {
+            chars.push_back(str.substr(i, len));
+        } else {
+            chars.push_back(str.substr(i, 1));
+            len = 1;
+        }
+        i += len;
+    }
+    return chars;
+}
+
+static std::string toLowerUtf8(const std::string& ch) {
+    if (ch.length() == 1) {
+        char c = ch[0];
+        if (c >= 'A' && c <= 'Z') return std::string(1, (char)tolower((unsigned char)c));
+        return ch;
+    }
+    if (ch == "Á") return "á";
+    if (ch == "É") return "é";
+    if (ch == "Í") return "í";
+    if (ch == "Ó") return "ó";
+    if (ch == "Ú") return "ú";
+    if (ch == "Ñ") return "ñ";
+    if (ch == "Ü") return "ü";
+    if (ch == "À") return "à";
+    if (ch == "È") return "è";
+    if (ch == "Ì") return "ì";
+    if (ch == "Ò") return "ò";
+    if (ch == "Ù") return "ù";
+    if (ch == "Â") return "â";
+    if (ch == "Ê") return "ê";
+    if (ch == "Î") return "î";
+    if (ch == "Ô") return "ô";
+    if (ch == "Û") return "û";
+    if (ch == "Ç") return "ç";
+    return ch;
 }
 
 void Alphabet::draw(const std::string& text, float x, float y, float scale, float alpha, bool centered, u32 color, float depth) {
     CachedSpritesheet* alphabetSheet = SpritesheetCache::get().load("shared/images/Alphabet");
     if (!alphabetSheet) return;
 
-    float screenScale = (240.0f / 720.0f) * 1.25f;
+    const float baseResFactor = 41.0f / 55.0f;
+    float screenScale = (240.0f / 720.0f) * 1.25f * baseResFactor;
     float drawScale = scale * screenScale;
 
-    // First compute width if centered is true
+    std::vector<std::string> glyphs = utf8Split(text);
+
+    // Compute width if centered is true
     float startX = x;
     if (centered) {
         float totalWidth = 0.0f;
-        for (char c : text) {
-            if (c == ' ') {
-                totalWidth += 28.0f; // base space width in logical coords
+        for (const auto& rawCh : glyphs) {
+            if (rawCh == " ") {
+                totalWidth += 38.0f; // space width in glyph units
                 continue;
             }
-            const Frame* foundFrame = findAlphabetFrame(alphabetSheet, c);
+            std::string ch = toLowerUtf8(rawCh);
+            CharOffset off;
+            const Frame* foundFrame = findAlphabetFrame(alphabetSheet, ch, off);
             if (foundFrame) {
-                totalWidth += foundFrame->frameW + 2.0f; // base width + letter spacing
+                totalWidth += (foundFrame->frameW + 2.0f);
             }
         }
         startX -= (totalWidth * drawScale) / 2.0f;
@@ -155,9 +199,8 @@ void Alphabet::draw(const std::string& text, float x, float y, float scale, floa
     C2D_ImageTint* tintPtr = nullptr;
     bool usingMult = false;
     if (color != 0xFFFFFFFF) {
-        C2D_PlainImageTint(&tint, color, 1.0f); // 100% blend strength for multiplication
+        C2D_PlainImageTint(&tint, color, 1.0f);
         if (alpha < 1.0f) {
-            // Apply alpha to tint corners
             tint.corners[0].color = (tint.corners[0].color & 0x00FFFFFF) | (((u32)(alpha * 255)) << 24);
             tint.corners[1].color = (tint.corners[1].color & 0x00FFFFFF) | (((u32)(alpha * 255)) << 24);
             tint.corners[2].color = (tint.corners[2].color & 0x00FFFFFF) | (((u32)(alpha * 255)) << 24);
@@ -173,24 +216,24 @@ void Alphabet::draw(const std::string& text, float x, float y, float scale, floa
     float curX = startX;
     float curY = y;
 
-    for (char c : text) {
-        if (c == ' ') {
-            curX += 28.0f * drawScale;
+    for (const auto& rawCh : glyphs) {
+        if (rawCh == " ") {
+            curX += 38.0f * drawScale;
             continue;
         }
-        const Frame* foundFrame = findAlphabetFrame(alphabetSheet, c);
+
+        std::string ch = toLowerUtf8(rawCh);
+        CharOffset off;
+        const Frame* foundFrame = findAlphabetFrame(alphabetSheet, ch, off);
 
         if (foundFrame) {
             C2D_Image img;
             img.tex = foundFrame->tex;
             img.subtex = &foundFrame->uv;
 
-            float lx = curX - foundFrame->frameX * drawScale;
-            float ly = curY - foundFrame->frameY * drawScale;
-            
-            if (c == '.') {
-                ly += 30.0f * drawScale;
-            }
+            float psychYOffset = (55.0f - foundFrame->frameH) - off.y;
+            float lx = curX - (foundFrame->frameX - off.x) * drawScale;
+            float ly = curY - (foundFrame->frameY - psychYOffset) * drawScale;
 
             if (usingMult) C2D_SetTintMode(C2D_TintMult);
 
@@ -214,16 +257,21 @@ float Alphabet::getTextWidth(const std::string& text, float scale) {
     CachedSpritesheet* alphabetSheet = SpritesheetCache::get().load("shared/images/Alphabet");
     if (!alphabetSheet) return 0.0f;
 
-    float screenScale = (240.0f / 720.0f) * 1.25f;
+    const float baseResFactor = 41.0f / 55.0f;
+    float screenScale = (240.0f / 720.0f) * 1.25f * baseResFactor;
     float drawScale = scale * screenScale;
 
+    std::vector<std::string> glyphs = utf8Split(text);
+
     float totalWidth = 0.0f;
-    for (char c : text) {
-        if (c == ' ') {
-            totalWidth += 28.0f * drawScale;
+    for (const auto& rawCh : glyphs) {
+        if (rawCh == " ") {
+            totalWidth += 38.0f * drawScale;
             continue;
         }
-        const Frame* foundFrame = findAlphabetFrame(alphabetSheet, c);
+        std::string ch = toLowerUtf8(rawCh);
+        CharOffset off;
+        const Frame* foundFrame = findAlphabetFrame(alphabetSheet, ch, off);
         if (foundFrame) {
             totalWidth += (foundFrame->frameW + 2.0f) * drawScale;
         }

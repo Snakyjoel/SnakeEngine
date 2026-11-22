@@ -8,7 +8,7 @@
 
 # IMPORTANT
 
-This engine uses some assets taken from other engines, such as [Psych Engine](https://github.com/ShadowMario/FNF-PsychEngine) and [Codename Engine](https://github.com/CodenameCrew/CodenameEngine); credit goes to them for the assets used.
+This engine uses some assets taken from [Psych Engine](https://github.com/ShadowMario/FNF-PsychEngine); credit goes to them for the assets used.
 
 ---
 
@@ -44,7 +44,7 @@ First, you need to download the CIA of your choice; there are two to pick from:
 > [!NOTE]
 > Don't worry; the only difference is in the game assets—the way they function is the same in both.
 > 
-> And also... (Version 3.7.9 will be used as a reference)
+> And also... (Version 3.8.9 will be used as a reference)
 
 |  | Default | Lite |
 | --- | --- | --- |

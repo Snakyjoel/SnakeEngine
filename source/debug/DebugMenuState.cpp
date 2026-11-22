@@ -52,6 +52,7 @@ void DebugMenuState::init() {
     menuItems.push_back({"Result: GREAT", "Test Result: GREAT rank", 8});
     menuItems.push_back({"Result: LOSS", "Test Result: LOSS rank", 9});
     menuItems.push_back({"Character Editor", "Edit and test character offsets", 10});
+    menuItems.push_back({"Sticker Transition", "Test sticker transition animation", 15});
     menuItems.push_back({"RAM Test", "Verify available RAM", 14});
 }
 
@@ -88,6 +89,10 @@ void DebugMenuState::update(float dt) {
             case 9: switchState(new ResultState(false, true, "Test Song", "Normal", 100, 10, 10, 10, 5, 5, 20, 200000)); break;
             case 10: switchState(new CharacterEditorState()); break;
             case 14: switchState(new RamTestState()); break;
+            case 15:
+                MusicBeatState::useStickerTransition = true;
+                switchState(new DebugMenuState());
+                break;
         }
     }
 }

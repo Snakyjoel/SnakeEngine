@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Heroic Packer v0.1.6 https://heroicpacker.heroeyad.dev/
+-->
+<TextureAtlas imagePath="weeksLevelsBanners.png" width="512" height="1024" spritePadding="2" borderPadding="1">
+	<SubTexture name="placeholder" x="193" y="609" width="183" height="48" frameX="0" frameY="0" frameWidth="183" frameHeight="48"/>
+	<SubTexture name="sserafim" x="1" y="743" width="167" height="115" frameX="-112" frameY="-11" frameWidth="400" frameHeight="150"/>
+	<SubTexture name="tutorial" x="1" y="743" width="167" height="115" frameX="-112" frameY="-11" frameWidth="400" frameHeight="150"/>
+	<SubTexture name="week1" x="1" y="1" width="400" height="150" frameX="0" frameY="0" frameWidth="400" frameHeight="150"/>
+	<SubTexture name="week2" x="1" y="153" width="400" height="150" frameX="0" frameY="0" frameWidth="400" frameHeight="150"/>
+	<SubTexture name="week3" x="1" y="305" width="400" height="150" frameX="0" frameY="0" frameWidth="400" frameHeight="150"/>
+	<SubTexture name="week4" x="1" y="860" width="150" height="146" rotated="true" frameX="-127" frameY="0" frameWidth="400" frameHeight="150"/>
+	<SubTexture name="week5" x="193" y="659" width="142" height="164" rotated="true" frameX="-125" frameY="-8" frameWidth="400" frameHeight="150"/>
+	<SubTexture name="week6" x="1" y="609" width="190" height="132" frameX="-105" frameY="-9" frameWidth="400" frameHeight="150"/>
+	<SubTexture name="week7" x="1" y="457" width="219" height="150" frameX="-70" frameY="0" frameWidth="400" frameHeight="150"/>
+	<SubTexture name="weekend1" x="222" y="457" width="170" height="149" frameX="-109" frameY="-1" frameWidth="400" frameHeight="150"/>
+</TextureAtlas>

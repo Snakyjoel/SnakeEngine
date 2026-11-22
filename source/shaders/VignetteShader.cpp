@@ -6,6 +6,8 @@ static inline void drawGradientRect(float x, float y, float w, float h, u32 c1, 
 }
 
 void ShaderManager::drawVignette(const RT& rt, C3D_RenderTarget* dest, float opacity, float size, float x, float y, float scaleX, float scaleY) {
+    if (!rt.active || !rt.img.subtex) return;
+
     C2D_DrawImageAt(rt.img, x, y, 0.0f, nullptr, scaleX, scaleY);
     if (opacity <= 0.001f) return;
 
@@ -14,7 +16,9 @@ void ShaderManager::drawVignette(const RT& rt, C3D_RenderTarget* dest, float opa
 
     float w = rt.img.subtex->width * scaleX;
     float h = rt.img.subtex->height * scaleY;
+    float maxThick = (w < h ? w : h) * 0.5f;
     float thick = (size > 0.0f) ? size : 40.0f;
+    if (thick > maxThick) thick = maxThick;
 
     u32 black = C2D_Color32(0, 0, 0, alphaVal);
     u32 trans = C2D_Color32(0, 0, 0, 0);

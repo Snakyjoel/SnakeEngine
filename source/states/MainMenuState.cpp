@@ -16,7 +16,7 @@
 #include <cmath>
 
 bool MainMenuState::comingFromFreeplay = false;
-std::string MainMenuState::version = "3.7.9";
+std::string MainMenuState::version = "3.8.9";
 
 MainMenuState::MainMenuState(bool startInFreeplay)
     : startInFreeplay(startInFreeplay), freeplaySubState(nullptr)
@@ -35,7 +35,9 @@ void MainMenuState::init() {
     ModHandler::get().currentModFolder = "";
 
     versionDisplayStr = "v" + version;
-    MusicPlayer::playMenuMusic();
+    if (!startInFreeplay) {
+        MusicPlayer::playMenuMusic();
+    }
 
     VCRFontFix();
 

@@ -20,20 +20,6 @@
           "description": "Centers your strumline. Splits opponent\nstrumline to the far left and right."
         },
         {
-          "id": "opponentStrums",
-          "name": "Opponent Strums",
-          "type": "bool",
-          "default": true,
-          "description": "Show the opponent's receptors."
-        },
-        {
-          "id": "opponentNotes",
-          "name": "Opponent Notes",
-          "type": "bool",
-          "default": true,
-          "description": "Show the opponent's notes.\nRequires Opponent Strums enabled."
-        },
-        {
           "id": "ghostTapping",
           "name": "Ghost Tapping",
           "type": "bool",
@@ -46,6 +32,34 @@
           "type": "bool",
           "default": false,
           "description": "If checked, you won't be able to reset\nthe song using the Start/Select shortcut."
+        },
+        {
+          "id": "botPlay",
+          "name": "Bot Play",
+          "type": "bool",
+          "default": false,
+          "description": "If checked, the game plays itself\nautomatically. Notes are auto-hit."
+        },
+        {
+          "id": "naughtyness",
+          "name": "Naughtyness",
+          "type": "bool",
+          "default": true,
+          "description": "When enabled, raunchy content (such as swearing, etc.) is displayed"
+        },
+        {
+          "id": "opponentStrums",
+          "name": "Opponent Strums",
+          "type": "bool",
+          "default": true,
+          "description": "Show the opponent's receptors."
+        },
+        {
+          "id": "opponentNotes",
+          "name": "Opponent Notes",
+          "type": "bool",
+          "default": true,
+          "description": "Show the opponent's notes.\nRequires Opponent Strums enabled."
         },
         {
           "id": "hitboxEnabled",
@@ -76,52 +90,14 @@
           ],
           "default": "Full Bars",
           "description": "How should touch hitboxes be drawn?\n(Full Bars / Borders Only)"
-        },
-        {
-          "id": "botPlay",
-          "name": "Bot Play",
-          "type": "bool",
-          "default": false,
-          "description": "If checked, the game plays itself\nautomatically. Notes are auto-hit."
-        },
-        {
-          "id": "noteUnderlayAlpha",
-          "name": "Note Underlay",
-          "type": "float",
-          "default": 0.0,
-          "min": 0.0,
-          "max": 1.0,
-          "step": 0.1,
-          "description": "Adjust the opacity of the dark background\nunder the notes strumline."
-        },
-        {
-          "id": "opponentUnderlay",
-          "name": "Opponent Underlay",
-          "type": "bool",
-          "default": true,
-          "description": "If checked, shows the dark underlay behind\nthe opponent strumline too."
         }
       ]
     },
     {
       "id": "visuals",
       "name": "Visuals and UI",
-      "description": "To adjust the game's visuals",
+      "description": "To adjust the game's visuals and HUD",
       "options": [
-        {
-          "id": "noteColorsEnabled",
-          "name": "Note Colors",
-          "type": "bool",
-          "default": false,
-          "description": "Toggle custom note colors.\nIf disabled, default colors are used."
-        },
-        {
-          "id": "customizeCombo",
-          "name": "Customize Combo",
-          "type": "action",
-          "action": "openCustomizeCombo",
-          "description": "Adjust combo position, scale, and alpha."
-        },
         {
           "id": "timeBarType",
           "name": "Time Bar",
@@ -164,11 +140,35 @@
           "description": "If unchecked, ratings and combo won't stack,\nsaving memory and making them easier to read."
         },
         {
-          "id": "camZooms",
-          "name": "Camera Zooms",
+          "id": "customizeCombo",
+          "name": "Customize Combo",
+          "type": "action",
+          "action": "openCustomizeCombo",
+          "description": "Adjust combo position, scale, and alpha."
+        },
+        {
+          "id": "noteColorsEnabled",
+          "name": "Note Colors",
+          "type": "bool",
+          "default": false,
+          "description": "Toggle custom note colors.\nIf disabled, default colors are used."
+        },
+        {
+          "id": "noteUnderlayAlpha",
+          "name": "Note Underlay",
+          "type": "float",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "step": 0.1,
+          "description": "Adjust the opacity of the dark background\nunder the notes strumline."
+        },
+        {
+          "id": "opponentUnderlay",
+          "name": "Opponent Underlay",
           "type": "bool",
           "default": true,
-          "description": "If unchecked, the camera won't zoom\nin on a beat hit."
+          "description": "If checked, shows the dark underlay behind\nthe opponent strumline too."
         },
         {
           "id": "scoreZoom",
@@ -178,19 +178,100 @@
           "description": "If unchecked, disables the Score text\ngrowing every time you hit a note."
         },
         {
+          "id": "scoreTxtScore",
+          "name": "Score Display",
+          "type": "bool",
+          "default": true,
+          "description": "Show score count in the HUD score text."
+        },
+        {
+          "id": "scoreTxtMisses",
+          "name": "Misses Display",
+          "type": "bool",
+          "default": true,
+          "description": "Show miss count in the HUD score text."
+        },
+        {
+          "id": "scoreTxtRating",
+          "name": "Rating Display",
+          "type": "bool",
+          "default": true,
+          "description": "Show accuracy rating in the HUD score text."
+        },
+        {
+          "id": "scoreTxtFC",
+          "name": "FC Display",
+          "type": "bool",
+          "default": true,
+          "description": "Show combo clear status (FC, Clear) in score text."
+        },
+        {
+          "id": "camZooms",
+          "name": "Camera Zooms",
+          "type": "bool",
+          "default": true,
+          "description": "If unchecked, the camera won't zoom\nin on a beat hit."
+        },
+        {
           "id": "flashing",
           "name": "Flashing Lights",
           "type": "bool",
           "default": true,
           "description": "Uncheck this if you're sensitive\nto the flashing lights!"
-        },
+        }
+      ]
+    },
+    {
+      "id": "graphics",
+      "name": "Graphics Settings",
+      "description": "To improve performance and display",
+      "options": [
         {
-          "id": "alphabetPause",
-          "name": "Enhanced Pause",
+          "id": "enable3DEffect",
+          "name": "3D Screen Effect",
           "type": "bool",
           "default": true,
-          "description": "If checked, uses Alphabet font in\nthe Pause Menu instead of VCR."
+          "description": "If unchecked, disables stereoscopic 3D rendering\non the top screen."
         },
+        {
+          "id": "fpsLimit",
+          "name": "FPS Limit",
+          "type": "string_list",
+          "options": [
+            "30 FPS",
+            "60 FPS"
+          ],
+          "default": "60 FPS",
+          "description": "Set the maximum frame rate.\nLowering this can save battery."
+        },
+        {
+          "id": "globalAntialiasing",
+          "name": "Antialiasing",
+          "type": "bool",
+          "default": true,
+          "description": "If unchecked, disables anti-aliasing globally,\nimproving performance at the cost of jagged visuals."
+        },
+        {
+          "id": "lowQuality",
+          "name": "Low Quality",
+          "type": "bool",
+          "default": false,
+          "description": "If checked, disables some background details,\ndecreases loading times and improves performance."
+        },
+        {
+          "id": "drawGrid",
+          "name": "Draw UI Grid",
+          "type": "bool",
+          "default": true,
+          "description": "If unchecked, disables the checkerboard grid\non the bottom screen for a small performance boost."
+        }
+      ]
+    },
+    {
+      "id": "system",
+      "name": "System Settings",
+      "description": "System preferences and debug options",
+      "options": [
         {
           "id": "checkForUpdates",
           "name": "Check Updates",
@@ -204,73 +285,41 @@
           "type": "bool",
           "default": true,
           "description": "If checked, shows button prompts\nat the bottom of screens."
-        }
-      ]
-    },
-    {
-      "id": "graphics",
-      "name": "Graphics Settings",
-      "description": "To improve performance",
-      "options": [
-        {
-          "id": "lowQuality",
-          "name": "Low Quality",
-          "type": "bool",
-          "default": false,
-          "description": "If checked, disables some background details,\ndecreases loading times and improves performance."
         },
         {
-          "id": "globalAntialiasing",
-          "name": "Antialiasing",
+          "id": "alphabetPause",
+          "name": "Enhanced Pause",
           "type": "bool",
           "default": true,
-          "description": "If unchecked, disables anti-aliasing globally,\nimproving performance at the cost of jagged visuals."
+          "description": "If checked, uses Alphabet font in\nthe Pause Menu instead of VCR."
         },
         {
-          "id": "enable3DEffect",
-          "name": "3D Screen Effect",
-          "type": "bool",
-          "default": true,
-          "description": "If unchecked, disables stereoscopic 3D rendering\non the top screen."
-        },
-        {
-          "id": "fastNotes",
-          "name": "Fast Notes",
+          "id": "debugFps",
+          "name": "Debug FPS",
           "type": "bool",
           "default": false,
-          "description": "Changes note rendering to use simple\ncolored arrows for a less ram usage."
+          "description": "Show FPS counter on the bottom screen."
         },
         {
-          "id": "drawGrid",
-          "name": "Draw UI Grid",
-          "type": "bool",
-          "default": true,
-          "description": "If unchecked, disables the checkerboard grid\non the bottom screen for a small performance boost."
-        },
-        {
-          "id": "debugInfo",
-          "name": "Debug Info",
+          "id": "debugMemory",
+          "name": "Debug Memory",
           "type": "bool",
           "default": false,
-          "description": "Displays debug information and\nperformance stats."
+          "description": "Show RAM and VRAM usage on bottom screen."
         },
         {
-          "id": "extendedDebug",
-          "name": "Extended Debug",
+          "id": "debugHardware",
+          "name": "Debug Hardware",
           "type": "bool",
           "default": false,
-          "description": "If checked, PlayState debug will also\nshow model, RAM and VRAM."
+          "description": "Show 3DS model and CPU/GPU usage percentages."
         },
         {
-          "id": "fpsLimit",
-          "name": "FPS Limit",
-          "type": "string_list",
-          "options": [
-            "30 FPS",
-            "60 FPS"
-          ],
-          "default": "60 FPS",
-          "description": "Set the maximum frame rate.\nLowering this can save battery."
+          "id": "debugMemoryViewer",
+          "name": "Memory Inspector",
+          "type": "bool",
+          "default": false,
+          "description": "Enable Memory Debug tool in pause menu\nand via L + R + SELECT shortcut."
         }
       ]
     },

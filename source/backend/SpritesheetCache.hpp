@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 #include "SparrowParser.hpp"
 #include "TextureLoader.hpp"
 
@@ -21,21 +22,30 @@ public:
         return instance;
     }
 
-    CachedSpritesheet* load(const std::string& path) {
-        if (cache.count(path)) return &cache[path];
+    static std::string normalizeKey(const std::string& path) {
+        std::string stripped = path;
+        if (stripped.find("shared/images/") != std::string::npos) {
+            size_t idx = stripped.find("shared/images/");
+            stripped = stripped.substr(idx + 14);
+        } else if (stripped.find("preload/images/") != std::string::npos) {
+            size_t idx = stripped.find("preload/images/");
+            stripped = stripped.substr(idx + 15);
+        } else if (stripped.find("images/") == 0) {
+            stripped = stripped.substr(7);
+        }
+        return stripped;
+    }
 
-        std::string strippedPath = path;
+    CachedSpritesheet* load(const std::string& path) {
+        std::string cleanKey = normalizeKey(path);
+        if (cache.count(cleanKey)) return &cache[cleanKey];
+
+        std::string strippedPath = cleanKey;
         std::string library = "";
-        if (strippedPath.find("shared/images/") != std::string::npos) {
-            size_t idx = strippedPath.find("shared/images/");
-            strippedPath = strippedPath.substr(idx + 14);
+        if (path.find("shared/images/") != std::string::npos) {
             library = "shared";
-        } else if (strippedPath.find("preload/images/") != std::string::npos) {
-            size_t idx = strippedPath.find("preload/images/");
-            strippedPath = strippedPath.substr(idx + 15);
+        } else if (path.find("preload/images/") != std::string::npos) {
             library = "preload";
-        } else if (strippedPath.find("images/") == 0) {
-            strippedPath = strippedPath.substr(7);
         }
 
         std::string pngPath = Paths::image(strippedPath, library);
@@ -121,8 +131,8 @@ public:
                 }
             }
 
-            cache[path] = cs;
-            return &cache[path];
+            cache[cleanKey] = cs;
+            return &cache[cleanKey];
         }
 
         C2D_SpriteSheet sheet = C2D_SpriteSheetLoad(pngPath.c_str());
@@ -186,8 +196,8 @@ public:
                 f.uv = *sub;
                 cs.frames.push_back(f);
                 
-                cache[path] = cs;
-                return &cache[path];
+                cache[cleanKey] = cs;
+                return &cache[cleanKey];
             } else {
                 SparrowParser::parseXml(xmlPath, cs.frames, &atlasW, &atlasH, &isSplit);
             }
@@ -217,10 +227,28 @@ public:
 
         printf("[CACHE] Sparrow XML parsed. Frame count: %d\n", (int)cs.frames.size());
 
-        cache[path] = cs;
-        return &cache[path];
+        cache[cleanKey] = cs;
+        return &cache[cleanKey];
     }
     const std::map<std::string, CachedSpritesheet>& getCache() const { return cache; }
+
+    void pin(const std::string& path) {
+        pinnedKeys.insert(normalizeKey(path));
+    }
+
+    bool isPinned(C2D_SpriteSheet sheet) const {
+        if (!sheet) return false;
+        for (const auto& pair : cache) {
+            if (pair.second.sheet == sheet && pinnedKeys.count(pair.first)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool isPinnedKey(const std::string& path) const {
+        return pinnedKeys.count(normalizeKey(path)) > 0;
+    }
 
     void clear() {
         for (auto& pair : cache) {
@@ -241,6 +269,7 @@ public:
             }
         }
         cache.clear();
+        pinnedKeys.clear();
     }
 
     bool contains(C2D_SpriteSheet sheet) {
@@ -254,6 +283,9 @@ public:
         if (!sheet) return false;
         for (auto it = cache.begin(); it != cache.end(); ++it) {
             if (it->second.sheet == sheet) {
+                if (pinnedKeys.count(it->first)) {
+                    return false;
+                }
                 if (it->second.sheet) {
                     C2D_SpriteSheetFree(it->second.sheet);
                 }
@@ -270,4 +302,5 @@ public:
 private:
     SpritesheetCache() = default;
     std::map<std::string, CachedSpritesheet> cache;
+    std::set<std::string> pinnedKeys;
 };

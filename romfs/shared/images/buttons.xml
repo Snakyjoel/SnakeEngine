@@ -1,20 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+Created with Heroic Packer v0.1.6 https://heroicpacker.heroeyad.dev/
 -->
-<TextureAtlas imagePath="buttons.png" width="256" height="256">
-  <SubTexture name="a" x="157" y="1"  width="52" height="53" frameX="-0" frameY="-0" frameWidth="52" frameHeight="53"/>
-  <SubTexture name="b" x="136" y="159"  width="53" height="53" frameX="-0" frameY="-0" frameWidth="53" frameHeight="53"/>
-  <SubTexture name="dDown" x="81" y="1" width="74" height="77" rotated="true"  frameX="-0" frameY="-0" frameWidth="77" frameHeight="74"/>
-  <SubTexture name="dLeft" x="1" y="1"  width="78" height="74" frameX="-0" frameY="-0" frameWidth="78" frameHeight="74"/>
-  <SubTexture name="dRight" x="81" y="80" width="74" height="77" rotated="true"  frameX="-0" frameY="-0" frameWidth="77" frameHeight="74"/>
-  <SubTexture name="dUp" x="1" y="77"  width="78" height="74" frameX="-0" frameY="-0" frameWidth="78" frameHeight="74"/>
-  <SubTexture name="home" x="75" y="159"  width="59" height="51" frameX="-0" frameY="-0" frameWidth="59" frameHeight="51"/>
-  <SubTexture name="l" x="75" y="212"  width="59" height="31" frameX="-0" frameY="-0" frameWidth="59" frameHeight="31"/>
-  <SubTexture name="r" x="224" y="166" width="31" height="60" rotated="true"  frameX="-0" frameY="-0" frameWidth="60" frameHeight="31"/>
-  <SubTexture name="select" x="191" y="166" width="31" height="81" rotated="true"  frameX="-0" frameY="-0" frameWidth="81" frameHeight="31"/>
-  <SubTexture name="start" x="211" y="1" width="31" height="82" rotated="true"  frameX="-0" frameY="-0" frameWidth="82" frameHeight="31"/>
-  <SubTexture name="stick" x="1" y="153"  width="72" height="72" frameX="-0" frameY="-0" frameWidth="72" frameHeight="72"/>
-  <SubTexture name="x" x="157" y="56"  width="52" height="53" frameX="-0" frameY="-0" frameWidth="52" frameHeight="53"/>
-  <SubTexture name="y" x="191" y="111"  width="52" height="53" frameX="-0" frameY="-0" frameWidth="52" frameHeight="53"/>
+<TextureAtlas imagePath="buttons.png" width="256" height="512" spritePadding="2" borderPadding="1">
+	<SubTexture name="a" x="159" y="185" width="53" height="52" frameX="0" frameY="-1" frameWidth="54" frameHeight="54"/>
+	<SubTexture name="a outline" x="159" y="131" width="53" height="52" frameX="0" frameY="-1" frameWidth="54" frameHeight="54"/>
+	<SubTexture name="b" x="125" y="324" width="53" height="52" frameX="0" frameY="-1" frameWidth="54" frameHeight="54"/>
+	<SubTexture name="b outline" x="1" y="342" width="53" height="52" frameX="0" frameY="-1" frameWidth="54" frameHeight="54"/>
+	<SubTexture name="d pad" x="80" y="131" width="77" height="73" frameX="-1" frameY="0" frameWidth="78" frameHeight="74"/>
+	<SubTexture name="d pad outline" x="1" y="108" width="77" height="73" frameX="-1" frameY="0" frameWidth="78" frameHeight="74"/>
+	<SubTexture name="home" x="1" y="257" width="60" height="50" frameX="0" frameY="0" frameWidth="60" frameHeight="50"/>
+	<SubTexture name="home outline" x="147" y="239" width="60" height="50" frameX="0" frameY="0" frameWidth="60" frameHeight="50"/>
+	<SubTexture name="l" x="1" y="309" width="60" height="31" frameX="0" frameY="0" frameWidth="60" frameHeight="31"/>
+	<SubTexture name="l outline" x="63" y="280" width="60" height="31" frameX="0" frameY="0" frameWidth="60" frameHeight="31"/>
+	<SubTexture name="pad" x="74" y="206" width="71" height="72" frameX="0" frameY="0" frameWidth="72" frameHeight="72"/>
+	<SubTexture name="pad outline" x="1" y="183" width="71" height="72" frameX="0" frameY="0" frameWidth="72" frameHeight="72"/>
+	<SubTexture name="r" x="63" y="313" width="60" height="31" frameX="0" frameY="0" frameWidth="60" frameHeight="31"/>
+	<SubTexture name="r outline" x="125" y="291" width="60" height="31" frameX="0" frameY="0" frameWidth="60" frameHeight="31"/>
+	<SubTexture name="select" x="106" y="99" width="81" height="30" frameX="-1" frameY="0" frameWidth="82" frameHeight="30"/>
+	<SubTexture name="select outline" x="106" y="67" width="81" height="30" frameX="0" frameY="0" frameWidth="81" frameHeight="30"/>
+	<SubTexture name="start" x="106" y="34" width="81" height="31" frameX="0" frameY="0" frameWidth="81" frameHeight="31"/>
+	<SubTexture name="start outline" x="106" y="1" width="81" height="31" frameX="0" frameY="0" frameWidth="81" frameHeight="31"/>
+	<SubTexture name="token" x="1" y="1" width="103" height="105" frameX="0" frameY="0" frameWidth="103" frameHeight="105"/>
+	<SubTexture name="x" x="55" y="450" width="52" height="52" frameX="-1" frameY="-1" frameWidth="54" frameHeight="54"/>
+	<SubTexture name="x outline" x="1" y="450" width="52" height="52" frameX="-1" frameY="-1" frameWidth="54" frameHeight="54"/>
+	<SubTexture name="y" x="1" y="396" width="53" height="52" frameX="0" frameY="-1" frameWidth="54" frameHeight="54"/>
+	<SubTexture name="y outline" x="56" y="346" width="53" height="52" frameX="0" frameY="-1" frameWidth="54" frameHeight="54"/>
 </TextureAtlas>

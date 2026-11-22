@@ -12,6 +12,16 @@
 #include <cmath>
 #include <string>
 
+static int getRankWeight(const std::string& r) {
+    if (r == "GP") return 6;
+    if (r == "P") return 5;
+    if (r == "E") return 4;
+    if (r == "G" || r == "GREAT") return 3;
+    if (r == "g" || r == "GOOD") return 2;
+    if (r == "L" || r == "LOSS") return 1;
+    return 0;
+}
+
 static void drawRotatedRect(float cx, float cy, float w, float h, float angleRad, u32 color, float depth) {
     float c = std::cos(angleRad), s = std::sin(angleRad);
     float hw = w * 0.5f, hh = h * 0.5f;
@@ -113,6 +123,8 @@ ResultState::ResultState(bool isStoryMode, bool fromDebug, const std::string& na
     : isStoryMode(isStoryMode), fromDebug(fromDebug), name(name), difficulty(difficulty),
       totalNotes(totalNotes), maxCombo(maxCombo), sicks(sicks), goods(goods), bads(bads), shits(shits), misses(misses), score(score) {
 
+    previousRating = isStoryMode ? Highscores::getWeekRating(name, difficulty) : Highscores::getRating(name, difficulty);
+
     if (kResultDebug) {
         this->score      = kDbgScore;
         this->totalNotes = kDbgTotalNotes;
@@ -171,7 +183,9 @@ ResultState::ResultState(bool isStoryMode, bool fromDebug, const std::string& na
         Highscores::saveWeekAccuracy(name, percentage, difficulty);
     }
     Highscores::saveAccuracy(name, percentage, difficulty);
-    Highscores::saveRating(name, ratingKey, difficulty, percentage);
+    if (getRankWeight(ratingKey) >= getRankWeight(previousRating)) {
+        Highscores::saveRating(name, ratingKey, difficulty, percentage);
+    }
 
     if (!ClientPrefs::botPlay) {
         std::string lowerDiff = difficulty;
@@ -397,199 +411,191 @@ void ResultState::init() {
     musicIntroDurationMs = 0.0;
     musicIntroElapsed = 0.0f;
  
-    rankAnim = RankAnim();
-    rankAnim.started = false;
-    rankAnim.introPlaying = false;
-    rankAnim.curFrame = 0;
-    rankAnim.frameTimer = 0.0f;
-    gfOutPlaying = false;
-    gfOutX = -200.0f;
-    gfOutTimer = 0.0f;
-    gfOutFrame = 0;
-    gfOutFrameTimer = 0.0f;
-    gfOffsetY = 0.0f;
-    gfScale = 0.25f;
-    gfFps = 12.0f;
-    heartsTimer = 0.0f;
-    heartsFrame = 0;
-    heartsFrameTimer = 0.0f;
-    heartsScale = 1.0f;
-    heartsOffsetX = 0.0f;
-    heartsOffsetY = 0.0f;
-    heartsFps = 12.0f;
-    goodGfIntroPlaying = false;
-    goodGfAlpha = 0.0f;
-    goodGfFps = 12.0f;
-    goodGfOffsetX = 0.0f;
-    goodGfOffsetY = 0.0f;
-    goodGfScale = 0.25f;
-    goodGfCurFrame = 0;
-    goodGfFrameTimer = 0.0f;
-    lossOffsetY = 0.0f;
-    lossBaseH = 0.0f;
+    rankAnimStarted = false;
+    rankAnimTimer = 0.0f;
+    rankFadeAlpha = 0.0f;
+    hasGfAnim = false;
+    gfStarted = false;
+    gfDelay = 0.0f;
+    hasExtraAnim = false;
+    extraStarted = false;
+    extraDelay = 0.0f;
 
     if (finalRating == "P" || finalRating == "GP") {
-        rankAnim.scale = 1.2f;
-        rankAnim.offsetY = 20.0f;
-        rankAnim.fps = 24.0f;
-        heartsScale = 1.2f;
-        heartsOffsetX = -40.0f;
-        heartsOffsetY = 60.0f;
-        heartsFps = 12.0f;
-        rankAnim.sheet = SpritesheetCache::get().load("preload/images/results/ranks/perfect/introPart1");
-        if (rankAnim.sheet && !rankAnim.sheet->frames.empty()) {
-            for (const auto& f : rankAnim.sheet->frames) {
-                if (f.name.find("New animation") == 0) {
-                    int frameNum = -1;
-                    sscanf(f.name.c_str(), "New animation%d", &frameNum);
-                    if (frameNum >= 0 && frameNum <= 83) rankAnim.introFrames.push_back(f);
-                }
+        std::string t3xPath = Paths::getPath("spritemap1.t3x", "images/results/ranks/bf/perfect/bed", "preload");
+        std::string atlasJson = Paths::getPath("spritemap1.json", "images/results/ranks/bf/perfect/bed", "preload");
+        std::string animJson = Paths::getPath("Animation.json", "images/results/ranks/bf/perfect/bed", "preload");
+        if (rankBfAnimate.loadSpritemap(t3xPath, atlasJson, animJson)) {
+            rankBfAnimate.setVisualCenter(-153.67f, 60.54f);
+            rankBfAnimate.spritemapScale *= 3.0f; 
+            rankBfAnimate.extraOffsetY = 75.0f;
+            std::vector<int> introIndices;
+            std::vector<int> loopIndices;
+            if (ClientPrefs::naughtyness) {
+                for (int i = 0; i < 137; i++) introIndices.push_back(i);
+                for (int i = 137; i < 149; i++) loopIndices.push_back(i);
+            } else {
+                for (int i = 150; i < 236; i++) introIndices.push_back(i);
+                for (int i = 236; i < 247; i++) loopIndices.push_back(i);
             }
-            applyAntialiasing(rankAnim.sheet);
+            rankBfAnimate.addSpritemapAnim("intro", rankBfAnimate.smData.rootSymbolName, introIndices, 24.0f, false);
+            rankBfAnimate.addSpritemapAnim("loop", rankBfAnimate.smData.rootSymbolName, loopIndices, 24.0f, true);
+            rankBfAnimate.onAnimFinished = [this](const std::string& name) {
+                if (name == "intro") rankBfAnimate.play("loop");
+            };
         }
-        rankAnim.sheet = SpritesheetCache::get().load("preload/images/results/ranks/perfect/introPart2");
-        if (rankAnim.sheet && !rankAnim.sheet->frames.empty()) {
-            for (const auto& f : rankAnim.sheet->frames) {
-                if (f.name.find("New animation") == 0) {
-                    int frameNum = -1;
-                    sscanf(f.name.c_str(), "New animation%d", &frameNum);
-                    if (frameNum >= 0 && frameNum <= 83) rankAnim.introFrames.push_back(f);
-                }
+
+        if (ClientPrefs::naughtyness) {
+            std::string hT3x = Paths::getPath("spritemap1.t3x", "images/results/ranks/bf/perfect/hearts", "preload");
+            std::string hAtlas = Paths::getPath("spritemap1.json", "images/results/ranks/bf/perfect/hearts", "preload");
+            std::string hAnim = Paths::getPath("Animation.json", "images/results/ranks/bf/perfect/hearts", "preload");
+            if (rankExtraAnimate.loadSpritemap(hT3x, hAtlas, hAnim)) {
+                rankExtraAnimate.setVisualCenter(-589.57f, 3.22f);
+                rankExtraAnimate.extraOffsetY = 10.0f;
+                rankExtraAnimate.extraOffsetX = -20.0f;
+                std::vector<int> hIntroIndices;
+                for (int i = 0; i < 42; i++) hIntroIndices.push_back(i);
+                std::vector<int> hLoopIndices;
+                for (int i = 42; i < 116; i++) hLoopIndices.push_back(i);
+                rankExtraAnimate.addSpritemapAnim("intro", rankExtraAnimate.smData.rootSymbolName, hIntroIndices, 24.0f, false);
+                rankExtraAnimate.addSpritemapAnim("loop", rankExtraAnimate.smData.rootSymbolName, hLoopIndices, 24.0f, true);
+                rankExtraAnimate.onAnimFinished = [this](const std::string& name) {
+                    if (name == "intro") rankExtraAnimate.play("loop");
+                };
+                hasExtraAnim = true;
+                extraDelay = 4.41f;
             }
-            applyAntialiasing(rankAnim.sheet);
-        }
-        rankAnim.sheet = SpritesheetCache::get().load("preload/images/results/ranks/perfect/loop");
-        if (rankAnim.sheet && !rankAnim.sheet->frames.empty()) {
-            for (const auto& f : rankAnim.sheet->frames) {
-                if (f.name.find("New animation") == 0) {
-                    int frameNum = -1;
-                    sscanf(f.name.c_str(), "New animation%d", &frameNum);
-                    if (frameNum >= 86) rankAnim.loopFrames.push_back(f);
-                }
+        } else {
+            std::string tfT3x = Paths::getPath("spritemap1.t3x", "images/results/ranks/bf/perfect/tickleFight", "preload");
+            std::string tfAtlas = Paths::getPath("spritemap1.json", "images/results/ranks/bf/perfect/tickleFight", "preload");
+            std::string tfAnim = Paths::getPath("Animation.json", "images/results/ranks/bf/perfect/tickleFight", "preload");
+            if (rankExtraAnimate.loadSpritemap(tfT3x, tfAtlas, tfAnim)) {
+                rankExtraAnimate.spritemapScale *= 1.0f;
+                rankExtraAnimate.setVisualCenter(431.14f, 49.11f);
+                std::vector<int> tfIntroIndices;
+                for (int i = 0; i < 16; i++) tfIntroIndices.push_back(i);
+                std::vector<int> tfLoopIndices;
+                for (int i = 16; i < 78; i++) tfLoopIndices.push_back(i);
+                rankExtraAnimate.addSpritemapAnim("intro", rankExtraAnimate.smData.rootSymbolName, tfIntroIndices, 24.0f, false);
+                rankExtraAnimate.addSpritemapAnim("loop", rankExtraAnimate.smData.rootSymbolName, tfLoopIndices, 24.0f, true);
+                rankExtraAnimate.onAnimFinished = [this](const std::string& name) {
+                    if (name == "intro") rankExtraAnimate.play("loop");
+                };
+                hasExtraAnim = true;
+                extraDelay = 4.41f;
             }
-            applyAntialiasing(rankAnim.sheet);
         }
-        heartsSheet = SpritesheetCache::get().load("preload/images/results/ranks/perfect/hearts");
-        if (heartsSheet && !heartsSheet->frames.empty()) {
-            for (const auto& f : heartsSheet->frames) heartsFrames.push_back(f.index);
-        }
-        applyAntialiasing(heartsSheet);
+
         musicLoopPath = "romfs:/preload/music/results/resultsPERFECT.adp";
     } else if (finalRating == "E") {
-        rankAnim.scale = 1.2f;
-        rankAnim.offsetY = 0.0f;
-        rankAnim.fps = 24.0f;
-        rankAnim.sheet = SpritesheetCache::get().load("preload/images/results/ranks/excelent/intro");
-        if (rankAnim.sheet && !rankAnim.sheet->frames.empty()) {
-            for (const auto& f : rankAnim.sheet->frames) {
-                if (f.name.find("New animation") == 0) rankAnim.introFrames.push_back(f);
-            }
-            applyAntialiasing(rankAnim.sheet);
+        std::string t3xPath = Paths::getPath("spritemap1.t3x", "images/results/ranks/bf/excelent", "preload");
+        std::string atlasJson = Paths::getPath("spritemap1.json", "images/results/ranks/bf/excelent", "preload");
+        std::string animJson = Paths::getPath("Animation.json", "images/results/ranks/bf/excelent", "preload");
+        if (rankBfAnimate.loadSpritemap(t3xPath, atlasJson, animJson)) {
+            rankBfAnimate.spritemapScale *= 2.5f;
+            rankBfAnimate.extraOffsetY = 50.0f;
+            rankBfAnimate.setVisualCenter(-163.34f, 44.22f);
+            std::vector<int> loopIndices;
+            for (int i = 29; i < 260; i++) loopIndices.push_back(i);
+            rankBfAnimate.addSpritemapAnim("intro", rankBfAnimate.smData.rootSymbolName, {}, 24.0f, false);
+            rankBfAnimate.addSpritemapAnim("loop", rankBfAnimate.smData.rootSymbolName, loopIndices, 24.0f, true);
+            rankBfAnimate.onAnimFinished = [this](const std::string& name) {
+                if (name == "intro") rankBfAnimate.play("loop");
+            };
         }
-        rankAnim.sheet = SpritesheetCache::get().load("preload/images/results/ranks/excelent/loop");
-        if (rankAnim.sheet && !rankAnim.sheet->frames.empty()) {
-            for (const auto& f : rankAnim.sheet->frames) {
-                if (f.name.find("New animation") == 0) rankAnim.loopFrames.push_back(f);
-            }
-            applyAntialiasing(rankAnim.sheet);
-        }
+
         musicIntroPath = "romfs:/preload/music/results/resultsEXCELLENT-intro.adp";
         musicLoopPath = "romfs:/preload/music/results/resultsEXCELLENT.adp";
     } else if (finalRating == "G" && percentage >= 80.0f) {
-        rankAnim.scale = 1.0f;
-        rankAnim.offsetY = 0.0f;
-        rankAnim.fps = 24.0f;
-        gfScale = 1.0f;
-        gfOffsetY = 50.0f;
-        gfFps = 24.0f;
-        rankAnim.sheet = SpritesheetCache::get().load("preload/images/results/ranks/great/intro");
-        if (rankAnim.sheet && !rankAnim.sheet->frames.empty()) {
-            for (const auto& f : rankAnim.sheet->frames) {
-                if (f.name.find("New animation") == 0) rankAnim.introFrames.push_back(f);
-            }
-            applyAntialiasing(rankAnim.sheet);
+        std::string t3xPath = Paths::getPath("spritemap1.t3x", "images/results/ranks/bf/great/bf", "preload");
+        std::string atlasJson = Paths::getPath("spritemap1.json", "images/results/ranks/bf/great/bf", "preload");
+        std::string animJson = Paths::getPath("Animation.json", "images/results/ranks/bf/great/bf", "preload");
+        if (rankBfAnimate.loadSpritemap(t3xPath, atlasJson, animJson)) {
+            rankBfAnimate.spritemapScale *= 0.93f;
+            rankBfAnimate.setVisualCenter(66.49f, -17.70f);
+            rankBfAnimate.extraOffsetX = 32.0f;
+            rankBfAnimate.extraOffsetY = 10.f;
+            std::vector<int> loopIndices;
+            for (int i = 15; i < 39; i++) loopIndices.push_back(i);
+            rankBfAnimate.addSpritemapAnim("intro", rankBfAnimate.smData.rootSymbolName, {}, 24.0f, false);
+            rankBfAnimate.addSpritemapAnim("loop", rankBfAnimate.smData.rootSymbolName, loopIndices, 24.0f, true);
+            rankBfAnimate.onAnimFinished = [this](const std::string& name) {
+                if (name == "intro") rankBfAnimate.play("loop");
+            };
         }
-        rankAnim.sheet = SpritesheetCache::get().load("preload/images/results/ranks/great/loop");
-        if (rankAnim.sheet && !rankAnim.sheet->frames.empty()) {
-            for (const auto& f : rankAnim.sheet->frames) {
-                if (f.name.find("New animation") == 0) rankAnim.loopFrames.push_back(f);
-            }
-            applyAntialiasing(rankAnim.sheet);
+
+        std::string gfT3x = Paths::getPath("spritemap1.t3x", "images/results/ranks/bf/great/gf", "preload");
+        std::string gfAtlas = Paths::getPath("spritemap1.json", "images/results/ranks/bf/great/gf", "preload");
+        std::string gfAnim = Paths::getPath("Animation.json", "images/results/ranks/bf/great/gf", "preload");
+        if (rankGfAnimate.loadSpritemap(gfT3x, gfAtlas, gfAnim)) {
+            rankGfAnimate.spritemapScale *= 0.93f;
+            rankGfAnimate.setVisualCenter(-58.02f, 178.44f);
+            rankGfAnimate.extraOffsetX = -40.0f;
+            rankGfAnimate.extraOffsetY = 40.f;
+            std::vector<int> loopIndices;
+            for (int i = 9; i < 44; i++) loopIndices.push_back(i);
+            rankGfAnimate.addSpritemapAnim("intro", rankGfAnimate.smData.rootSymbolName, {}, 24.0f, false);
+            rankGfAnimate.addSpritemapAnim("loop", rankGfAnimate.smData.rootSymbolName, loopIndices, 24.0f, true);
+            rankGfAnimate.onAnimFinished = [this](const std::string& name) {
+                if (name == "intro") rankGfAnimate.play("loop");
+            };
+            hasGfAnim = true;
+            gfDelay = 0.25f;
         }
-        gfSheet = SpritesheetCache::get().load("preload/images/results/ranks/great/gf");
-        if (gfSheet && !gfSheet->frames.empty()) {
-            for (const auto& f : gfSheet->frames) gfFrames.push_back(f.index);
-        }
-        applyAntialiasing(gfSheet);
+
         musicIntroPath = "romfs:/preload/music/results/resultsEXCELLENT-intro.adp";
         musicLoopPath = "romfs:/preload/music/results/resultsEXCELLENT.adp";
     } else if (finalRating == "G") {
-        rankAnim.scale = 1.0f;
-        rankAnim.offsetY = 0.0f;
-        rankAnim.fps = 24.0f;
-        rankAnim.sheet = SpritesheetCache::get().load("preload/images/results/ranks/good/good");
-        if (rankAnim.sheet && !rankAnim.sheet->frames.empty()) {
-            for (const auto& f : rankAnim.sheet->frames) {
-                if (f.name.find("intro") == 0) rankAnim.introFrames.push_back(f);
-                else if (f.name.find("loop") == 0) rankAnim.loopFrames.push_back(f);
-            }
-            applyAntialiasing(rankAnim.sheet);
+        std::string t3xPath = Paths::getPath("spritemap1.t3x", "images/results/ranks/bf/good/bf", "preload");
+        std::string atlasJson = Paths::getPath("spritemap1.json", "images/results/ranks/bf/good/bf", "preload");
+        std::string animJson = Paths::getPath("Animation.json", "images/results/ranks/bf/good/bf", "preload");
+        if (rankBfAnimate.loadSpritemap(t3xPath, atlasJson, animJson)) {
+            rankBfAnimate.spritemapScale *= 1.6f;
+            rankBfAnimate.extraOffsetY = 30.0f;
+            rankBfAnimate.setVisualCenter(210.19f, 54.58f);
+            //rankBfAnimate.extraOffsetX = -25.0f;
+            std::vector<int> loopIndices;
+            for (int i = 14; i < 74; i++) loopIndices.push_back(i);
+            rankBfAnimate.addSpritemapAnim("intro", rankBfAnimate.smData.rootSymbolName, {}, 24.0f, false);
+            rankBfAnimate.addSpritemapAnim("loop", rankBfAnimate.smData.rootSymbolName, loopIndices, 24.0f, true);
+            rankBfAnimate.onAnimFinished = [this](const std::string& name) {
+                if (name == "intro") rankBfAnimate.play("loop");
+            };
         }
-        goodGfSheet = SpritesheetCache::get().load("preload/images/results/ranks/good/gf");
-        if (goodGfSheet && !goodGfSheet->frames.empty()) {
-            for (const auto& f : goodGfSheet->frames) {
-                if (f.name.find("intro") == 0) goodGfIntroFrames.push_back(f);
-                else if (f.name.find("loop") == 0) goodGfLoopFrames.push_back(f);
-            }
-            applyAntialiasing(goodGfSheet);
-        }
-        goodGfIntroPlaying = false;
-        goodGfAlpha = 0.0f;
-        goodGfFps = 12.0f;
-        goodGfOffsetX = 0.0f;
-        goodGfOffsetY = 0.0f;
-        goodGfScale = 0.25f;
-        goodGfCurFrame = 0;
-        goodGfFrameTimer = 0.0f;
+
+        rankGfAnimate.loadSheet("preload/images/results/ranks/bf/good/gf");
+        rankGfAnimate.scaleX = 0.35f;
+        rankGfAnimate.scaleY = 0.35f;
+        rankGfAnimate.extraOffsetX = -35.0f;
+        rankGfAnimate.extraOffsetY = 20.0f;
+        std::vector<int> loopIndices;
+        for (int i = 9; i < 55; i++) loopIndices.push_back(i);
+        rankGfAnimate.addAnim("intro", "Girlfriend Good Anim", 24.0f, false);
+        rankGfAnimate.addAnim("loop", "Girlfriend Good Anim", 24.0f, true, 0.0f, 0.0f, loopIndices);
+        rankGfAnimate.onAnimFinished = [this](const std::string& name) {
+            if (name == "intro") rankGfAnimate.play("loop");
+        };
+        hasGfAnim = true;
+        gfDelay = 0.91f;
+
         musicLoopPath = "romfs:/preload/music/results/resultsNORMAL.adp";
     } else {
-        rankAnim.scale = 0.85f;
-        rankAnim.offsetY = 0.0f;
-        rankAnim.fps = 24.0f;
-        rankAnim.sheet = SpritesheetCache::get().load("preload/images/results/ranks/loss/introPart1");
-        if (rankAnim.sheet && !rankAnim.sheet->frames.empty()) {
-            for (const auto& f : rankAnim.sheet->frames) {
-                if (f.name.find("Intro") == 0) rankAnim.introFrames.push_back(f);
-            }
-            applyAntialiasing(rankAnim.sheet);
+        std::string t3xPath = Paths::getPath("spritemap1.t3x", "images/results/ranks/bf/shit", "preload");
+        std::string atlasJson = Paths::getPath("spritemap1.json", "images/results/ranks/bf/shit", "preload");
+        std::string animJson = Paths::getPath("Animation.json", "images/results/ranks/bf/shit", "preload");
+        if (rankBfAnimate.loadSpritemap(t3xPath, atlasJson, animJson)) {
+            rankBfAnimate.spritemapScale *= 2.2f;
+            rankBfAnimate.extraOffsetY = 20.0f;
+            rankBfAnimate.setVisualCenter(137.29f, 20.0f);
+            std::vector<int> loopIndices;
+            for (int i = 149; i < 319; i++) loopIndices.push_back(i);
+            rankBfAnimate.addSpritemapAnim("intro", rankBfAnimate.smData.rootSymbolName, {}, 24.0f, false);
+            rankBfAnimate.addSpritemapAnim("loop", rankBfAnimate.smData.rootSymbolName, loopIndices, 24.0f, true);
+            rankBfAnimate.onAnimFinished = [this](const std::string& name) {
+                if (name == "intro") rankBfAnimate.play("loop");
+            };
         }
-        rankAnim.sheet = SpritesheetCache::get().load("preload/images/results/ranks/loss/introPart2");
-        if (rankAnim.sheet && !rankAnim.sheet->frames.empty()) {
-            for (const auto& f : rankAnim.sheet->frames) {
-                if (f.name.find("Intro") == 0) rankAnim.introFrames.push_back(f);
-            }
-            applyAntialiasing(rankAnim.sheet);
-        }
-        rankAnim.sheet = SpritesheetCache::get().load("preload/images/results/ranks/loss/loopPart1");
-        std::vector<Frame> loopPart1;
-        if (rankAnim.sheet && !rankAnim.sheet->frames.empty()) {
-            for (const auto& f : rankAnim.sheet->frames) {
-                if (f.name.find("Loop Start") == 0) loopPart1.push_back(f);
-            }
-            applyAntialiasing(rankAnim.sheet);
-        }
-        rankAnim.sheet = SpritesheetCache::get().load("preload/images/results/ranks/loss/loopPart2");
-        if (rankAnim.sheet && !rankAnim.sheet->frames.empty()) {
-            for (const auto& f : rankAnim.sheet->frames) {
-                if (f.name.find("Loop Start") == 0) loopPart1.push_back(f);
-            }
-            applyAntialiasing(rankAnim.sheet);
-        }
-        rankAnim.loopFrames = loopPart1;
-        if (!rankAnim.loopFrames.empty()) {
-            float baseFrameY = rankAnim.loopFrames[0].frameY;
-            for (auto& f : rankAnim.loopFrames) f.frameY -= baseFrameY;
-        }
+
         musicIntroPath = "romfs:/preload/music/results/resultsSHIT-intro.adp";
         musicLoopPath = "romfs:/preload/music/results/resultsSHIT.adp";
     }
@@ -847,86 +853,42 @@ void ResultState::update(float dt) {
         if (flashAlpha < 0.0f) flashAlpha = 0.0f;
     }
 
-    if (pctAnimDone && !rankAnim.started) {
-        rankAnim.started = true;
-        rankAnim.alpha = 0.0f;
-        if (!rankAnim.introFrames.empty()) {
-            rankAnim.introPlaying = true;
-            rankAnim.introTimer = 0.0f;
-            rankAnim.curFrame = 0;
-            rankAnim.frameTimer = 0.0f;
-        } else if (!rankAnim.loopFrames.empty()) {
-            rankAnim.curFrame = 0;
-            rankAnim.frameTimer = 0.0f;
-        }
+    if (pctAnimDone && !rankAnimStarted) {
+        rankAnimStarted = true;
+        rankAnimTimer = 0.0f;
+        rankFadeAlpha = 0.0f;
+        rankBfAnimate.play("intro");
     }
 
-    if (rankAnim.started) {
-        if (rankAnim.alpha < 1.0f) {
-            rankAnim.alpha += dt * 3.0f;
-            if (rankAnim.alpha > 1.0f) rankAnim.alpha = 1.0f;
+    if (rankAnimStarted) {
+        rankAnimTimer += dt;
+        if (rankFadeAlpha < 1.0f) {
+            rankFadeAlpha += dt * 3.0f;
+            if (rankFadeAlpha > 1.0f) rankFadeAlpha = 1.0f;
         }
-        rankAnim.frameTimer += dt;
-        while (rankAnim.frameTimer >= 1.0f / rankAnim.fps) {
-            rankAnim.frameTimer -= 1.0f / rankAnim.fps;
-            if (rankAnim.introPlaying) {
-                if (rankAnim.curFrame < (int)rankAnim.introFrames.size() - 1) {
-                    rankAnim.curFrame++;
-                } else {
-                    rankAnim.introPlaying = false;
-                    rankAnim.curFrame = 0;
-                    rankAnim.frameTimer = 0.0f;
-                    if (finalRating == "G" && percentage >= 80.0f) gfOutPlaying = true;
-                    else if (finalRating == "G" && percentage < 80.0f) goodGfIntroPlaying = true;
-                }
-            } else {
-                if (!rankAnim.loopFrames.empty()) {
-                    rankAnim.curFrame = (rankAnim.curFrame + 1) % (int)rankAnim.loopFrames.size();
-                }
+
+        rankBfAnimate.update(dt);
+
+        if (hasGfAnim) {
+            if (!gfStarted && rankAnimTimer >= gfDelay) {
+                gfStarted = true;
+                rankGfAnimate.play("intro");
+            }
+            if (gfStarted) {
+                rankGfAnimate.update(dt);
             }
         }
 
-        if (finalRating == "G" && gfOutPlaying) {
-            gfOutTimer += dt;
-            float t = std::min(gfOutTimer / gfOutDuration, 1.0f);
-            float invT = 1.0f - t;
-            float ease = 1.0f - invT * invT * invT;
-            gfOutX = -200.0f + (gfOutTargetX - (-200.0f)) * ease;
-            gfOutFrameTimer += dt;
-            while (gfOutFrameTimer >= 1.0f / gfFps) {
-                gfOutFrameTimer -= 1.0f / gfFps;
-                gfOutFrame = (gfOutFrame + 1) % (int)gfFrames.size();
-            }
-        }
-
-        if (finalRating == "G" && !(percentage >= 80.0f) && goodGfIntroPlaying) {
-            if (goodGfAlpha < 1.0f) {
-                goodGfAlpha += dt * 3.0f;
-                if (goodGfAlpha > 1.0f) goodGfAlpha = 1.0f;
-            }
-            goodGfFrameTimer += dt;
-            while (goodGfFrameTimer >= 1.0f / goodGfFps) {
-                goodGfFrameTimer -= 1.0f / goodGfFps;
-                if (goodGfIntroPlaying) {
-                    if (!goodGfIntroFrames.empty() && goodGfCurFrame < (int)goodGfIntroFrames.size() - 1) {
-                        goodGfCurFrame++;
-                    } else {
-                        goodGfIntroPlaying = false;
-                        goodGfCurFrame = 0;
-                        goodGfFrameTimer = 0.0f;
-                    }
-                } else if (!goodGfLoopFrames.empty()) {
-                    goodGfCurFrame = (goodGfCurFrame + 1) % (int)goodGfLoopFrames.size();
+        if (hasExtraAnim) {
+            if (!extraStarted && rankAnimTimer >= extraDelay) {
+                extraStarted = true;
+                rankExtraAnimate.play("intro");
+                if (!ClientPrefs::naughtyness && (rank == "PERFECT" || rank == "GOLD PERFECT")) {
+                    AudioEngine::playSound("romfs:/preload/sounds/tickleFight.adp", 1.0f);
                 }
             }
-        }
-
-        if ((finalRating == "P" || finalRating == "GP") && !rankAnim.introPlaying) {
-            heartsTimer += dt;
-            heartsFrameTimer += dt;
-            while (heartsFrameTimer >= 1.0f / heartsFps) {
-                heartsFrameTimer -= 1.0f / heartsFps;
-                heartsFrame = (heartsFrame + 1) % (int)heartsFrames.size();
+            if (extraStarted) {
+                rankExtraAnimate.update(dt);
             }
         }
     }
@@ -983,6 +945,15 @@ void ResultState::update(float dt) {
         } else if (isStoryMode) {
             nextState = new StoryMenuState();
         } else {
+            std::string newRating = (finalRating == "G" && percentage < 80.0f) ? "g" : finalRating;
+            if (getRankWeight(newRating) >= getRankWeight(previousRating)) {
+                FreeplayState::pendingRankAnim = true;
+                FreeplayState::pendingSongName = name;
+                FreeplayState::pendingDiff = difficulty;
+                FreeplayState::pendingRating = newRating;
+            } else {
+                FreeplayState::pendingRankAnim = false;
+            }
             nextState = new MainMenuState(true);
         }
         
@@ -1147,60 +1118,22 @@ void ResultState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
         if (usingBlinkTint) C2D_SetTintMode(C2D_TintSolid);
     }
 
-    if (rankAnim.started) {
-        std::vector<Frame>* activeFrames = rankAnim.introPlaying ? &rankAnim.introFrames : &rankAnim.loopFrames;
-        if (!activeFrames->empty()) {
-            int fi = rankAnim.curFrame % (int)activeFrames->size();
-            const Frame& rf = (*activeFrames)[fi];
-            float rScale = rankAnim.scale;
-            float rW = frameLogicalW(rf) * rScale;
-            float rH = frameLogicalH(rf) * rScale;
-            float rX = 200.0f - rW / 2.0f;
-            float rY = 100.0f - rH / 2.0f + rankAnim.offsetY;
-            C2D_ImageTint rankTint;
-            C2D_AlphaImageTint(&rankTint, rankAnim.alpha);
-            drawFrameAt(rf, rX, rY, 0.85f, &rankTint, rScale, rScale);
+    if (rankAnimStarted) {
+        C2D_ImageTint rankTint;
+        C2D_AlphaImageTint(&rankTint, rankFadeAlpha);
+
+        if (hasGfAnim && gfStarted) {
+            rankGfAnimate.alpha = rankFadeAlpha;
+            rankGfAnimate.drawCentered(200.0f, 120.0f, 0.84f, 1.0f, 1.0f, &rankTint);
         }
-    }
 
-    if (finalRating == "G" && gfOutPlaying && gfSheet && !gfSheet->frames.empty() && !gfFrames.empty()) {
-        int fi = gfOutFrame % (int)gfFrames.size();
-        const Frame& gf = gfSheet->frames[gfFrames[fi]];
-        float gfDrawScale = gfScale;
-        float gfH = frameLogicalH(gf) * gfDrawScale;
-        float gfY = 100.0f - gfH / 2.0f + rankAnim.offsetY + gfOffsetY;
-        C2D_ImageTint gfTint;
-        C2D_AlphaImageTint(&gfTint, rankAnim.alpha);
-        drawFrameAt(gf, gfOutX, gfY, 0.84f, &gfTint, gfDrawScale, gfDrawScale);
-    }
+        rankBfAnimate.alpha = rankFadeAlpha;
+        rankBfAnimate.drawCentered(200.0f, 120.0f, 0.85f, 1.0f, 1.0f, &rankTint);
 
-    if (finalRating == "G" && !(percentage >= 80.0f) && goodGfIntroPlaying && goodGfSheet && !goodGfSheet->frames.empty() && !goodGfIntroFrames.empty()) {
-        std::vector<Frame>* activeFrames = goodGfIntroPlaying ? &goodGfIntroFrames : &goodGfLoopFrames;
-        if (!activeFrames->empty()) {
-            int fi = goodGfCurFrame % (int)activeFrames->size();
-            const Frame& gf = (*activeFrames)[fi];
-            float gfDrawScale = goodGfScale;
-            float gfH = frameLogicalH(gf) * gfDrawScale;
-            float gfY = 100.0f - gfH / 2.0f + rankAnim.offsetY + goodGfOffsetY;
-            C2D_ImageTint gfTint;
-            C2D_AlphaImageTint(&gfTint, goodGfAlpha);
-            drawFrameAt(gf, 200.0f - frameLogicalW(gf) * gfDrawScale / 2.0f + goodGfOffsetX, gfY, 0.84f, &gfTint, gfDrawScale, gfDrawScale);
+        if (hasExtraAnim && extraStarted) {
+            rankExtraAnimate.alpha = rankFadeAlpha;
+            rankExtraAnimate.drawCentered(200.0f, 120.0f, 0.86f, 1.0f, 1.0f, &rankTint);
         }
-    }
-
-    if ((finalRating == "P" || finalRating == "GP") && !rankAnim.introPlaying && heartsSheet && !heartsSheet->frames.empty() && !heartsFrames.empty()) {
-        int fi = heartsFrame % (int)heartsFrames.size();
-        const Frame& hf = heartsSheet->frames[heartsFrames[fi]];
-        float hScale = heartsScale;
-        float hW = frameLogicalW(hf) * hScale;
-        float hH = frameLogicalH(hf) * hScale;
-        float floatX = sinf(heartsTimer * 2.0f) * 8.0f;
-        float floatY = cosf(heartsTimer * 1.5f) * 6.0f;
-        float hX = 200.0f - hW / 2.0f + heartsOffsetX + floatX;
-        float hY = 60.0f - hH / 2.0f + rankAnim.offsetY + heartsOffsetY + floatY;
-        C2D_ImageTint heartsTint;
-        C2D_AlphaImageTint(&heartsTint, rankAnim.alpha);
-        drawFrameAt(hf, hX, hY, 0.84f, &heartsTint, hScale, hScale);
     }
 
     if (achEnterTimer > 0.0f && !Achievements::sessionUnlocks.empty()) {

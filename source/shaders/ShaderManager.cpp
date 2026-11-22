@@ -22,6 +22,10 @@ void ShaderManager::prepareCamera(const std::string& camera) {
         rt.cleanup();
         rt.init(512, h);
     }
+    if (camera == "camBottom" && rt.origSubtex) {
+        rt.origSubtex->width = 320;
+        rt.origSubtex->right = 320.0f / 512.0f;
+    }
 }
 
 static std::string readScriptFile(const std::string& path) {
@@ -40,6 +44,44 @@ static std::string readScriptFile(const std::string& path) {
     return str;
 }
 
+static bool scriptHasCameraShader(const std::string& content, const std::string& camName) {
+    if (content.find(camName) == std::string::npos) {
+        if (camName == "camGame") {
+            return (content.find("setCameraShader") != std::string::npos ||
+                    content.find("addCameraShader") != std::string::npos);
+        }
+        return false;
+    }
+    
+    std::string s1 = "\"" + camName + "\"";
+    std::string s2 = "'" + camName + "'";
+    
+    size_t pos = 0;
+    while ((pos = content.find(s1, pos)) != std::string::npos) {
+        size_t start = (pos > 40) ? (pos - 40) : 0;
+        std::string window = content.substr(start, pos - start);
+        if (window.find("Shader") != std::string::npos || window.find("Extended") != std::string::npos) {
+            return true;
+        }
+        pos += s1.length();
+    }
+    pos = 0;
+    while ((pos = content.find(s2, pos)) != std::string::npos) {
+        size_t start = (pos > 40) ? (pos - 40) : 0;
+        std::string window = content.substr(start, pos - start);
+        if (window.find("Shader") != std::string::npos || window.find("Extended") != std::string::npos) {
+            return true;
+        }
+        pos += s2.length();
+    }
+    
+    if (camName == "camGame") {
+        return (content.find("setCameraShader") != std::string::npos ||
+                content.find("addCameraShader") != std::string::npos);
+    }
+    return false;
+}
+
 void ShaderManager::preloadShadersForSong(const std::vector<std::string>& scriptPaths) {
     // 1. Any cameras already requested during onCreate/onCreatePost
     for (const auto& pair : activeShaders) {
@@ -48,8 +90,6 @@ void ShaderManager::preloadShadersForSong(const std::vector<std::string>& script
     for (const auto& cam : extendedCameras) {
         prepareCamera(cam);
     }
-
-    int totalShadersDetected = 0;
 
     // 2. Pre-scan all script files
     for (const auto& path : scriptPaths) {
@@ -64,48 +104,18 @@ void ShaderManager::preloadShadersForSong(const std::vector<std::string>& script
         bool hasExtendedCalls = (content.find("setCameraExtended") != std::string::npos);
 
         if (hasExtendedCalls) {
-            if (content.find("camGame") != std::string::npos) setCameraExtended("camGame", true);
-            if (content.find("camHUD") != std::string::npos) setCameraExtended("camHUD", true);
-            if (content.find("camOther") != std::string::npos) setCameraExtended("camOther", true);
-            if (content.find("camBottom") != std::string::npos) setCameraExtended("camBottom", true);
+            if (scriptHasCameraShader(content, "camGame")) setCameraExtended("camGame", true);
+            if (scriptHasCameraShader(content, "camHUD")) setCameraExtended("camHUD", true);
+            if (scriptHasCameraShader(content, "camOther")) setCameraExtended("camOther", true);
+            if (scriptHasCameraShader(content, "camBottom")) setCameraExtended("camBottom", true);
         }
 
         if (hasShaderCalls) {
-            bool specificFound = false;
-            if (content.find("camGame") != std::string::npos) {
-                prepareCamera("camGame");
-                specificFound = true;
-            }
-            if (content.find("camHUD") != std::string::npos) {
-                prepareCamera("camHUD");
-                specificFound = true;
-            }
-            if (content.find("camOther") != std::string::npos) {
-                prepareCamera("camOther");
-                specificFound = true;
-            }
-            if (content.find("camBottom") != std::string::npos) {
-                prepareCamera("camBottom");
-                specificFound = true;
-            }
-            // Fallback
-            if (!specificFound) {
-                prepareCamera("camGame");
-            }
-
-            size_t pos = 0;
-            while ((pos = content.find("setCameraShader", pos)) != std::string::npos) {
-                totalShadersDetected++;
-                pos += 15;
-            }
+            if (scriptHasCameraShader(content, "camGame")) prepareCamera("camGame");
+            if (scriptHasCameraShader(content, "camHUD")) prepareCamera("camHUD");
+            if (scriptHasCameraShader(content, "camOther")) prepareCamera("camOther");
+            if (scriptHasCameraShader(content, "camBottom")) prepareCamera("camBottom");
         }
-    }
-
-    // If multiple shaders are detected, pre-allocate helperRT so stacking doesn't allocate during gameplay
-    if (totalShadersDetected > 1 && !helperRT.active) {
-        bool anyExtended = !extendedCameras.empty();
-        int helperHeight = anyExtended ? 512 : 256;
-        helperRT.init(512, helperHeight);
     }
 }
 
@@ -175,22 +185,26 @@ void ShaderManager::RT::init(int w, int h) {
     if (active) return;
     
     if (!C3D_TexInitVRAM(&tex, w, h, GPU_RGBA8)) {
-        if (!C3D_TexInit(&tex, w, h, GPU_RGBA8)) {
-            printf("\x1b[16;1HERROR: Failed to alloc Shader RT %dx%d\x1b[K\n", w, h);
-            return;
-        }
+        active = false;
+        target = nullptr;
+        return;
     }
     C3D_TexSetFilter(&tex, GPU_LINEAR, GPU_NEAREST);
     C3D_TexSetWrap(&tex, GPU_REPEAT, GPU_REPEAT);
 
     target = C3D_RenderTargetCreateFromTex(&tex, GPU_TEXFACE_2D, 0, -1);
-    C3D_RenderTargetClear(target, C3D_CLEAR_ALL, 0x00000000, 0); // Clear with transparent
+    if (!target) {
+        C3D_TexDelete(&tex);
+        active = false;
+        return;
+    }
+    C3D_RenderTargetClear(target, C3D_CLEAR_ALL, 0x00000000, 0);
     
     img.tex = &tex;
     img.subtex = new Tex3DS_SubTexture();
     origSubtex = const_cast<Tex3DS_SubTexture*>(img.subtex);
     origSubtex->width = (w == 512) ? 400 : w; 
-    origSubtex->height = (h == 512) ? 480 : 240;
+    origSubtex->height = (h == 512) ? 480 : ((h < 240) ? h : 240);
     origSubtex->left = 0.0f;
     origSubtex->top = 1.0f;
     origSubtex->right = origSubtex->width / (float)w;
@@ -448,7 +462,7 @@ void ShaderManager::presentCamera(const std::string& camName, C3D_RenderTarget* 
     if (!hasShaders && !isExtended && !hasTransforms) return;
     
     auto rtIt = targets.find(camName);
-    if (rtIt == targets.end() || !rtIt->second.active) return;
+    if (rtIt == targets.end() || !rtIt->second.active || !rtIt->second.target) return;
     const RT& cameraRT = rtIt->second;
     
     Tex3DS_SubTexture tempSub;
@@ -477,31 +491,48 @@ void ShaderManager::presentCamera(const std::string& camName, C3D_RenderTarget* 
     const RT* finalSrc = &cameraRT;
     if (hasShaders) {
         const ShaderStack& stack = it->second;
-        
         int helperHeight = isExtended ? 512 : 256;
-        if (!helperRT.active) {
-            helperRT.init(512, helperHeight);
-        } else if (helperRT.tex.height != helperHeight) {
-            helperRT.cleanup();
-            helperRT.init(512, helperHeight);
-        }
-        if (stack.size() > 1) {
+
+        if (stack.size() == 1 && alpha >= 1.0f) {
+            const std::string& sname = stack[0].name;
+            bool needsHelper = (sname == "pixelate" || sname == "bw");
+            if (needsHelper) {
+                if (!helperRT.active) helperRT.init(512, helperHeight);
+            }
+            C2D_SceneBegin(dest);
+            C2D_ViewReset();
+            drawShaderEffect(camName, cameraRT, dest, stack[0], 0, 0, 1.0f, 1.0f);
+            C2D_Flush();
+            if (isExtended) {
+                const_cast<RT&>(cameraRT).img.subtex = cameraRT.origSubtex;
+                if (helperRT.active) const_cast<RT&>(helperRT).img.subtex = helperRT.origSubtex;
+                if (bloomRT.active) const_cast<RT&>(bloomRT).img.subtex = bloomRT.origSubtex;
+            }
+            return;
+        } else {
+            if (!helperRT.active) {
+                helperRT.init(512, helperHeight);
+            } else if (helperRT.tex.height != helperHeight) {
+                helperRT.cleanup();
+                helperRT.init(512, helperHeight);
+            }
             if (!helperRT2.active) {
                 helperRT2.init(512, helperHeight);
             } else if (helperRT2.tex.height != helperHeight) {
                 helperRT2.cleanup();
                 helperRT2.init(512, helperHeight);
             }
-        }
+            if (!helperRT.active || !helperRT.target || !helperRT2.active || !helperRT2.target) {
+                C2D_SceneBegin(dest);
+                C2D_ViewReset();
+                drawShaderEffect(camName, cameraRT, dest, stack[0], 0, 0, 1.0f, 1.0f);
+                C2D_Flush();
+                if (isExtended) {
+                    const_cast<RT&>(cameraRT).img.subtex = cameraRT.origSubtex;
+                }
+                return;
+            }
 
-        if (stack.size() == 1) {
-            C2D_SceneBegin(helperRT.target);
-            C2D_TargetClear(helperRT.target, C2D_Color32(0, 0, 0, 0));
-            C2D_ViewReset();
-            drawShaderEffect(camName, cameraRT, helperRT.target, stack[0], 0, 0, 1.0f, 1.0f);
-            C2D_Flush();
-            finalSrc = &helperRT;
-        } else {
             const RT* currentSrc = &cameraRT;
             for (size_t i = 0; i < stack.size(); i++) {
                 RT& passDestRT = (i % 2 == 0) ? helperRT2 : helperRT;
@@ -525,7 +556,8 @@ void ShaderManager::presentCamera(const std::string& camName, C3D_RenderTarget* 
         tintPtr = &alphaTint;
     }
 
-    float screenWidth = isBottomPart ? 320.0f : 400.0f;
+    bool isBottom = (camName == "camBottom" || isBottomPart);
+    float screenWidth = isBottom ? 320.0f : 400.0f;
     float screenHeight = 240.0f;
     
     float drawX = screenWidth / 2.0f;
@@ -552,7 +584,7 @@ void ShaderManager::presentCamera(const std::string& camName, C3D_RenderTarget* 
 
 void ShaderManager::endCamera(const std::string& camera, C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     auto rtIt = targets.find(camera);
-    bool isOffscreen = (rtIt != targets.end() && rtIt->second.active);
+    bool isOffscreen = (rtIt != targets.end() && rtIt->second.active && rtIt->second.target);
 
     if (isOffscreen) {
         C3D_DepthTest(false, GPU_GEQUAL, GPU_WRITE_ALL);

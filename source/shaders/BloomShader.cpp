@@ -3,6 +3,8 @@
 #include <algorithm>
 
 void ShaderManager::drawBloom(const std::string& camera, const RT& rt, C3D_RenderTarget* dest, float strength, float threshold, float radius, float x, float y, float scaleX, float scaleY) {
+    if (!rt.active || !rt.img.subtex) return;
+
     if (strength <= 0.001f) {
         C2D_DrawImageAt(rt.img, x, y, 0.0f, nullptr, scaleX, scaleY);
         return;
@@ -11,10 +13,14 @@ void ShaderManager::drawBloom(const std::string& camera, const RT& rt, C3D_Rende
     C2D_Flush();
 
     // Use dedicated bloomRT buffer (guaranteed never to alias with rt or dest)
-    int helperHeight = isCameraExtended(camera) ? 512 : 256;
-    if (!bloomRT.active || bloomRT.tex.height != helperHeight) {
+    int bloomHeight = isCameraExtended(camera) ? 128 : 64;
+    if (!bloomRT.active || bloomRT.tex.height != bloomHeight) {
         if (bloomRT.active) bloomRT.cleanup();
-        bloomRT.init(512, helperHeight);
+        bloomRT.init(128, bloomHeight);
+    }
+    if (!bloomRT.active || !bloomRT.target) {
+        C2D_DrawImageAt(rt.img, x, y, 0.0f, nullptr, scaleX, scaleY);
+        return;
     }
 
     float w = rt.img.subtex->width;

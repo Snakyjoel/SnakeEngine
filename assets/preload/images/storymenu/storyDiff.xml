@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Heroic Packer v0.1.6 https://heroicpacker.heroeyad.dev/
+-->
+<TextureAtlas imagePath="storyDiff.png" width="512" height="64" spritePadding="2" borderPadding="1">
+	<SubTexture name="easy" x="353" y="1" width="96" height="32" frameX="0" frameY="0" frameWidth="96" frameHeight="32"/>
+	<SubTexture name="hard" x="150" y="1" width="101" height="32" frameX="0" frameY="0" frameWidth="101" frameHeight="32"/>
+	<SubTexture name="normal" x="1" y="1" width="147" height="32" frameX="0" frameY="0" frameWidth="147" frameHeight="32"/>
+	<SubTexture name="placeholder" x="253" y="1" width="98" height="32" frameX="0" frameY="0" frameWidth="98" frameHeight="32"/>
+</TextureAtlas>

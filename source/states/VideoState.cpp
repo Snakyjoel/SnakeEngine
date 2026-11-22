@@ -85,6 +85,9 @@ void VideoState::init() {
     for (int i = 0; i < 2; i++) {
         C3D_TexInit(&tex[i], 512, 256, texFmt);
         C3D_TexSetFilter(&tex[i], GPU_LINEAR, GPU_NEAREST);
+        if (tex[i].data) {
+            memset(tex[i].data, 0, tex[i].size);
+        }
     }
 
     uint16_t w = decoder.getWidth();
@@ -224,8 +227,6 @@ void VideoState::update(float dt) {
 }
 
 void VideoState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
-    if (failedToLoad) return;
-
     if (!g_isRightEye && bottom) {
         C2D_SceneBegin(bottom);
         C2D_TargetClear(bottom, C2D_Color32(0, 0, 0, 255));
@@ -250,7 +251,9 @@ void VideoState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     C2D_SceneBegin(top);
     C2D_TargetClear(top, C2D_Color32(0, 0, 0, 255));
 
-    if (tex[currentTex].data) {
+    if (failedToLoad) return;
+
+    if (displayedFrame >= 0 && tex[currentTex].data) {
         img.tex = &tex[currentTex];
         float w = (float)decoder.getWidth();
         float h_raw = (float)decoder.getHeight();

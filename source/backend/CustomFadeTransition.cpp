@@ -28,6 +28,13 @@ void drawWipeOverlay(C3D_RenderTarget* screen, float screenW, float screenH) {
         return;
     }
 
+    if (phase == TransitionPhase::FADE_OUT && MusicBeatState::useFadeTransition) {
+        float alpha = std::max(0.0f, std::min(1.0f, p));
+        u8 a = static_cast<u8>(alpha * 255.0f);
+        C2D_DrawRectSolid(0.0f, 0.0f, 1.0f, screenW, screenH, C2D_Color32(0, 0, 0, a));
+        return;
+    }
+
     constexpr float GRAD_H       = 120.0f;
     constexpr float ALPHA_FACTOR = 255.0f / GRAD_H; // 2.125f per pixel
     const float totalDist        = screenH + GRAD_H;

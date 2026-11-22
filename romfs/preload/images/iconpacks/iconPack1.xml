@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+Created with Heroic Packer v0.1.7 https://heroicpacker.heroeyad.dev/
 -->
-<TextureAtlas imagePath="iconPack1.png" width="512" height="507">
-  <SubTexture name="bfSticker1" x="137.70000000000002" y="274.72"  width="129.88" height="86.36" frameX="-0" frameY="-0" frameWidth="129.88" frameHeight="86.36"/>
-  <SubTexture name="bfSticker2" x="0.68" y="402.90000000000003"  width="125.80000000000001" height="86.36" frameX="-0" frameY="-0" frameWidth="125.80000000000001" frameHeight="86.36"/>
-  <SubTexture name="bfSticker3" x="0.68" y="315.18"  width="129.20000000000002" height="86.36" frameX="-0" frameY="-0" frameWidth="129.20000000000002" frameHeight="86.36"/>
-  <SubTexture name="dadSticker1" x="397.12" y="106.42"  width="101.66000000000001" height="105.06" frameX="-0" frameY="-0" frameWidth="101.66000000000001" frameHeight="105.06"/>
-  <SubTexture name="dadSticker2" x="268.94" y="315.18"  width="100.98" height="109.14000000000001" frameX="-0" frameY="-0" frameWidth="100.98" frameHeight="109.14000000000001"/>
-  <SubTexture name="dadSticker3" x="131.24" y="362.44"  width="99.28" height="109.82000000000001" frameX="-0" frameY="-0" frameWidth="99.28" frameHeight="109.82000000000001"/>
-  <SubTexture name="gfSticker1" x="276.08000000000004" y="215.56"  width="122.74000000000001" height="98.26" frameX="-0" frameY="-0" frameWidth="122.74000000000001" frameHeight="98.26"/>
-  <SubTexture name="gfSticker2" x="137.70000000000002" y="162.52"  width="137.02" height="110.84" frameX="-0" frameY="-0" frameWidth="137.02" frameHeight="110.84"/>
-  <SubTexture name="gfSticker3" x="273.70000000000005" y="0.68"  width="126.14000000000001" height="104.38000000000001" frameX="-0" frameY="-0" frameWidth="126.14000000000001" frameHeight="104.38000000000001"/>
-  <SubTexture name="momSticker1" x="0.68" y="162.52"  width="135.66" height="151.3" frameX="-0" frameY="-0" frameWidth="135.66" frameHeight="151.3"/>
-  <SubTexture name="momSticker2" x="138.04000000000002" y="0.68"  width="134.3" height="153" frameX="-0" frameY="-0" frameWidth="134.3" frameHeight="153"/>
-  <SubTexture name="momSticker3" x="0.68" y="0.68"  width="136" height="160.48000000000002" frameX="-0" frameY="-0" frameWidth="136" frameHeight="160.48000000000002"/>
-  <SubTexture name="monsterSticker1" x="231.88000000000002" y="425.68"  width="112.88000000000001" height="80.24000000000001" frameX="-0" frameY="-0" frameWidth="112.88000000000001" frameHeight="80.24000000000001"/>
-  <SubTexture name="monsterSticker2" x="371.28000000000003" y="410.38000000000005"  width="116.28000000000002" height="86.7" frameX="-0" frameY="-0" frameWidth="116.28000000000002" frameHeight="86.7"/>
-  <SubTexture name="monsterSticker3" x="371.28000000000003" y="315.18"  width="112.88000000000001" height="93.84" frameX="-0" frameY="-0" frameWidth="112.88000000000001" frameHeight="93.84"/>
-  <SubTexture name="picoSticker1" x="401.20000000000005" y="0.68"  width="106.76" height="86.36" frameX="-0" frameY="-0" frameWidth="106.76" frameHeight="86.36"/>
-  <SubTexture name="picoSticker2" x="400.18" y="212.84"  width="111.18" height="86.36" frameX="-0" frameY="-0" frameWidth="111.18" frameHeight="86.36"/>
-  <SubTexture name="picoSticker3" x="276.08000000000004" y="106.42"  width="119.68" height="107.78" frameX="-0" frameY="-0" frameWidth="119.68" frameHeight="107.78"/>
+<TextureAtlas imagePath="iconPack1.png" width="512" height="512" spritePadding="2" borderPadding="1" scale="0.32">
+	<SubTexture name="sticker-bf-1" x="131" y="1" width="82" height="123" rotated="true" frameX="0" frameY="0" frameWidth="122" frameHeight="81"/>
+	<SubTexture name="sticker-bf-2" x="299" y="102" width="119" height="82" frameX="0" frameY="0" frameWidth="118" frameHeight="81"/>
+	<SubTexture name="sticker-bf-3" x="215" y="1" width="82" height="122" rotated="true" frameX="0" frameY="0" frameWidth="122" frameHeight="81"/>
+	<SubTexture name="sticker-dad-1" x="397" y="326" width="99" height="96" rotated="true" frameX="0" frameY="0" frameWidth="96" frameHeight="99"/>
+	<SubTexture name="sticker-dad-2" x="215" y="382" width="96" height="103" frameX="0" frameY="0" frameWidth="95" frameHeight="103"/>
+	<SubTexture name="sticker-dad-3" x="131" y="286" width="104" height="94" rotated="true" frameX="0" frameY="0" frameWidth="93" frameHeight="103"/>
+	<SubTexture name="sticker-gf-1" x="237" y="186" width="116" height="93" frameX="0" frameY="0" frameWidth="116" frameHeight="92"/>
+	<SubTexture name="sticker-gf-2" x="130" y="155" width="105" height="129" rotated="true" frameX="0" frameY="0" frameWidth="129" frameHeight="104"/>
+	<SubTexture name="sticker-gf-3" x="299" y="1" width="119" height="99" frameX="0" frameY="0" frameWidth="119" frameHeight="98"/>
+	<SubTexture name="sticker-mom-1" x="1" y="301" width="128" height="143" frameX="0" frameY="0" frameWidth="128" frameHeight="142"/>
+	<SubTexture name="sticker-mom-2" x="1" y="155" width="127" height="144" frameX="0" frameY="0" frameWidth="126" frameHeight="144"/>
+	<SubTexture name="sticker-mom-3" x="1" y="1" width="128" height="152" frameX="0" frameY="0" frameWidth="128" frameHeight="151"/>
+	<SubTexture name="sticker-monster-1" x="237" y="281" width="107" height="76" frameX="0" frameY="0" frameWidth="106" frameHeight="76"/>
+	<SubTexture name="sticker-monster-2" x="420" y="110" width="82" height="110" rotated="true" frameX="0" frameY="0" frameWidth="109" frameHeight="82"/>
+	<SubTexture name="sticker-monster-3" x="420" y="1" width="89" height="107" rotated="true" frameX="0" frameY="0" frameWidth="106" frameHeight="88"/>
+	<SubTexture name="sticker-pico-1" x="313" y="359" width="82" height="101" rotated="true" frameX="0" frameY="0" frameWidth="100" frameHeight="81"/>
+	<SubTexture name="sticker-pico-2" x="131" y="382" width="82" height="105" rotated="true" frameX="0" frameY="0" frameWidth="105" frameHeight="81"/>
+	<SubTexture name="sticker-pico-3" x="355" y="222" width="113" height="102" frameX="0" frameY="0" frameWidth="113" frameHeight="101"/>
 </TextureAtlas>

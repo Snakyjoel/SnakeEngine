@@ -1,9 +1,9 @@
-//I need to recode this bullshit
 #pragma once
 #include "../backend/MusicBeatState.hpp"
 #include "Achievements.hpp"
 #include "SparrowParser.hpp"
 #include "../backend/SpritesheetCache.hpp"
+#include "../objects/CppAnimate.hpp"
 #include <string>
 #include <citro2d.h>
 
@@ -36,6 +36,7 @@ private:
     float percentage;
     std::string rank;
     std::string finalRating;
+    std::string previousRating;
 
     C2D_Font vcrFont = nullptr;
     C2D_TextBuf vcrFontBuf = nullptr;
@@ -150,59 +151,20 @@ private:
     float achEnterTimer  = 0.0f;
     float achScrollOffset = 0.0f;
 
-    struct RankAnim {
-        CachedSpritesheet* sheet = nullptr;
-        std::vector<Frame> introFrames;
-        std::vector<Frame> loopFrames;
-        bool introPlaying = false;
-        float introTimer = 0.0f;
-        float introDuration = 0.0f;
-        int curFrame = 0;
-        float frameTimer = 0.0f;
-        bool started = false;
-        float scale = 0.85f;
-        float offsetY = 0.0f;
-        float fps = 12.0f;
-        float alpha = 0.0f;
-    };
-    RankAnim rankAnim;
+    CppAnimate rankBfAnimate;
+    CppAnimate rankGfAnimate;
+    CppAnimate rankExtraAnimate;
 
-    CachedSpritesheet* gfSheet = nullptr;
-    std::vector<int> gfFrames;
-    bool gfOutPlaying = false;
-    float gfOutX = -200.0f;
-    float gfOutTargetX = 60.0f;
-    float gfOutDuration = 1.2f;
-    float gfOutTimer = 0.0f;
-    int gfOutFrame = 0;
-    float gfOutFrameTimer = 0.0f;
-    float gfOffsetY = 0.0f;
-    float gfScale = 0.25f;
-    float gfFps = 12.0f;
+    bool rankAnimStarted = false;
+    float rankAnimTimer = 0.0f;
+    float rankFadeAlpha = 0.0f;
 
-    CachedSpritesheet* heartsSheet = nullptr;
-    std::vector<int> heartsFrames;
-    float heartsTimer = 0.0f;
-    int heartsFrame = 0;
-    float heartsFrameTimer = 0.0f;
-    float heartsScale = 1.0f;
-    float heartsOffsetX = 0.0f;
-    float heartsOffsetY = 0.0f;
-    float heartsFps = 12.0f;
+    bool hasGfAnim = false;
+    bool gfStarted = false;
+    float gfDelay = 0.0f;
 
-    CachedSpritesheet* goodGfSheet = nullptr;
-    std::vector<Frame> goodGfIntroFrames;
-    std::vector<Frame> goodGfLoopFrames;
-    bool goodGfIntroPlaying = false;
-    float goodGfAlpha = 0.0f;
-    float goodGfFps = 12.0f;
-    float goodGfOffsetX = 0.0f;
-    float goodGfOffsetY = 0.0f;
-    float goodGfScale = 0.25f;
-    int goodGfCurFrame = 0;
-    float goodGfFrameTimer = 0.0f;
-
-    float lossOffsetY = 0.0f;
-    float lossBaseH = 0.0f;
+    bool hasExtraAnim = false;
+    bool extraStarted = false;
+    float extraDelay = 0.0f;
 };
 

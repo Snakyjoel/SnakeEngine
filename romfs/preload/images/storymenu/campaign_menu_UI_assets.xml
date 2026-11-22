@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Tex-Packer-EX v0.7.1 https://kitzsh.github.io/tex-packer-ex
+-->
+<TextureAtlas imagePath="campaign_menu_UI_assets.png" width="79" height="75">
+  <SubTexture name="arrow left0000" x="34" y="0"  width="24" height="43" frameX="-0" frameY="-0" frameWidth="24" frameHeight="43"/>
+  <SubTexture name="arrow push left0000" x="58" y="0"  width="21" height="38" frameX="-0" frameY="-0" frameWidth="21" frameHeight="38"/>
+  <SubTexture name="arrow push right0000" x="58" y="38"  width="21" height="37" frameX="-0" frameY="-0" frameWidth="21" frameHeight="37"/>
+  <SubTexture name="arrow right0000" x="0" y="47" width="43" height="23" rotated="true"  frameX="-0" frameY="-0" frameWidth="24" frameHeight="43"/>
+  <SubTexture name="lock0000" x="0" y="0"  width="34" height="47" frameX="-0" frameY="-0" frameWidth="34" frameHeight="47"/>
+</TextureAtlas>

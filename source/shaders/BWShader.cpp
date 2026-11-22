@@ -15,6 +15,18 @@ void ShaderManager::drawBW(const RT& rt, C3D_RenderTarget* dest, float passes, f
         s_tintInit = true;
     }
 
+    if (!rt.active || !rt.img.subtex) return;
+
+    int neededH = (rt.img.subtex->height > 240.0f) ? 512 : 256;
+    if (!helperRT.active || !helperRT.target || helperRT.tex.height < neededH) {
+        if (helperRT.active) helperRT.cleanup();
+        helperRT.init(512, neededH);
+        if (!helperRT.active || !helperRT.target) {
+            C2D_DrawImageAt(rt.img, x, y, 0.0f, nullptr, scaleX, scaleY);
+            return;
+        }
+    }
+
     // Step 1: Draw grayscale source image into helperRT (normal blend)
     C2D_SceneBegin(helperRT.target);
     C2D_TargetClear(helperRT.target, C2D_Color32(0, 0, 0, 255));

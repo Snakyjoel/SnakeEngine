@@ -1,4 +1,6 @@
 3.8.9
+(The list of changes is very long; I may have missed some changes that aren't listed.)
+- Extended memory mode is finally enabled
 - Main menu items no longer appear when 3D is enabled in Freeplay
 - Fixed the scroll on the difficulty selector in freeplay
 - Added the "Random" song option in freeplay
@@ -8,7 +10,7 @@
 - Fixed mod songs loading fallback assets on real hardware
 - Fixed infinite hang/freeze when exiting the game
 - Removed the logs of "cache_log.txt" and "snake_log.txt"
-- He is back
+- 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 - Added Conni to the credits (SORRY I FORGOT TO ADD YOU ON THE OLDER BUILD ;-;)
 - Full PNG support
 - Fixed a bug that prevented the week's banner from being found in the story menu
@@ -24,6 +26,29 @@
 - The 3D effect has been optimized, and it no longer applies to the bottom screen.
 - Added bloom shader
 - The shaders got some optimizations
+- Fast notes were remored
+- The engine options were reorganized
+- Now the elements of the Score text are modular (That is, you can individually remove things like misses or the rating from the text)
+- Now the elements of the Debug text are modular
+- The background of the debug info was simplified and fixed (it now covers all the text behind it)
+- Alphabet texture was updated adding more characters and better resolution
+- Optimized the load of assets on story menu like freeplay
+- The story mode weeks list has been centered and the track list can now be displayed using "L"
+- The game compiler was improved
+- Bf now has all its animations in freeplay (except "New Unlock" animation)
+- Freeplay now has the corresponding animations when choosing a song or going to character select
+- The background of the debug text in playstate was changed to a single rectangle and now correctly covers all the text
+- The sticker animation was improved to make it faithful to the original game
+- The corresponding sounds are already being used when adding or removing a song from favorites in FreePlay
+- The wave and drugs shader was improved
+- The BF and GF sprites on the results screen were updated, and their positions and scales were corrected
+- The censored variant of the Perfect rank was added to the results screen
+- The "Naughtiness" option was added
+- "Test" song was removed from the files
+- "TTFAF" song was removed from the files (You know... that song from guitar hero lmao)
+- All the audio files of the songs were re-exported
+- Tutorial now has the Voices audio file separated from Inst
+- Boyfriend camera was moved 10 pixels up on week 6 to hide a gap of void
 
 v3.7.8
 (The list of changes is very long; I may have missed some changes that aren't listed.)

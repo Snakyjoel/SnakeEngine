@@ -44,7 +44,7 @@ static std::string wrapText(const std::string& text, size_t maxChars = 24) {
 
 void EggRoomState::init() {
     MusicPlayer::stop();
-    MusicPlayer::play("romfs:/preload/music/man.ogg", 0.7f);
+    MusicPlayer::play("romfs:/preload/music/man.adp", 0.7f);
     musicStarted = true;
 
     treeSheet = C2D_SpriteSheetLoad("romfs:/preload/images/tree.t3x");
@@ -60,7 +60,7 @@ void EggRoomState::init() {
         noteImg = C2D_SpriteSheetGetImage(noteSheet, 0);
     }
 
-    uiSheet = C2D_SpriteSheetLoad("romfs:/preload/images/campaign_menu_UI_assets.t3x");
+    uiSheet = C2D_SpriteSheetLoad("romfs:/preload/images/storymenu/campaign_menu_UI_assets.t3x");
     if (uiSheet) {
         uiImg = C2D_SpriteSheetGetImage(uiSheet, 0);
     }
@@ -156,7 +156,7 @@ void EggRoomState::update(float dt) {
             textTimer = 0.0f;
             if (charsPrinted < (int)fullTextToPrint.size()) {
                 charsPrinted++;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.35f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.35f);
             }
         }
 
@@ -165,7 +165,7 @@ void EggRoomState::update(float dt) {
         if (currentDialogState == DialogState::BACK_CHOICE && textFinished) {
             if (kDown & (KEY_UP | KEY_DOWN)) {
                 choiceIndex = (choiceIndex == 0) ? 1 : 0;
-                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.ogg", 0.6f);
+                AudioEngine::playSound("romfs:/preload/sounds/scrollMenu.adp", 0.6f);
             }
         }
 
@@ -188,7 +188,7 @@ void EggRoomState::update(float dt) {
                         }
                         break;
                     case DialogState::BACK_CHOICE:
-                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.ogg", 0.7f);
+                        AudioEngine::playSound("romfs:/preload/sounds/confirmMenu.adp", 0.7f);
                         if (choiceIndex == 0) {
                             currentDialogState = DialogState::BACK_RESULT_YES;
                             fullTextToPrint = wrapText("* (You received an Egg.)");

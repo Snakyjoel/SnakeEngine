@@ -501,6 +501,7 @@ void OptionManager::syncToClientPrefs() {
     ClientPrefs::disableReset      = getBool("disableReset", false);
     ClientPrefs::hitboxEnabled     = getBool("hitboxEnabled", true);
     ClientPrefs::botPlay           = getBool("botPlay", false);
+    ClientPrefs::naughtyness       = getBool("naughtyness", true);
     ClientPrefs::noteUnderlayAlpha = getFloat("noteUnderlayAlpha", 0.0f);
     ClientPrefs::opponentUnderlay  = getBool("opponentUnderlay", true);
 
@@ -519,10 +520,17 @@ void OptionManager::syncToClientPrefs() {
     ClientPrefs::lowQuality        = getBool("lowQuality", false);
     ClientPrefs::globalAntialiasing= getBool("globalAntialiasing", true);
     ClientPrefs::enable3DEffect    = getBool("enable3DEffect", true);
-    ClientPrefs::fastNotes         = getBool("fastNotes", false);
     ClientPrefs::drawGrid          = getBool("drawGrid", true);
     ClientPrefs::debugInfo         = getBool("debugInfo", false);
     ClientPrefs::extendedDebug     = getBool("extendedDebug", false);
+    ClientPrefs::scoreTxtScore     = getBool("scoreTxtScore", true);
+    ClientPrefs::scoreTxtMisses    = getBool("scoreTxtMisses", true);
+    ClientPrefs::scoreTxtRating    = getBool("scoreTxtRating", true);
+    ClientPrefs::scoreTxtFC        = getBool("scoreTxtFC", true);
+    ClientPrefs::debugFps          = getBool("debugFps", false);
+    ClientPrefs::debugMemory       = getBool("debugMemory", false);
+    ClientPrefs::debugHardware     = getBool("debugHardware", false);
+    ClientPrefs::debugMemoryViewer = getBool("debugMemoryViewer", false);
 
     std::string tb = getString("timeBarType", "Time Left");
     if (tb == "Time Left") ClientPrefs::timeBarType = 0;
@@ -552,6 +560,7 @@ void OptionManager::syncFromClientPrefs() {
     setBool("disableReset", ClientPrefs::disableReset);
     setBool("hitboxEnabled", ClientPrefs::hitboxEnabled);
     setBool("botPlay", ClientPrefs::botPlay);
+    setBool("naughtyness", ClientPrefs::naughtyness);
     setFloat("noteUnderlayAlpha", ClientPrefs::noteUnderlayAlpha);
     setBool("opponentUnderlay", ClientPrefs::opponentUnderlay);
 
@@ -569,10 +578,17 @@ void OptionManager::syncFromClientPrefs() {
 
     setBool("lowQuality", ClientPrefs::lowQuality);
     setBool("globalAntialiasing", ClientPrefs::globalAntialiasing);
-    setBool("fastNotes", ClientPrefs::fastNotes);
     setBool("drawGrid", ClientPrefs::drawGrid);
     setBool("debugInfo", ClientPrefs::debugInfo);
     setBool("extendedDebug", ClientPrefs::extendedDebug);
+    setBool("scoreTxtScore", ClientPrefs::scoreTxtScore);
+    setBool("scoreTxtMisses", ClientPrefs::scoreTxtMisses);
+    setBool("scoreTxtRating", ClientPrefs::scoreTxtRating);
+    setBool("scoreTxtFC", ClientPrefs::scoreTxtFC);
+    setBool("debugFps", ClientPrefs::debugFps);
+    setBool("debugMemory", ClientPrefs::debugMemory);
+    setBool("debugHardware", ClientPrefs::debugHardware);
+    setBool("debugMemoryViewer", ClientPrefs::debugMemoryViewer);
 
     if (ClientPrefs::timeBarType == 0) setString("timeBarType", "Time Left");
     else if (ClientPrefs::timeBarType == 1) setString("timeBarType", "Time Elapsed");

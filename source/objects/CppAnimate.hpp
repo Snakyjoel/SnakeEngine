@@ -51,7 +51,7 @@ public:
                  const std::vector<int>& indices = {});
 
     // Playback
-    void play(const std::string& name, bool forceRestart = false);
+    void play(const std::string& name, bool forceRestart = false, int startFrame = 0);
     void setLoop(const std::string& name, bool loop);
     void stop();
     void pause();
@@ -73,6 +73,7 @@ public:
 
     // Fired at the end of a non-looping animation.
     std::function<void(const std::string&)> onAnimFinished;
+    std::function<void(const std::string&, int)> onFrameChange;
 
     bool hasAnim(const std::string& name) const;
 
@@ -95,6 +96,16 @@ public:
     // Offset applied on top of the animation's own offset
     float extraOffsetX     = 0.0f;
     float extraOffsetY     = 0.0f;
+
+    // Visual center in Flash coordinates for drawCentered
+    float visualCenterX    = 0.0f;
+    float visualCenterY    = 0.0f;
+    bool hasVisualCenter   = false;
+    void setVisualCenter(float cx, float cy) {
+        visualCenterX = cx;
+        visualCenterY = cy;
+        hasVisualCenter = true;
+    }
 
     // Set this to true to ignore frame offsets (frameX/frameY) from the XML
     bool ignoreFrameOffsets = false;
@@ -157,12 +168,16 @@ private:
                     int logicalFrame,
                     const AffineMatrix& parentMX,
                     float depth,
-                    int recursionDepth = 0) const;
+                    int recursionDepth = 0,
+                    const C2D_ImageTint* tint = nullptr,
+                    float parentAlpha = 1.0f) const;
 
     // Draw one atlas piece with a composed affine matrix.
     void drawPiece(const std::string& pieceName,
                    const AffineMatrix& mx,
-                   float depth) const;
+                   float depth,
+                   const C2D_ImageTint* tint = nullptr,
+                   float pieceAlpha = 1.0f) const;
 
     // Compose two affine matrices: result = child applied in parent space
     static AffineMatrix compose(const AffineMatrix& parent, const AffineMatrix& child);

@@ -33,6 +33,23 @@ public:
     void exitState() override;
     
     static std::string currentChar;
+    static std::string pendingDJAnim;
+    static bool pendingRankAnim;
+    static std::string pendingSongName;
+    static std::string pendingDiff;
+    static std::string pendingRating;
+
+    void startRankAnim(const std::string& songName, const std::string& diff, const std::string& rating);
+    void setRankVignetteColor(const std::string& rating);
+
+    bool isRankAnimActive = false;
+    float rankAnimTimer = 0.0f;
+    float rankVignetteAlpha = 0.0f;
+    u8 rankVignetteR = 255;
+    u8 rankVignetteG = 255;
+    u8 rankVignetteB = 255;
+    float rankCameraShake = 0.0f;
+    std::string currentRankRating;
 
     void openSubState(bool playIntro = true);
 
@@ -183,6 +200,38 @@ private:
     float introTimer = 0.0f;
 
     // BF DJ & Scrolling Text
+    enum FreeplayDJState {
+        DJ_INTRO,
+        DJ_IDLE,
+        DJ_CONFIRM,
+        DJ_FISTPUMP,
+        DJ_LOSS,
+        DJ_AFK,
+        DJ_TV,
+        DJ_CHAR_SELECT
+    };
+    FreeplayDJState djState = DJ_INTRO;
+    float timeIdling = 0.0f;
+    bool seenIdleEasterEgg = false;
+    bool tvIsOn = false;
+    bool tvAudioPlaying = false;
+    float cartoonTimer = 0.0f;
+    void resetAFKTimer();
+    void playDJAnim(const std::string& anim, bool force = true, int startFrame = 0);
+    void stopTVSounds();
+
+    bool selectedSong = false;
+    float confirmTimer = 0.0f;
+    int confirmedSongIndex = -1;
+    std::string confirmedSongName;
+    std::string confirmedDiffSuffix;
+    std::string confirmedModFolder;
+    std::string confirmedIntroVideo;
+    void confirmSong(int chosenIndex);
+
+    bool isTransitioningToCS = false;
+    float csTransitionTimer = 0.0f;
+
     CppAnimate bfdjAnimate;
     float textScrollTime = 0.0f;
 

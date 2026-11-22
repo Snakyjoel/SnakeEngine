@@ -33,7 +33,7 @@ void ShaderManager::drawScroll(const std::string& camera, const RT& rt, C3D_Rend
     float baseTopPx = (float)rt.tex.height * (1.0f - rt.img.subtex->top);
 
     auto drawPart = [&](float texX0, float texY0, float partW, float partH, float destX, float destY, int subtexIdx) {
-        if (partW <= 0.0f || partH <= 0.0f) return;
+        if (partW < 1.0f || partH < 1.0f) return;
 
         Tex3DS_SubTexture& sub = tempSubtexs[subtexIdx];
         sub.width = (u16)partW;

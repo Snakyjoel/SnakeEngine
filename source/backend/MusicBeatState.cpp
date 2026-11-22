@@ -8,15 +8,19 @@ struct TransitionSticker {
     int frameIdx;
     float x, y;
     float angle;
-    float scale;
+    float targetScale;
+    float currentScale;
+    float timing;
+    float popDuration;
+    float popTimer;
+    bool visible;
 };
 
 static C2D_SpriteSheet stickerSheet = nullptr;
 static std::vector<Frame> stickerFrames;
 static std::vector<TransitionSticker> topStickers;
 static std::vector<TransitionSticker> bottomStickers;
-static int lastTopCount = 0;
-static int lastBottomCount = 0;
+static bool stickerDegenInit = false;
 
 static const std::string stickerSounds[] = {
     "romfs:/preload/sounds/stickers/keyClick1.adp",
@@ -37,6 +41,7 @@ float            MusicBeatState::transTimer  = 0.0f;
 bool             MusicBeatState::skipTransition = false;
 bool             MusicBeatState::requestExit = false;
 bool             MusicBeatState::useStickerTransition = false;
+bool             MusicBeatState::useFadeTransition = false;
 
 void MusicBeatState::switchState(MusicBeatState* newState) {
     if (transPhase == TransitionPhase::FADE_OUT) {
@@ -100,53 +105,73 @@ void MusicBeatState::initStickerTransition() {
 
     topStickers.clear();
     bottomStickers.clear();
+    stickerDegenInit = false;
 
-    float xPos = -50.0f;
-    float yPos = -50.0f;
+    // Grid for Top Screen (400x240)
+    float xPos = -60.0f;
+    float yPos = -60.0f;
     while (xPos <= 400.0f) {
-        int frameIdx = rand() % stickerFrames.size();
+        int frameIdx = rand() % (int)stickerFrames.size();
         const auto& f = stickerFrames[frameIdx];
+        float logicalW = f.rotated ? (float)f.h : (float)f.w;
+        float logicalH = f.rotated ? (float)f.w : (float)f.h;
 
         TransitionSticker s;
         s.frameIdx = frameIdx;
-        s.x = xPos;
-        s.y = yPos;
-        s.angle = ((rand() % 100) / 100.0f) * 2.2f - 1.1f;
-        s.scale = 1.2f + ((rand() % 100) / 100.0f) * 0.4f;
+        s.x = xPos + logicalW * 0.5f;
+        s.y = yPos + logicalH * 0.5f;
+
+        int deg = -60 + (rand() % 131);
+        s.angle = (float)deg * (3.141592653589793f / 180.0f);
+        s.targetScale = 0.97f + ((rand() % 6) / 100.0f);
+        s.currentScale = 1.05f;
+        s.popDuration = (float)(rand() % 3) * (1.0f / 24.0f);
+        s.popTimer = s.popDuration;
+        s.visible = false;
         topStickers.push_back(s);
 
-        xPos += (f.w * s.scale) * 0.5f;
+        xPos += logicalW * 0.5f;
         if (xPos >= 400.0f) {
             if (yPos <= 240.0f) {
-                xPos = -50.0f;
-                yPos += 45.0f + (rand() % 35);
+                xPos = -60.0f;
+                yPos += 28.0f + (rand() % 22);
             }
         }
     }
 
-    xPos = -50.0f;
-    yPos = -50.0f;
+    // Grid for Bottom Screen (320x240)
+    xPos = -60.0f;
+    yPos = -60.0f;
     while (xPos <= 320.0f) {
-        int frameIdx = rand() % stickerFrames.size();
+        int frameIdx = rand() % (int)stickerFrames.size();
         const auto& f = stickerFrames[frameIdx];
+        float logicalW = f.rotated ? (float)f.h : (float)f.w;
+        float logicalH = f.rotated ? (float)f.w : (float)f.h;
 
         TransitionSticker s;
         s.frameIdx = frameIdx;
-        s.x = xPos;
-        s.y = yPos;
-        s.angle = ((rand() % 100) / 100.0f) * 2.2f - 1.1f;
-        s.scale = 1.2f + ((rand() % 100) / 100.0f) * 0.4f;
+        s.x = xPos + logicalW * 0.5f;
+        s.y = yPos + logicalH * 0.5f;
+
+        int deg = -60 + (rand() % 131);
+        s.angle = (float)deg * (3.141592653589793f / 180.0f);
+        s.targetScale = 0.97f + ((rand() % 6) / 100.0f);
+        s.currentScale = 1.05f;
+        s.popDuration = (float)(rand() % 3) * (1.0f / 24.0f);
+        s.popTimer = s.popDuration;
+        s.visible = false;
         bottomStickers.push_back(s);
 
-        xPos += (f.w * s.scale) * 0.5f;
+        xPos += logicalW * 0.5f;
         if (xPos >= 320.0f) {
             if (yPos <= 240.0f) {
-                xPos = -50.0f;
-                yPos += 45.0f + (rand() % 35);
+                xPos = -60.0f;
+                yPos += 28.0f + (rand() % 22);
             }
         }
     }
 
+    // Shuffle grid stickers
     for (size_t i = topStickers.size() - 1; i > 0; --i) {
         size_t j = rand() % (i + 1);
         std::swap(topStickers[i], topStickers[j]);
@@ -156,71 +181,85 @@ void MusicBeatState::initStickerTransition() {
         std::swap(bottomStickers[i], bottomStickers[j]);
     }
 
-    if (!topStickers.empty()) {
-        auto& lastTop = topStickers.back();
+    // Add Center Sticker for Top Screen
+    {
+        int frameIdx = rand() % (int)stickerFrames.size();
+        TransitionSticker lastTop;
+        lastTop.frameIdx = frameIdx;
         lastTop.x = 200.0f;
         lastTop.y = 120.0f;
         lastTop.angle = 0.0f;
-        lastTop.scale = 2.0f;
-    }
-    if (!bottomStickers.empty()) {
-        auto& lastBottom = bottomStickers.back();
-        lastBottom.x = 160.0f;
-        lastBottom.y = 120.0f;
-        lastBottom.angle = 0.0f;
-        lastBottom.scale = 2.0f;
+        lastTop.targetScale = 0.97f + ((rand() % 6) / 100.0f);
+        lastTop.currentScale = 1.05f;
+        lastTop.popDuration = 2.0f * (1.0f / 24.0f);
+        lastTop.popTimer = lastTop.popDuration;
+        lastTop.visible = false;
+        topStickers.push_back(lastTop);
     }
 
-    lastTopCount = 0;
-    lastBottomCount = 0;
+    // Add Center Sticker for Bottom Screen
+    {
+        int frameIdx = rand() % (int)stickerFrames.size();
+        TransitionSticker lastBot;
+        lastBot.frameIdx = frameIdx;
+        lastBot.x = 160.0f;
+        lastBot.y = 120.0f;
+        lastBot.angle = 0.0f;
+        lastBot.targetScale = 0.97f + ((rand() % 6) / 100.0f);
+        lastBot.currentScale = 1.05f;
+        lastBot.popDuration = 2.0f * (1.0f / 24.0f);
+        lastBot.popTimer = lastBot.popDuration;
+        lastBot.visible = false;
+        bottomStickers.push_back(lastBot);
+    }
+
+    // Assign sequential timing (0.0s to 0.90s)
+    for (size_t i = 0; i < topStickers.size(); ++i) {
+        topStickers[i].timing = (topStickers.size() > 1) 
+            ? ((float)i / (float)(topStickers.size() - 1)) * 0.90f 
+            : 0.0f;
+    }
+    for (size_t i = 0; i < bottomStickers.size(); ++i) {
+        bottomStickers[i].timing = (bottomStickers.size() > 1) 
+            ? ((float)i / (float)(bottomStickers.size() - 1)) * 0.90f 
+            : 0.0f;
+    }
 }
 
 void MusicBeatState::drawStickerTransition(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
     if (!useStickerTransition || stickerFrames.empty()) return;
 
-    int totalTop = topStickers.size();
-    int totalBottom = bottomStickers.size();
-
-    int showTop = 0;
-    int showBottom = 0;
-
-    if (transPhase == TransitionPhase::FADE_OUT) {
-        showTop = (int)(transProgress * totalTop);
-        if (showTop > totalTop) showTop = totalTop;
-
-        showBottom = (int)(transProgress * totalBottom);
-        if (showBottom > totalBottom) showBottom = totalBottom;
-    } else if (transPhase == TransitionPhase::FADE_IN) {
-        showTop = (int)((1.0f - transProgress) * totalTop);
-        if (showTop < 0) showTop = 0;
-
-        showBottom = (int)((1.0f - transProgress) * totalBottom);
-        if (showBottom < 0) showBottom = 0;
-    } else {
-        return;
-    }
-
     if (top) {
         C2D_SceneBegin(top);
-        for (int i = 0; i < showTop; ++i) {
+        float baseDepth = 0.90f;
+        float depthStep = topStickers.empty() ? 0.0f : (0.08f / (float)topStickers.size());
+        for (size_t i = 0; i < topStickers.size(); ++i) {
             const auto& s = topStickers[i];
+            if (!s.visible) continue;
             const auto& f = stickerFrames[s.frameIdx];
             C2D_Image img;
             img.tex = f.tex;
             img.subtex = (Tex3DS_SubTexture*)&f.uv;
-            C2D_DrawImageAtRotated(img, s.x, s.y, 0.98f, s.angle, nullptr, s.scale, s.scale);
+            float finalAngle = s.angle + (f.rotated ? -(3.141592653589793f / 2.0f) : 0.0f);
+            float d = baseDepth + (float)i * depthStep;
+            C2D_DrawImageAtRotated(img, s.x, s.y, d, finalAngle, nullptr, s.currentScale, s.currentScale);
         }
     }
 
     if (!g_isRightEye && bottom) {
         C2D_SceneBegin(bottom);
-        for (int i = 0; i < showBottom; ++i) {
+        float baseDepth = 0.90f;
+        float depthStep = bottomStickers.empty() ? 0.0f : (0.08f / (float)bottomStickers.size());
+        for (size_t i = 0; i < bottomStickers.size(); ++i) {
             const auto& s = bottomStickers[i];
+            if (!s.visible) continue;
             const auto& f = stickerFrames[s.frameIdx];
             C2D_Image img;
             img.tex = f.tex;
             img.subtex = (Tex3DS_SubTexture*)&f.uv;
-            C2D_DrawImageAtRotated(img, s.x, s.y, 0.98f, s.angle, nullptr, s.scale, s.scale);
+            float finalAngle = s.angle + (f.rotated ? -(3.141592653589793f / 2.0f) : 0.0f);
+            float d = baseDepth + (float)i * depthStep;
+            C2D_DrawImageAtRotated(img, s.x, s.y, d, finalAngle, nullptr, s.currentScale, s.currentScale);
         }
     }
 }
@@ -233,46 +272,88 @@ void MusicBeatState::cleanupStickerTransition() {
     stickerFrames.clear();
     topStickers.clear();
     bottomStickers.clear();
-    lastTopCount = 0;
-    lastBottomCount = 0;
+    stickerDegenInit = false;
 
     AudioEngine::clearSoundCache();
 }
 
 void MusicBeatState::updateStickerTransition(float dt) {
-    if (!useStickerTransition) return;
+    if (!useStickerTransition || stickerFrames.empty()) return;
 
-    int totalTop = topStickers.size();
-    int totalBottom = bottomStickers.size();
-
-    int targetTop = 0;
-    int targetBottom = 0;
+    int soundsPlayedThisFrame = 0;
+    const int maxSoundsPerFrame = 4;
 
     if (transPhase == TransitionPhase::FADE_OUT) {
-        targetTop = (int)(transProgress * totalTop);
-        if (targetTop > totalTop) targetTop = totalTop;
+        for (auto& s : topStickers) {
+            if (!s.visible && transTimer >= s.timing) {
+                s.visible = true;
+                s.currentScale = 1.05f;
+                s.popTimer = s.popDuration;
+                if (soundsPlayedThisFrame < maxSoundsPerFrame) {
+                    int randIdx = rand() % 8;
+                    AudioEngine::playSound(stickerSounds[randIdx], 0.7f);
+                    soundsPlayedThisFrame++;
+                }
+            }
+            if (s.visible && s.popTimer > 0.0f) {
+                s.popTimer -= dt;
+                if (s.popTimer <= 0.0f) {
+                    s.currentScale = s.targetScale;
+                }
+            }
+        }
 
-        targetBottom = (int)(transProgress * totalBottom);
-        if (targetBottom > totalBottom) targetBottom = totalBottom;
-
-        if (targetTop > lastTopCount || targetBottom > lastBottomCount) {
-            int randIdx = rand() % 8;
-            AudioEngine::playSound(stickerSounds[randIdx], 0.7f);
-            lastTopCount = targetTop;
-            lastBottomCount = targetBottom;
+        for (auto& s : bottomStickers) {
+            if (!s.visible && transTimer >= s.timing) {
+                s.visible = true;
+                s.currentScale = 1.05f;
+                s.popTimer = s.popDuration;
+                if (soundsPlayedThisFrame < maxSoundsPerFrame) {
+                    int randIdx = rand() % 8;
+                    AudioEngine::playSound(stickerSounds[randIdx], 0.7f);
+                    soundsPlayedThisFrame++;
+                }
+            }
+            if (s.visible && s.popTimer > 0.0f) {
+                s.popTimer -= dt;
+                if (s.popTimer <= 0.0f) {
+                    s.currentScale = s.targetScale;
+                }
+            }
         }
     } else if (transPhase == TransitionPhase::FADE_IN) {
-        targetTop = (int)((1.0f - transProgress) * totalTop);
-        if (targetTop < 0) targetTop = 0;
+        if (!stickerDegenInit) {
+            for (auto& s : topStickers) {
+                s.visible = true;
+                s.currentScale = s.targetScale;
+            }
+            for (auto& s : bottomStickers) {
+                s.visible = true;
+                s.currentScale = s.targetScale;
+            }
+            stickerDegenInit = true;
+        }
 
-        targetBottom = (int)((1.0f - transProgress) * totalBottom);
-        if (targetBottom < 0) targetBottom = 0;
+        for (auto& s : topStickers) {
+            if (s.visible && transTimer >= s.timing) {
+                s.visible = false;
+                if (soundsPlayedThisFrame < maxSoundsPerFrame) {
+                    int randIdx = rand() % 8;
+                    AudioEngine::playSound(stickerSounds[randIdx], 0.7f);
+                    soundsPlayedThisFrame++;
+                }
+            }
+        }
 
-        if (targetTop < lastTopCount || targetBottom < lastBottomCount) {
-            int randIdx = rand() % 8;
-            AudioEngine::playSound(stickerSounds[randIdx], 0.7f);
-            lastTopCount = targetTop;
-            lastBottomCount = targetBottom;
+        for (auto& s : bottomStickers) {
+            if (s.visible && transTimer >= s.timing) {
+                s.visible = false;
+                if (soundsPlayedThisFrame < maxSoundsPerFrame) {
+                    int randIdx = rand() % 8;
+                    AudioEngine::playSound(stickerSounds[randIdx], 0.7f);
+                    soundsPlayedThisFrame++;
+                }
+            }
         }
     }
 }
