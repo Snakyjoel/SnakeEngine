@@ -16,7 +16,7 @@
 #include <cmath>
 
 bool MainMenuState::comingFromFreeplay = false;
-std::string MainMenuState::version = "3.8.9";
+std::string MainMenuState::version = "3.9.10";
 
 MainMenuState::MainMenuState(bool startInFreeplay)
     : startInFreeplay(startInFreeplay), freeplaySubState(nullptr)

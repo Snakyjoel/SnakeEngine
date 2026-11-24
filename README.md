@@ -49,7 +49,7 @@ First, you need to download the CIA of your choice; there are two to pick from:
 |  | Default | Lite |
 | --- | --- | --- |
 | Base game videos | ✅ | ❌ |
-| Size | 800 Mb approximate | 600 Mb approximate |
+| Size | 1 Gb approximate | 750 Mb approximate |
 
 Once you have downloaded the CIA file, you must copy the file to a folder on your console's SD card (the root directory or a folder dedicated to your CIA files is recommended). Use also a tool that allows you to install it on your console, such as [FBI](https://github.com/steveice10/FBI), [3dsDL](https://ankush.one/3dsDL/), [GodMode9](https://github.com/d0k3/GodMode9) or via a  [Custom Install](https://github.com/ihaveamac/custom-install)
 

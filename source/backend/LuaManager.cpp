@@ -107,6 +107,7 @@ static const char* HOOK_NAMES[] = {
     "onTweenCompleted", "onTimerCompleted",
     "onEvent",
     "goodNoteHit", "opponentNoteHit",
+    "noteMiss", "noteMissPress",
     "onSongStart",
     "onMoveCamera",
     nullptr
@@ -2535,6 +2536,42 @@ int LuaManager::lua_setProperty(lua_State* L) {
             lua_pushstring(L, n.noteType.c_str());
             return 1;
         }
+        else if (prop == "texture") {
+            lua_pushstring(L, n.texture.c_str());
+            return 1;
+        }
+        else if (prop == "noAnimation") {
+            lua_pushboolean(L, n.noAnimation);
+            return 1;
+        }
+        else if (prop == "autoRotate" || prop == "rotateNote") {
+            lua_pushboolean(L, n.autoRotate);
+            return 1;
+        }
+        else if (prop == "hitCausesMiss") {
+            lua_pushboolean(L, n.hitCausesMiss);
+            return 1;
+        }
+        else if (prop == "hitHealth") {
+            lua_pushnumber(L, n.hitHealth);
+            return 1;
+        }
+        else if (prop == "missHealth") {
+            lua_pushnumber(L, n.missHealth);
+            return 1;
+        }
+        else if (prop == "ignoreNote") {
+            lua_pushboolean(L, n.ignoreNote);
+            return 1;
+        }
+        else if (prop == "ratingDisabled") {
+            lua_pushboolean(L, n.ratingDisabled);
+            return 1;
+        }
+        else if (prop == "multSpeed") {
+            lua_pushnumber(L, n.multSpeed);
+            return 1;
+        }
         else if (prop == "isSustainNote") {
             lua_pushboolean(L, n.sustainLength > 0.0f);
             return 1;
@@ -2666,6 +2703,27 @@ int LuaManager::lua_setPropertyFromGroup(lua_State* L) {
         }
         else if (prop == "antialiasing") {
             n.antialiasing = lua_toboolean(L, 4);
+        }
+        else if (prop == "autoRotate" || prop == "rotateNote") {
+            n.autoRotate = lua_toboolean(L, 4);
+        }
+        else if (prop == "hitCausesMiss") {
+            n.hitCausesMiss = lua_toboolean(L, 4);
+        }
+        else if (prop == "hitHealth") {
+            n.hitHealth = (float)luaL_checknumber(L, 4);
+        }
+        else if (prop == "missHealth") {
+            n.missHealth = (float)luaL_checknumber(L, 4);
+        }
+        else if (prop == "ignoreNote") {
+            n.ignoreNote = lua_toboolean(L, 4);
+        }
+        else if (prop == "ratingDisabled") {
+            n.ratingDisabled = lua_toboolean(L, 4);
+        }
+        else if (prop == "multSpeed") {
+            n.multSpeed = (float)luaL_checknumber(L, 4);
         }
     }
     return 0;
@@ -3096,7 +3154,9 @@ int LuaManager::lua_debugPrint(lua_State* L) {
 int LuaManager::lua_screenCenter(lua_State* L) {
     if (!PlayState::instance || lua_gettop(L) < 1) return 0;
     std::string tag = luaL_checkstring(L, 1);
-    std::string axes = (lua_gettop(L) >= 2) ? luaL_checkstring(L, 2) : "xy";
+    std::string axes = (lua_gettop(L) >= 2 && !lua_isnil(L, 2)) ? luaL_checkstring(L, 2) : "xy";
+    std::transform(axes.begin(), axes.end(), axes.begin(), ::tolower);
+    if (axes.empty()) axes = "xy";
 
     auto it = PlayState::instance->luaSpriteIndices.find(tag);
     if (it != PlayState::instance->luaSpriteIndices.end()) {
@@ -3112,12 +3172,29 @@ int LuaManager::lua_screenCenter(lua_State* L) {
             baseHeight = 720.0f;
         }
 
-        // Use scale in centering calculation
-        float w = (s.isGraphic ? s.graphicWidth : (s.img.subtex ? s.img.subtex->width : 100.0f)) * s.scaleX;
-        float h = (s.isGraphic ? s.graphicHeight : (s.img.subtex ? s.img.subtex->height : 100.0f)) * s.scaleY;
+        float sprW = 100.0f;
+        float sprH = 100.0f;
+        if (s.isGraphic) {
+            sprW = s.graphicWidth * s.scaleX;
+            sprH = s.graphicHeight * s.scaleY;
+        } else if (s.animated) {
+            if (s.currentAnim && !s.currentAnim->indices.empty()) {
+                int fIdx = s.currentAnim->indices[(int)s.curFrame % s.currentAnim->indices.size()];
+                if (fIdx >= 0 && fIdx < (int)s.frames.size()) {
+                    sprW = s.frames[fIdx].frameW > 0 ? (float)s.frames[fIdx].frameW : (float)s.frames[fIdx].w;
+                    sprH = s.frames[fIdx].frameH > 0 ? (float)s.frames[fIdx].frameH : (float)s.frames[fIdx].h;
+                }
+            } else if (!s.frames.empty()) {
+                sprW = s.frames[0].frameW > 0 ? (float)s.frames[0].frameW : (float)s.frames[0].w;
+                sprH = s.frames[0].frameH > 0 ? (float)s.frames[0].frameH : (float)s.frames[0].h;
+            }
+        } else if (s.img.subtex) {
+            sprW = (float)s.img.subtex->width * s.scaleX;
+            sprH = (float)s.img.subtex->height * s.scaleY;
+        }
 
-        if (axes.find('x') != std::string::npos) s.x = (baseWidth - w) / 2.0f;
-        if (axes.find('y') != std::string::npos) s.y = (baseHeight - h) / 2.0f;
+        if (axes.find('x') != std::string::npos) s.x = (baseWidth - sprW) / 2.0f;
+        if (axes.find('y') != std::string::npos) s.y = (baseHeight - sprH) / 2.0f;
     } else {
         auto tit = PlayState::instance->luaTextIndices.find(tag);
         if (tit != PlayState::instance->luaTextIndices.end()) {
@@ -3872,6 +3949,12 @@ int LuaManager::lua_playSound(lua_State* L) {
     if (lua_gettop(L) < 1) return 0;
     std::string path = luaL_checkstring(L, 1);
     float vol = (lua_gettop(L) >= 2) ? (float)luaL_checknumber(L, 2) : 1.0f;
+    if (path.find('/') == std::string::npos && path.find(':') == std::string::npos) {
+        std::string soundPath = Paths::audio("sounds", path);
+        if (!soundPath.empty() && Paths::fileExists(soundPath)) {
+            path = soundPath;
+        }
+    }
     AudioEngine::playSound(path, vol);
     return 0;
 }

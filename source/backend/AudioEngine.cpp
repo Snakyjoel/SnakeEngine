@@ -1,4 +1,5 @@
 #include "AudioEngine.hpp"
+#include "Paths.hpp"
 #include <malloc.h>
 #include <string>
 #include <algorithm>
@@ -110,6 +111,8 @@ bool AudioEngine::paused = false;
 long AudioEngine::actualSampleRate = 44100;
 double AudioEngine::pauseOffset = 0;
 double AudioEngine::lastSampleTick = 0;
+double AudioEngine::lastReportedPosition = 0;
+uint64_t AudioEngine::samplesSubmitted = 0;
 
 static bool openWavFile(const char* path, FILE*& outWav, uint32_t& outSampleRate, int& outChannels, uint32_t& outDataOffset, uint32_t& outTotalSamples) {
     FILE* f = fopen(path, "rb");
@@ -320,26 +323,22 @@ bool AudioEngine::init(const char* instPath, const char* vocalsPath) {
 
     totalSamples = 0;
     lastSampleTick = 0;
+    lastReportedPosition = 0;
+    samplesSubmitted = 0;
     fillBuf = 0;
     vocalsFillBuf = 0;
+    paused = true;
     if (hasVocals) setVocalsVolume(1.0f);
-    
-    isLoaded = true;
-    return true;
-}
 
-
-void AudioEngine::start() {
-    if (!isLoaded) return;
-    totalSamples = 0;
     ndspChnSetPaused(0, true);
     if (hasVocals) ndspChnSetPaused(1, true);
 
     for (int i = 0; i < BUFFER_COUNT; i++) {
         waveBuf[i].data_vaddr = &bufferData[i * BUFFER_SAMPLES * instNumChannels];
         waveBuf[i].nsamples = BUFFER_SAMPLES;
-        fill(i, false, false); 
+        fill(i, false, false);
         ndspChnWaveBufAdd(0, &waveBuf[i]);
+        samplesSubmitted += waveBuf[i].nsamples;
 
         if (hasVocals) {
             vocalsWaveBuf[i].data_vaddr = &vocalsBufferData[i * BUFFER_SAMPLES * vocalsNumChannels];
@@ -348,34 +347,59 @@ void AudioEngine::start() {
             ndspChnWaveBufAdd(1, &vocalsWaveBuf[i]);
         }
     }
-    
+
+    isLoaded = true;
+    return true;
+}
+
+void AudioEngine::start() {
+    LightLock_Lock(&s_audioLock);
+    if (!isLoaded) {
+        LightLock_Unlock(&s_audioLock);
+        return;
+    }
+
+    totalSamples = 0;
     lastSampleTick = (double)osGetTime();
     pauseOffset = 0;
+    lastReportedPosition = 0;
     paused = false;
     ndspChnSetPaused(0, false);
     if (hasVocals) ndspChnSetPaused(1, false);
+    LightLock_Unlock(&s_audioLock);
 }
 
 void AudioEngine::pause() {
-    if (!isLoaded || paused) return;
+    LightLock_Lock(&s_audioLock);
+    if (!isLoaded || paused) {
+        LightLock_Unlock(&s_audioLock);
+        return;
+    }
     paused = true;
     pauseOffset = (double)osGetTime() - lastSampleTick;
     ndspChnSetPaused(0, true);
     if (hasVocals) ndspChnSetPaused(1, true);
+    LightLock_Unlock(&s_audioLock);
 }
 
 void AudioEngine::resume() {
-    if (!isLoaded || !paused) return;
+    LightLock_Lock(&s_audioLock);
+    if (!isLoaded || !paused) {
+        LightLock_Unlock(&s_audioLock);
+        return;
+    }
     paused = false;
     lastSampleTick = (double)osGetTime() - pauseOffset;
     ndspChnSetPaused(0, false);
     if (hasVocals) ndspChnSetPaused(1, false);
+    LightLock_Unlock(&s_audioLock);
 }
 
 void AudioEngine::fill(int id, bool countAsPlayed, bool isVocals) {
     if (countAsPlayed && !isVocals) {
         totalSamples += waveBuf[id].nsamples;
-        lastSampleTick = (double)osGetTime();
+        double bufDurationMs = ((double)waveBuf[id].nsamples / (double)actualSampleRate) * 1000.0;
+        lastSampleTick += bufDurationMs;
     }
 
     ndspWaveBuf* targetBuf = isVocals ? &vocalsWaveBuf[id] : &waveBuf[id];
@@ -456,7 +480,17 @@ double AudioEngine::getSongPosition() {
     if (!isLoaded || lastSampleTick == 0) return 0;
     double anchorMs = (double)totalSamples / (double)actualSampleRate * 1000.0;
     double diff = paused ? pauseOffset : ((double)osGetTime() - lastSampleTick);
-    return anchorMs + diff;
+    double pos = anchorMs + diff;
+
+    double maxPossibleMs = (double)samplesSubmitted / (double)actualSampleRate * 1000.0;
+    if (pos > maxPossibleMs) pos = maxPossibleMs;
+
+    if (pos < lastReportedPosition) {
+        pos = lastReportedPosition;
+    } else {
+        lastReportedPosition = pos;
+    }
+    return pos;
 }
 
 double AudioEngine::getTotalTime() {
@@ -512,14 +546,8 @@ void AudioEngine::update() {
         instEof = oggEof || (tell >= 0 && total > 0 && tell + 16 >= total);
     }
 
-    if (!instEof && waveBuf[fillBuf].status == NDSP_WBUF_DONE) {
-        fill(fillBuf, true, false);
-        ndspChnWaveBufAdd(0, &waveBuf[fillBuf]);
-        fillBuf = (fillBuf + 1) % BUFFER_COUNT;
-    }
-    
+    bool vocEof = false;
     if (hasVocals) {
-        bool vocEof = false;
         if (vocalsIsAdp) {
             vocEof = (vocalsAdpSamplesRead + 16 >= vocalsAdpTotalSamples);
         } else if (vocalsIsWav) {
@@ -529,13 +557,46 @@ void AudioEngine::update() {
             long long total = ov_pcm_total(&vocalsVf, -1);
             vocEof = vocalsOggEof || (tell >= 0 && total > 0 && tell + 16 >= total);
         }
-        
-        if (!vocEof && vocalsWaveBuf[vocalsFillBuf].status == NDSP_WBUF_DONE) {
-            fill(vocalsFillBuf, false, true);
-            ndspChnWaveBufAdd(1, &vocalsWaveBuf[vocalsFillBuf]);
-            vocalsFillBuf = (vocalsFillBuf + 1) % BUFFER_COUNT;
+    }
+
+    bool instWasStalled = !instEof && (waveBuf[fillBuf].status == NDSP_WBUF_DONE && !ndspChnIsPlaying(0));
+    bool vocWasStalled = hasVocals && !vocEof && (vocalsWaveBuf[vocalsFillBuf].status == NDSP_WBUF_DONE && !ndspChnIsPlaying(1));
+    bool underrunSync = hasVocals && (instWasStalled || vocWasStalled);
+
+    if (underrunSync) {
+        ndspChnSetPaused(0, true);
+        ndspChnSetPaused(1, true);
+    }
+
+    for (int i = 0; i < BUFFER_COUNT; i++) {
+        if (!instEof && waveBuf[fillBuf].status == NDSP_WBUF_DONE) {
+            fill(fillBuf, true, false);
+            ndspChnWaveBufAdd(0, &waveBuf[fillBuf]);
+            samplesSubmitted += waveBuf[fillBuf].nsamples;
+            fillBuf = (fillBuf + 1) % BUFFER_COUNT;
+        } else {
+            break;
         }
     }
+
+    if (hasVocals) {
+        for (int i = 0; i < BUFFER_COUNT; i++) {
+            if (!vocEof && vocalsWaveBuf[vocalsFillBuf].status == NDSP_WBUF_DONE) {
+                fill(vocalsFillBuf, false, true);
+                ndspChnWaveBufAdd(1, &vocalsWaveBuf[vocalsFillBuf]);
+                vocalsFillBuf = (vocalsFillBuf + 1) % BUFFER_COUNT;
+            } else {
+                break;
+            }
+        }
+    }
+
+    if (underrunSync && !paused) {
+        lastSampleTick = (double)osGetTime();
+        ndspChnSetPaused(0, false);
+        ndspChnSetPaused(1, false);
+    }
+
     LightLock_Unlock(&s_audioLock);
 }
 
@@ -588,6 +649,13 @@ void AudioEngine::exit() {
         if (vocalsBufferData) linearFree(vocalsBufferData);
         bufferData = nullptr;
         vocalsBufferData = nullptr;
+        totalSamples = 0;
+        lastSampleTick = 0;
+        lastReportedPosition = 0;
+        samplesSubmitted = 0;
+        fillBuf = 0;
+        vocalsFillBuf = 0;
+        paused = false;
         isLoaded = false;
         hasVocals = false;
     } else {
@@ -654,6 +722,13 @@ void AudioEngine::shutdown() {
         if (vocalsBufferData) { linearFree(vocalsBufferData); vocalsBufferData = nullptr; }
         bufferData = nullptr;
         vocalsBufferData = nullptr;
+        totalSamples = 0;
+        lastSampleTick = 0;
+        lastReportedPosition = 0;
+        samplesSubmitted = 0;
+        fillBuf = 0;
+        vocalsFillBuf = 0;
+        paused = false;
         isLoaded = false;
         hasVocals = false;
     }
@@ -690,6 +765,13 @@ void AudioEngine::shutdown() {
 void AudioEngine::precacheSound(const std::string& path) {
     std::string actualPath = path;
     if (soundCache.find(actualPath) != soundCache.end()) return;
+
+    if (actualPath.find('/') == std::string::npos && actualPath.find(':') == std::string::npos) {
+        std::string soundPath = Paths::audio("sounds", actualPath);
+        if (!soundPath.empty() && Paths::fileExists(soundPath)) {
+            actualPath = soundPath;
+        }
+    }
 
     FILE* checkF = fopen(actualPath.c_str(), "rb");
     if (!checkF) {

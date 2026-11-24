@@ -1,3 +1,9 @@
+3.9.10
+- The synchronization of the music with the game was improved
+- Freeplay can now resume searching for icons in the "/icons" folder
+- The NoteMiss functions are now working
+- The functionality of screenCenter() was corrected
+
 3.8.9
 (The list of changes is very long; I may have missed some changes that aren't listed.)
 - Extended memory mode is finally enabled

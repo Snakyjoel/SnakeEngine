@@ -11,7 +11,7 @@
 #define SAMPLE_RATE 44100
 #define CHANNELS 2
 #define BUFFER_SAMPLES 2048
-#define BUFFER_COUNT 4
+#define BUFFER_COUNT 8
 
 class AudioEngine {
 public:
@@ -114,6 +114,8 @@ private:
 
     static double lastSampleTick;
     static double pauseOffset;
+    static double lastReportedPosition;
+    static uint64_t samplesSubmitted;
 
 
     static std::map<std::string, SoundData> soundCache;

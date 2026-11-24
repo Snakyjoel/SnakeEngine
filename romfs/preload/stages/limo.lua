@@ -34,7 +34,7 @@ function onCreate()
 	end
 
 
-	--addOffset('limoDancer', 'bg dancer sketch PINKR', -1500, 0)
+	precacheSound('carPass')
 
 
 	addLuaSprite('back', false)

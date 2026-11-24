@@ -15,6 +15,12 @@ struct Note {
     std::string noteType;
     std::string texture;
     bool noAnimation;
+    bool autoRotate;
+    bool hitCausesMiss;
+    float hitHealth;
+    float missHealth;
+    bool ratingDisabled;
+    float multSpeed;
     float scaleX;
     float scaleY;
     float offsetX;
@@ -29,7 +35,9 @@ struct Note {
 
     Note() : strumTime(0), noteData(0), sustainLength(0), isPlayer(false), hit(false), 
              wasGoodHit(false), sustainActive(false), gfNote(false), ignoreNote(false),
-             noteType(""), texture(""), noAnimation(false), scaleX(1.0f), scaleY(1.0f), 
-             offsetX(0.0f), offsetY(0.0f), multAlpha(1.0f), angle(0.0f), visible(true),
-             color(0xFFFFFFFF), antialiasing(true), flipX(false), flipY(false) {}
+             noteType(""), texture(""), noAnimation(false), autoRotate(true), hitCausesMiss(false),
+             hitHealth(0.023f), missHealth(0.0475f), ratingDisabled(false), multSpeed(1.0f),
+             scaleX(1.0f), scaleY(1.0f), offsetX(0.0f), offsetY(0.0f), multAlpha(1.0f),
+             angle(0.0f), visible(true), color(0xFFFFFFFF), antialiasing(true),
+             flipX(false), flipY(false) {}
 };

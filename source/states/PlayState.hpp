@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <map>
+#include <unordered_set>
 #include <citro2d.h>
 
 // Stores a health-icon spritesheet split into normal/losing halves
@@ -490,6 +491,9 @@ private:
     // Custom Notes
     std::map<std::string, C2D_SpriteSheet> customNoteSheets;
     std::map<std::string, C2D_Image> customNoteImages;
+    std::map<std::string, std::vector<NoteSprite>> customNoteSubtexs;
+    std::map<std::string, std::vector<std::vector<NoteSprite>>> customNoteSubtexFrames;
+    std::unordered_set<std::string> customNoteIsSingleSprite;
 
     // Arrow skin scale factor: adjusts noteScale so custom-skin notes match default visual size
     float arrowSkinScaleFactor = 1.0f;

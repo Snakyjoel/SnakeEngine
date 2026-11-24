@@ -1220,6 +1220,32 @@ void PlayState::init() {
         } else {
             printf("\x1b[14;1HWARN: Custom note texture not found: %s\x1b[K\n", n.texture.c_str());
         }
+
+        bool hasTexture = (customNoteImages.find(n.texture) != customNoteImages.end()) ||
+                          (customNoteSheets.find(n.texture) != customNoteSheets.end());
+        if (hasTexture) {
+            std::string xmlPath = Paths::xml(n.texture);
+            if (Paths::fileExists(xmlPath)) {
+                C3D_Tex* tex = nullptr;
+                C2D_Image imgBase = {nullptr, nullptr};
+                auto itImg = customNoteImages.find(n.texture);
+                if (itImg != customNoteImages.end()) {
+                    tex = itImg->second.tex;
+                    imgBase = itImg->second;
+                } else {
+                    auto itSheet = customNoteSheets.find(n.texture);
+                    if (itSheet != customNoteSheets.end()) {
+                        imgBase = C2D_SpriteSheetGetImage(itSheet->second, 0);
+                        tex = imgBase.tex;
+                    }
+                }
+                if (tex) {
+                    parseNoteXml(xmlPath, tex, imgBase, customNoteSubtexs[n.texture], &customNoteSubtexFrames[n.texture]);
+                }
+            } else {
+                customNoteIsSingleSprite.insert(n.texture);
+            }
+        }
     }
 
     // Resume background loading thread now that all init IO is complete
@@ -1398,7 +1424,7 @@ void PlayState::updateNotesLogic(float dt) {
         }
 
         // --- BOT PLAY AUTO-HIT LOGIC ---
-        if (!n.hit && n.isPlayer && diff <= 0 && ClientPrefs::botPlay) {
+        if (!n.hit && n.isPlayer && diff <= 0 && ClientPrefs::botPlay && !n.hitCausesMiss && !n.ignoreNote) {
             n.hit = true;
             n.wasGoodHit = true;
             if (n.sustainLength > 0.0f) n.sustainActive = true;
@@ -1414,31 +1440,33 @@ void PlayState::updateNotesLogic(float dt) {
 
             keyHitRecently[n.noteData] = true;
 
-            health += 0.023f; if (health > 2.0f) health = 2.0f;
+            health += n.hitHealth; if (health > 2.0f) health = 2.0f;
 
             size_t id = &n - &songNotes[0];
             LuaManager::get().callFunction("goodNoteHit", {std::to_string(id), std::to_string(n.noteData), n.noteType, n.sustainLength > 0.0f ? "true" : "false"});
         }
 
         // --- PLAYER MISS LOGIC (Head missed) ---
-        if (!n.hit && !n.ignoreNote && n.isPlayer && diff < -166.0f) {
-            misses++; combo = 0; health -= 0.0475f; if (health < 0.0f) health = 0.0f;
-            n.hit = true; n.ignoreNote = true;
-            AudioEngine::setVocalsVolume(0.0f);
-            AudioEngine::playMissSound();
-            vocalMuteTimer = 0.5f;
-            totalNotesHit++; accuracy = (totalNoteScore / totalNotesHit) * 100.0f;
+        if (!n.hit && n.isPlayer && diff < -166.0f) {
+            if (!n.ignoreNote) {
+                misses++; combo = 0; health -= n.missHealth; if (health < 0.0f) health = 0.0f;
+                AudioEngine::setVocalsVolume(0.0f);
+                AudioEngine::playMissSound();
+                vocalMuteTimer = 0.5f;
+                totalNotesHit++; accuracy = (totalNoteScore / totalNotesHit) * 100.0f;
 
-            LuaManager::get().callFunction("noteMiss", {std::to_string(i), std::to_string(n.noteData), n.noteType, n.sustainLength > 0.0f ? "true" : "false"});
+                LuaManager::get().callFunction("noteMiss", {std::to_string(i), std::to_string(n.noteData), n.noteType, n.sustainLength > 0.0f ? "true" : "false"});
 
-            Character* misser = n.isPlayer ? bf : dad;
-            if (n.gfNote || (curSection >= 0 && curSection < (int)songData.sections.size() && songData.sections[curSection].gfSection))
-                misser = gf;
+                Character* misser = n.isPlayer ? bf : dad;
+                if (n.gfNote || (curSection >= 0 && curSection < (int)songData.sections.size() && songData.sections[curSection].gfSection))
+                    misser = gf;
 
-            if (misser) {
-                static const std::string dirs[] = {"LEFT", "DOWN", "UP", "RIGHT"};
-                misser->playAnim("sing" + dirs[n.noteData] + "miss", true);
+                if (misser) {
+                    static const std::string dirs[] = {"LEFT", "DOWN", "UP", "RIGHT"};
+                    misser->playAnim("sing" + dirs[n.noteData] + "miss", true);
+                }
             }
+            n.hit = true; n.ignoreNote = true;
         }
 
         // --- SUSTAIN LOGIC (Both Player and Opponent) ---
@@ -1831,6 +1859,8 @@ void PlayState::update(float dt) {
         if (Conductor::songPosition >= 0) {
             startTimerActive = false;
             AudioEngine::start();
+            Conductor::songPosition = 0.0;
+            Conductor::update(0.0);
             LuaManager::get().callFunction("onSongStart");
         }
     } else {
@@ -1877,8 +1907,6 @@ void PlayState::update(float dt) {
         lastBeat = curBeat;
         beatHit(curBeat);
     }
-
-    AudioEngine::update();
 
     updateCamera(dt);
     updateNotesLogic(dt);
@@ -2243,135 +2271,152 @@ void PlayState::handleInput(float dt) {
             }
             if (bestNote) {
                 bestNote->hit = true;
-                bestNote->wasGoodHit = true;
-                if (bestNote->sustainLength > 0) bestNote->sustainActive = true;
-
                 keyHitRecently[i] = true;
-
-                Character* singer = bestNote->isPlayer ? bf : dad;
-                if (bestNote->gfNote || (curSection >= 0 && curSection < (int)songData.sections.size() && songData.sections[curSection].gfSection))
-                    singer = gf;
-
-                moveChar(i, singer);
 
                 size_t id = bestNote - &songNotes[0];
                 LuaManager::get().callFunction("goodNoteHit", {std::to_string(id), std::to_string(bestNote->noteData), bestNote->noteType, bestNote->sustainLength > 0.0f ? "true" : "false"});
 
-                totalNotesHit++;
-                if (bestDiff < 45.0f) {
-                    score += 350; totalNoteScore += 1.0f; ratingName = "Sick!";
-                    sicks++;
-                    if (ClientPrefs::scoreZoom) scoreZoom = 1.15f;
-                    currentRatingStr = "sick";
-                }
-                else if (bestDiff < 90.0f) {
-                    score += 200; totalNoteScore += 0.75f; ratingName = "Good";
-                    goods++;
-                    if (ClientPrefs::scoreZoom) scoreZoom = 1.1f;
-                    currentRatingStr = "good";
-                }
-                else if (bestDiff < 135.0f) {
-                    score += 100; totalNoteScore += 0.5f; ratingName = "Bad";
-                    bads++;
-                    currentRatingStr = "bad";
-                }
-                else {
-                    score += 50; totalNoteScore += 0.25f; ratingName = "Shit";
-                    shits++;
-                    currentRatingStr = "shit";
-                }
+                if (bestNote->hitCausesMiss) {
+                    bestNote->wasGoodHit = false;
+                    bestNote->sustainActive = false;
+                    misses++;
+                    combo = 0;
+                    health += bestNote->hitHealth;
+                    if (health < 0.0f) health = 0.0f;
+                    if (health > 2.0f) health = 2.0f;
+                    AudioEngine::setVocalsVolume(0.0f);
+                    AudioEngine::playMissSound();
+                    vocalMuteTimer = 0.5f;
+                    if (bf) {
+                        static const std::string dirs[] = {"LEFT", "DOWN", "UP", "RIGHT"};
+                        bf->playAnim("sing" + dirs[i] + "miss", true);
+                    }
+                } else {
+                    bestNote->wasGoodHit = true;
+                    if (bestNote->sustainLength > 0) bestNote->sustainActive = true;
 
-                // Spawn rating popup
-                if (ClientPrefs::showRatings) {
-                    int ratingIdx = 0;
-                    if (ClientPrefs::comboStacking) {
-                        for (int r = 0; r < MAX_RATING_POPUPS; r++) {
-                            if (!ratingPopups[r].active) {
-                                ratingIdx = r;
-                                break;
-                            }
-                        }
-                    } else {
-                        for (int r = 0; r < MAX_RATING_POPUPS; r++) {
-                            ratingPopups[r].active = false;
-                        }
-                        ratingIdx = 0;
+                    Character* singer = bestNote->isPlayer ? bf : dad;
+                    if (bestNote->gfNote || (curSection >= 0 && curSection < (int)songData.sections.size() && songData.sections[curSection].gfSection))
+                        singer = gf;
+
+                    moveChar(i, singer);
+
+                    totalNotesHit++;
+                    if (bestDiff < 45.0f) {
+                        score += 350; totalNoteScore += 1.0f; ratingName = "Sick!";
+                        sicks++;
+                        if (ClientPrefs::scoreZoom) scoreZoom = 1.15f;
+                        currentRatingStr = "sick";
+                    }
+                    else if (bestDiff < 90.0f) {
+                        score += 200; totalNoteScore += 0.75f; ratingName = "Good";
+                        goods++;
+                        if (ClientPrefs::scoreZoom) scoreZoom = 1.1f;
+                        currentRatingStr = "good";
+                    }
+                    else if (bestDiff < 135.0f) {
+                        score += 100; totalNoteScore += 0.5f; ratingName = "Bad";
+                        bads++;
+                        currentRatingStr = "bad";
+                    }
+                    else {
+                        score += 50; totalNoteScore += 0.25f; ratingName = "Shit";
+                        shits++;
+                        currentRatingStr = "shit";
                     }
 
-                    int thisRatingOrder = ++ratingSpawnCounter;
-                    RatingPopup& rp = ratingPopups[ratingIdx];
-                    rp.key        = currentRatingStr;
-                    rp.active     = true;
-                    rp.scale      = 0.4f * ClientPrefs::comboScale;
-                    rp.velY       = -70.0f * ClientPrefs::comboScale;
-                    rp.accelY     = 350.0f * ClientPrefs::comboScale;
-                    rp.alpha      = 1.0f;
-                    rp.x          = (ScreenWidthTop - 50.0f) + ClientPrefs::comboOffsetX;
-                    rp.y          = 35.0f + ClientPrefs::comboOffsetY;
-                    rp.spawnOrder = thisRatingOrder;
-                }
-
-                accuracy = (totalNoteScore / totalNotesHit) * 100.0f;
-
-                health += 0.023f; if (health > 2.0f) health = 2.0f;
-
-                AudioEngine::setVocalsVolume(1.0f);
-                combo++; hits++; if (combo > maxCombo) maxCombo = combo;
-
-                // Spawn combo number digits
-                if (ClientPrefs::showComboNum && !numSubtexs.empty()) {
-                    int c = combo;
-                    int digits[4];
-                    int numDigits = 0;
-                    if (c >= 1000) digits[numDigits++] = (c / 1000) % 10;
-                    digits[numDigits++] = (c / 100) % 10;
-                    digits[numDigits++] = (c / 10)  % 10;
-                    digits[numDigits++] = c % 10;
-
-                    float numScale = ClientPrefs::comboNumScale;
-                    float baseX = (ScreenWidthTop - 50.0f) + ClientPrefs::comboNumOffsetX;
-                    float baseY = 35.0f + ClientPrefs::comboNumOffsetY;
-
-                    float digitW = 43.0f * 0.5f * numScale;
-                    auto itNum0 = numSubtexs.find("num0");
-                    if (itNum0 != numSubtexs.end()) {
-                        digitW = itNum0->second.width * 0.5f * numScale;
-                    }
-
-                    float startX = baseX - (digitW * numDigits) / 2.0f;
-
-                    if (!ClientPrefs::comboStacking) {
-                        for (int d = 0; d < MAX_COMBO_DIGITS; d++) {
-                            comboDigits[d].active = false;
-                        }
-                    }
-
-                    int thisGroupOrder = ++digitSpawnCounter;
-                    for (int d = 0; d < numDigits; d++) {
-                        int slot = -1;
+                    // Spawn rating popup
+                    if (!bestNote->ratingDisabled && ClientPrefs::showRatings) {
+                        int ratingIdx = 0;
                         if (ClientPrefs::comboStacking) {
-                            for (int s = 0; s < MAX_COMBO_DIGITS; s++) {
-                                if (!comboDigits[s].active) {
-                                    slot = s;
+                            for (int r = 0; r < MAX_RATING_POPUPS; r++) {
+                                if (!ratingPopups[r].active) {
+                                    ratingIdx = r;
                                     break;
                                 }
                             }
-                            if (slot == -1) slot = d % MAX_COMBO_DIGITS;
                         } else {
-                            slot = d;
+                            for (int r = 0; r < MAX_RATING_POPUPS; r++) {
+                                ratingPopups[r].active = false;
+                            }
+                            ratingIdx = 0;
                         }
 
-                        ComboDigit& cd = comboDigits[slot];
-                        cd.key        = "num" + std::to_string(digits[d]);
-                        cd.x          = startX + d * digitW;
-                        cd.y          = baseY;
-                        cd.velY       = (-60.0f + ((float)(rand() % 21) - 10.0f)) * numScale;
-                        cd.accelY     = (250.0f + (float)(rand() % 101)) * numScale;
-                        cd.velX       = ((float)(rand() % 11) - 5.0f) * numScale;
-                        cd.alpha      = 1.0f;
-                        cd.scale      = 0.5f * numScale;
-                        cd.active     = true;
-                        cd.spawnOrder = thisGroupOrder;
+                        int thisRatingOrder = ++ratingSpawnCounter;
+                        RatingPopup& rp = ratingPopups[ratingIdx];
+                        rp.key        = currentRatingStr;
+                        rp.active     = true;
+                        rp.scale      = 0.4f * ClientPrefs::comboScale;
+                        rp.velY       = -70.0f * ClientPrefs::comboScale;
+                        rp.accelY     = 350.0f * ClientPrefs::comboScale;
+                        rp.alpha      = 1.0f;
+                        rp.x          = (ScreenWidthTop - 50.0f) + ClientPrefs::comboOffsetX;
+                        rp.y          = 35.0f + ClientPrefs::comboOffsetY;
+                        rp.spawnOrder = thisRatingOrder;
+                    }
+
+                    accuracy = (totalNoteScore / totalNotesHit) * 100.0f;
+
+                    health += bestNote->hitHealth; if (health > 2.0f) health = 2.0f;
+
+                    AudioEngine::setVocalsVolume(1.0f);
+                    combo++; hits++; if (combo > maxCombo) maxCombo = combo;
+
+                    // Spawn combo number digits
+                    if (!bestNote->ratingDisabled && ClientPrefs::showComboNum && !numSubtexs.empty()) {
+                        int c = combo;
+                        int digits[4];
+                        int numDigits = 0;
+                        if (c >= 1000) digits[numDigits++] = (c / 1000) % 10;
+                        digits[numDigits++] = (c / 100) % 10;
+                        digits[numDigits++] = (c / 10)  % 10;
+                        digits[numDigits++] = c % 10;
+
+                        float numScale = ClientPrefs::comboNumScale;
+                        float baseX = (ScreenWidthTop - 50.0f) + ClientPrefs::comboNumOffsetX;
+                        float baseY = 35.0f + ClientPrefs::comboNumOffsetY;
+
+                        float digitW = 43.0f * 0.5f * numScale;
+                        auto itNum0 = numSubtexs.find("num0");
+                        if (itNum0 != numSubtexs.end()) {
+                            digitW = itNum0->second.width * 0.5f * numScale;
+                        }
+
+                        float startX = baseX - (digitW * numDigits) / 2.0f;
+
+                        if (!ClientPrefs::comboStacking) {
+                            for (int d = 0; d < MAX_COMBO_DIGITS; d++) {
+                                comboDigits[d].active = false;
+                            }
+                        }
+
+                        int thisGroupOrder = ++digitSpawnCounter;
+                        for (int d = 0; d < numDigits; d++) {
+                            int slot = -1;
+                            if (ClientPrefs::comboStacking) {
+                                for (int s = 0; s < MAX_COMBO_DIGITS; s++) {
+                                    if (!comboDigits[s].active) {
+                                        slot = s;
+                                        break;
+                                    }
+                                }
+                                if (slot == -1) slot = d % MAX_COMBO_DIGITS;
+                            } else {
+                                slot = d;
+                            }
+
+                            ComboDigit& cd = comboDigits[slot];
+                            cd.key        = "num" + std::to_string(digits[d]);
+                            cd.x          = startX + d * digitW;
+                            cd.y          = baseY;
+                            cd.velY       = (-60.0f + ((float)(rand() % 21) - 10.0f)) * numScale;
+                            cd.accelY     = (250.0f + (float)(rand() % 101)) * numScale;
+                            cd.velX       = ((float)(rand() % 11) - 5.0f) * numScale;
+                            cd.alpha      = 1.0f;
+                            cd.scale      = 0.5f * numScale;
+                            cd.active     = true;
+                            cd.spawnOrder = thisGroupOrder;
+                        }
                     }
                 }
             } else if (!ClientPrefs::ghostTapping) {
@@ -2411,7 +2456,7 @@ void PlayState::handleInput(float dt) {
                         n.sustainActive = false;
                         n.ignoreNote = true;
                         n.wasGoodHit = false;
-                        misses++; combo = 0; health -= 0.05f; if (health < 0.0f) health = 0.0f;
+                        misses++; combo = 0; health -= n.missHealth; if (health < 0.0f) health = 0.0f;
                         AudioEngine::setVocalsVolume(0.0f);
                         AudioEngine::playMissSound();
                     }
@@ -3194,8 +3239,8 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         float laneCenterX = recX + spacing * 0.5f;
         float laneCenterY = recY + spacing * 0.5f;
 
-        float headDistance = headDiff * p3DS;
-        float tailDistance = endDiff * p3DS;
+        float headDistance = headDiff * p3DS * n.multSpeed;
+        float tailDistance = endDiff * p3DS * n.multSpeed;
 
         // Head pos
         float headX = laneCenterX - cosf(dirRad) * headDistance + offset3D_notes;
@@ -3233,14 +3278,26 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         bool customImgFound = false;
 
         if (!n.texture.empty()) {
-            auto itImg = customNoteImages.find(n.texture);
-            if (itImg != customNoteImages.end()) {
-                C2D_Image imgT = itImg->second;
-                holdPiece.tex = imgT.tex;
-                holdPiece.sub = *imgT.subtex;
-                holdPiece.w = imgT.subtex->width;
-                holdPiece.h = imgT.subtex->height;
+            if (customNoteIsSingleSprite.count(n.texture)) {
+                continue;
+            }
+            auto itSub = customNoteSubtexs.find(n.texture);
+            if (itSub != customNoteSubtexs.end()) {
+                int groupIdx = n.noteData % 4;
+                holdPiece = itSub->second[groupIdx * 6 + 4];
+                holdEnd = itSub->second[groupIdx * 6 + 5];
+                hasHoldEnd = (holdEnd.w > 0.0f);
                 customImgFound = true;
+            } else {
+                auto itImg = customNoteImages.find(n.texture);
+                if (itImg != customNoteImages.end()) {
+                    C2D_Image imgT = itImg->second;
+                    holdPiece.tex = imgT.tex;
+                    holdPiece.sub = *imgT.subtex;
+                    holdPiece.w = imgT.subtex->width;
+                    holdPiece.h = imgT.subtex->height;
+                    customImgFound = true;
+                }
             }
         }
 
@@ -3262,7 +3319,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             }
         }
 
-        if (!holdPiece.tex) continue;
+        if (!holdPiece.tex || holdPiece.w <= 0.0f) continue;
 
         C2D_ImageTint tint;
         C2D_ImageTint* tintPtr = nullptr;
@@ -3421,7 +3478,7 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
             strumDir = 270.0f;
         }
         float dirRad = strumDir * DEG_TO_RAD;
-        float dist = diff * p3DS;
+        float dist = diff * p3DS * n.multSpeed;
 
         float lx = targetRecX - cosf(dirRad) * dist;
         float ly = targetRecY + sinf(dirRad) * dist;
@@ -3441,14 +3498,21 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         NoteSprite ns;
         bool isCustom = false;
         if (!n.texture.empty()) {
-            auto itImg = customNoteImages.find(n.texture);
-            if (itImg != customNoteImages.end()) {
-                C2D_Image imgT = itImg->second;
-                ns.tex = imgT.tex;
-                ns.sub = *imgT.subtex;
-                ns.w = imgT.subtex->width;
-                ns.h = imgT.subtex->height;
+            auto itSub = customNoteSubtexs.find(n.texture);
+            if (itSub != customNoteSubtexs.end()) {
+                int groupIdx = n.noteData % 4;
+                ns = itSub->second[groupIdx * 6 + 2];
                 isCustom = true;
+            } else {
+                auto itImg = customNoteImages.find(n.texture);
+                if (itImg != customNoteImages.end()) {
+                    C2D_Image imgT = itImg->second;
+                    ns.tex = imgT.tex;
+                    ns.sub = *imgT.subtex;
+                    ns.w = imgT.subtex->width;
+                    ns.h = imgT.subtex->height;
+                    isCustom = true;
+                }
             }
         }
 
@@ -3489,7 +3553,15 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         C2D_ImageTint alphaTint;
         C2D_ImageTint* passTint = nullptr;
         float baseAlpha = getLaneAlpha(n.noteData, n.isPlayer) * n.multAlpha;
-        float noteAngle = (getLaneAngle(n.noteData, n.isPlayer) + n.angle) * DEG_TO_RAD;
+        float baseLaneAngle = getLaneAngle(n.noteData, n.isPlayer);
+        float extraRot = 0.0f;
+        if (customNoteIsSingleSprite.count(n.texture)) {
+            if (n.autoRotate && !n.noAnimation) {
+                static const float rotMap[4] = {-90.0f, 180.0f, 0.0f, 90.0f};
+                extraRot = rotMap[n.noteData % 4];
+            }
+        }
+        float noteAngle = (baseLaneAngle + n.angle + extraRot) * DEG_TO_RAD;
 
         unsigned char r = 255, g = 255, b = 255;
         u8 a_note = 255;
@@ -4139,6 +4211,9 @@ void PlayState::exitState() {
         }
     }
     customNoteImages.clear();
+    customNoteSubtexs.clear();
+    customNoteSubtexFrames.clear();
+    customNoteIsSingleSprite.clear();
 
     for (auto& t : luaTexts) {
         if (t.buf) C2D_TextBufDelete(t.buf);

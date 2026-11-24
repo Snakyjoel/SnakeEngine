@@ -4189,30 +4189,61 @@ FreeplayState::LoadedRawData FreeplayState::loadRawFile(AsyncLoadRequest& req) {
     }
     else if (req.type == AsyncLoadRequest::AssetType::ICON) {
         std::string iconName = req.iconName.empty() ? "face" : req.iconName;
+        std::string iconLower = iconName;
+        for (char& c : iconLower) c = (char)tolower((unsigned char)c);
 
         path = checkFile("images/freeplayIcons/" + iconName + ".t3x");
         if (path.empty()) path = checkFile("images/freeplayIcons/" + iconName + ".rawtex");
         if (path.empty()) path = checkFile("images/freeplayIcons/" + iconName + ".png");
+        if (path.empty() && iconLower != iconName) {
+            path = checkFile("images/freeplayIcons/" + iconLower + ".t3x");
+            if (path.empty()) path = checkFile("images/freeplayIcons/" + iconLower + ".rawtex");
+            if (path.empty()) path = checkFile("images/freeplayIcons/" + iconLower + ".png");
+        }
 
         if (!path.empty()) {
             isChar = false;
         } else {
-            path = Paths::image("freeplayIcons/" + iconName);
-            if (Paths::fileExists(path)) {
-                isChar = false;
+            path = checkFile("images/icons/icon-" + iconName + ".t3x");
+            if (path.empty()) path = checkFile("images/icons/icon-" + iconName + ".rawtex");
+            if (path.empty()) path = checkFile("images/icons/icon-" + iconName + ".png");
+            if (path.empty() && iconLower != iconName) {
+                path = checkFile("images/icons/icon-" + iconLower + ".t3x");
+                if (path.empty()) path = checkFile("images/icons/icon-" + iconLower + ".rawtex");
+                if (path.empty()) path = checkFile("images/icons/icon-" + iconLower + ".png");
+            }
+            if (path.empty()) path = checkFile("images/icons/" + iconName + ".t3x");
+            if (path.empty()) path = checkFile("images/icons/" + iconName + ".rawtex");
+            if (path.empty()) path = checkFile("images/icons/" + iconName + ".png");
+            if (path.empty() && iconLower != iconName) {
+                path = checkFile("images/icons/" + iconLower + ".t3x");
+                if (path.empty()) path = checkFile("images/icons/" + iconLower + ".rawtex");
+                if (path.empty()) path = checkFile("images/icons/" + iconLower + ".png");
+            }
+
+            if (!path.empty()) {
+                isChar = true;
             } else {
-                path = Paths::healthIcon(iconName);
+                path = Paths::image("freeplayIcons/" + iconName);
+                if (path.empty() || !Paths::fileExists(path)) {
+                    if (iconLower != iconName) path = Paths::image("freeplayIcons/" + iconLower);
+                }
                 if (Paths::fileExists(path)) {
-                    isChar = true;
-                } else if (!hasBaseIcon(iconName)) {
-                    path = Paths::image("freeplayIcons/placeholder", "preload");
                     isChar = false;
-                    if (!Paths::fileExists(path)) {
-                        path = Paths::healthIcon("face");
-                        isChar = true;
-                    }
                 } else {
-                    path.clear();
+                    path = Paths::healthIcon(iconName);
+                    if (Paths::fileExists(path)) {
+                        isChar = true;
+                    } else if (!hasBaseIcon(iconName)) {
+                        path = Paths::image("freeplayIcons/placeholder", "preload");
+                        isChar = false;
+                        if (!Paths::fileExists(path)) {
+                            path = Paths::healthIcon("face");
+                            isChar = true;
+                        }
+                    } else {
+                        path.clear();
+                    }
                 }
             }
         }
