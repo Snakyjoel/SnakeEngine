@@ -162,6 +162,134 @@ static void parseNoteXml(const std::string& xmlPath, C3D_Tex* tex, C2D_Image bas
     }
 }
 
+static void parseRatingXml(const std::string& xmlPath,
+                           const C2D_Image& baseImage,
+                           std::map<std::string, RatingFrame>& ratingSubtexs,
+                           std::map<std::string, RatingFrame>& numSubtexs)
+{
+    if (!baseImage.subtex || !baseImage.tex) return;
+
+    std::ifstream file(xmlPath);
+    if (!file.is_open()) return;
+
+    std::string line;
+    float rw = baseImage.subtex->right - baseImage.subtex->left;
+    float rh = baseImage.subtex->bottom - baseImage.subtex->top;
+    float refW = (float)baseImage.subtex->width;
+    float refH = (float)baseImage.subtex->height;
+    if (refW <= 0.0f) refW = (float)baseImage.tex->width;
+    if (refH <= 0.0f) refH = (float)baseImage.tex->height;
+
+    while (std::getline(file, line)) {
+        if (line.find("<SubTexture") != std::string::npos) {
+            auto getVal = [&](const std::string& key) -> std::string {
+                size_t pos = line.find(key + "=\"");
+                if (pos == std::string::npos) return "0";
+                pos += key.length() + 2;
+                size_t end = line.find("\"", pos);
+                if (end == std::string::npos) return "0";
+                return line.substr(pos, end - pos);
+            };
+
+            std::string nameInfo = getVal("name");
+
+            bool isDigit = false;
+            std::string digitId = "";
+            for (int d = 0; d <= 9; d++) {
+                std::string dname = "num" + std::to_string(d);
+                if (nameInfo.find(dname) != std::string::npos) {
+                    isDigit = true;
+                    digitId = dname;
+                    break;
+                }
+            }
+
+            float x = atof(getVal("x").c_str());
+            float y = atof(getVal("y").c_str());
+            float w = atof(getVal("width").c_str());
+            float h = atof(getVal("height").c_str());
+            std::string rotStr = getVal("rotated");
+            bool rotated = (rotStr == "true" || rotStr == "1");
+            float frameX = atof(getVal("frameX").c_str());
+            float frameY = atof(getVal("frameY").c_str());
+            float frameWidth = atof(getVal("frameWidth").c_str());
+            float frameHeight = atof(getVal("frameHeight").c_str());
+
+            if (frameWidth <= 0.0f) frameWidth = rotated ? h : w;
+            if (frameHeight <= 0.0f) frameHeight = rotated ? w : h;
+
+            RatingFrame rf;
+            rf.rotated = rotated;
+            rf.frameX = frameX;
+            rf.frameY = frameY;
+            rf.frameWidth = frameWidth;
+            rf.frameHeight = frameHeight;
+            rf.autoScale = 1.0f;
+
+            rf.sub.width = (u16)w;
+            rf.sub.height = (u16)h;
+            rf.sub.left   = baseImage.subtex->left + (x * rw / refW);
+            rf.sub.top    = baseImage.subtex->top  + (y * rh / refH);
+            rf.sub.right  = baseImage.subtex->left + ((x + w) * rw / refW);
+            rf.sub.bottom = baseImage.subtex->top  + ((y + h) * rh / refH);
+
+            if (isDigit) {
+                if (numSubtexs.find(digitId) == numSubtexs.end()) {
+                    numSubtexs[digitId] = rf;
+                }
+            } else {
+                std::string id = "shit";
+                if (nameInfo.find("sick") != std::string::npos) id = "sick";
+                else if (nameInfo.find("good") != std::string::npos) id = "good";
+                else if (nameInfo.find("bad")  != std::string::npos) id = "bad";
+                ratingSubtexs[id] = rf;
+            }
+        }
+    }
+
+    constexpr float REFERENCE_SICK_WIDTH = 160.0f;
+    float skinW = 0.0f;
+    auto itSick = ratingSubtexs.find("sick");
+    if (itSick != ratingSubtexs.end()) {
+        skinW = itSick->second.frameWidth;
+    } else if (!ratingSubtexs.empty()) {
+        skinW = ratingSubtexs.begin()->second.frameWidth;
+    }
+
+    if (skinW > 0.0f) {
+        float autoScale = 1.0f;
+        if (skinW > 200.0f) {
+            autoScale = REFERENCE_SICK_WIDTH / skinW;
+        } else if (skinW < 100.0f) {
+            autoScale = REFERENCE_SICK_WIDTH / skinW;
+        }
+        for (auto& kv : ratingSubtexs) {
+            kv.second.autoScale = autoScale;
+        }
+    }
+
+    constexpr float REFERENCE_NUM_WIDTH = 44.0f;
+    float numW = 0.0f;
+    auto itNum0 = numSubtexs.find("num0");
+    if (itNum0 != numSubtexs.end()) {
+        numW = itNum0->second.frameWidth;
+    } else if (!numSubtexs.empty()) {
+        numW = numSubtexs.begin()->second.frameWidth;
+    }
+
+    if (numW > 0.0f) {
+        float numAutoScale = 1.0f;
+        if (numW > 60.0f) {
+            numAutoScale = REFERENCE_NUM_WIDTH / numW;
+        } else if (numW < 25.0f) {
+            numAutoScale = REFERENCE_NUM_WIDTH / numW;
+        }
+        for (auto& kv : numSubtexs) {
+            kv.second.autoScale = numAutoScale;
+        }
+    }
+}
+
 struct RawTexHeader {
     char magic[4];    // "RWTX"
     uint16_t width;   // Pow2 Width
@@ -605,64 +733,7 @@ void PlayState::init() {
                 }
 
                 if (ratingBaseImage.subtex != nullptr) {
-                    std::ifstream file(xmlPath);
-                    std::string line;
-                    float rw = ratingBaseImage.subtex->right - ratingBaseImage.subtex->left;
-                    float rh = ratingBaseImage.subtex->bottom - ratingBaseImage.subtex->top;
-
-                    while (std::getline(file, line)) {
-                        if (line.find("<SubTexture") != std::string::npos) {
-                            auto getVal = [&](const std::string& key) {
-                                size_t pos = line.find(key + "=\"");
-                                if (pos == std::string::npos) return std::string("0");
-                                pos += key.length() + 2;
-                                size_t end = line.find("\"", pos);
-                                return line.substr(pos, end - pos);
-                            };
-
-                            std::string nameInfo = getVal("name");
-
-                            // Check for digit sprites (num0..num9)
-                            bool isDigit = false;
-                            std::string digitId;
-                            for (int d = 0; d <= 9; d++) {
-                                std::string dname = "num" + std::to_string(d);
-                                if (nameInfo.find(dname) != std::string::npos) {
-                                    isDigit = true;
-                                    digitId = dname;
-                                    break;
-                                }
-                            }
-
-                            std::string id = "shit";
-                            if (!isDigit) {
-                                if (nameInfo.find("sick") != std::string::npos) id = "sick";
-                                else if (nameInfo.find("good") != std::string::npos) id = "good";
-                                else if (nameInfo.find("bad")  != std::string::npos) id = "bad";
-                            }
-
-                            Tex3DS_SubTexture sub;
-                            float x = atof(getVal("x").c_str());
-                            float y = atof(getVal("y").c_str());
-                            float w = atof(getVal("width").c_str());
-                            float h = atof(getVal("height").c_str());
-
-                            sub.width = (u16)w;
-                            sub.height = (u16)h;
-                            if (ratingBaseImage.subtex) {
-                                sub.left   = ratingBaseImage.subtex->left + (x * rw / (float)ratingBaseImage.subtex->width);
-                                sub.top    = ratingBaseImage.subtex->top  + (y * rh / (float)ratingBaseImage.subtex->height);
-                                sub.right  = ratingBaseImage.subtex->left + ((x + w) * rw / (float)ratingBaseImage.subtex->width);
-                                sub.bottom = ratingBaseImage.subtex->top  + ((y + h) * rh / (float)ratingBaseImage.subtex->height);
-                            }
-
-                            if (isDigit) {
-                                if (numSubtexs.find(digitId) == numSubtexs.end()) numSubtexs[digitId] = sub;
-                            } else {
-                                ratingSubtexs[id] = sub;
-                            }
-                        }
-                    }
+                    parseRatingXml(xmlPath, ratingBaseImage, ratingSubtexs, numSubtexs);
                     loadedCustomRating = true;
                     printf("[RatingSkin] Loaded custom rating skin: %s\n", skinName.c_str());
                 }
@@ -696,64 +767,7 @@ void PlayState::init() {
             }
 
             if (ratingBaseImage.subtex != nullptr) {
-                std::ifstream file("romfs:/shared/images/ratingSkins/rating.xml");
-                std::string line;
-                float rw = ratingBaseImage.subtex->right - ratingBaseImage.subtex->left;
-                float rh = ratingBaseImage.subtex->bottom - ratingBaseImage.subtex->top;
-
-                while (std::getline(file, line)) {
-                    if (line.find("<SubTexture") != std::string::npos) {
-                        auto getVal = [&](const std::string& key) {
-                            size_t pos = line.find(key + "=\"");
-                            if (pos == std::string::npos) return std::string("0");
-                            pos += key.length() + 2;
-                            size_t end = line.find("\"", pos);
-                            return line.substr(pos, end - pos);
-                        };
-
-                        std::string nameInfo = getVal("name");
-
-                        // Check for digit sprites (num0..num9)
-                        bool isDigit = false;
-                        std::string digitId;
-                        for (int d = 0; d <= 9; d++) {
-                            std::string dname = "num" + std::to_string(d);
-                            if (nameInfo.find(dname) != std::string::npos) {
-                                isDigit = true;
-                                digitId = dname;
-                                break;
-                            }
-                        }
-
-                        std::string id = "shit";
-                        if (!isDigit) {
-                            if (nameInfo.find("sick") != std::string::npos) id = "sick";
-                            else if (nameInfo.find("good") != std::string::npos) id = "good";
-                            else if (nameInfo.find("bad")  != std::string::npos) id = "bad";
-                        }
-
-                        Tex3DS_SubTexture sub;
-                        float x = atof(getVal("x").c_str());
-                        float y = atof(getVal("y").c_str());
-                        float w = atof(getVal("width").c_str());
-                        float h = atof(getVal("height").c_str());
-
-                        sub.width = (u16)w;
-                        sub.height = (u16)h;
-                        if (ratingBaseImage.subtex) {
-                            sub.left   = ratingBaseImage.subtex->left + (x * rw / (float)ratingBaseImage.subtex->width);
-                            sub.top    = ratingBaseImage.subtex->top  + (y * rh / (float)ratingBaseImage.subtex->height);
-                            sub.right  = ratingBaseImage.subtex->left + ((x + w) * rw / (float)ratingBaseImage.subtex->width);
-                            sub.bottom = ratingBaseImage.subtex->top  + ((y + h) * rh / (float)ratingBaseImage.subtex->height);
-                        }
-
-                        if (isDigit) {
-                            if (numSubtexs.find(digitId) == numSubtexs.end()) numSubtexs[digitId] = sub;
-                        } else {
-                            ratingSubtexs[id] = sub;
-                        }
-                    }
-                }
+                parseRatingXml("romfs:/shared/images/ratingSkins/rating.xml", ratingBaseImage, ratingSubtexs, numSubtexs);
             }
         } else {
             printf("\x1b[6;1HERROR: Could not load ratingSheet\n");
@@ -1723,6 +1737,7 @@ void PlayState::update(float dt) {
                 pauseSubState = nullptr;
             }
             AudioEngine::resume();
+            Conductor::resetSync();
             if (inGameVideo) inGameVideo->isPaused = false;
         }
     }
@@ -1861,10 +1876,11 @@ void PlayState::update(float dt) {
             AudioEngine::start();
             Conductor::songPosition = 0.0;
             Conductor::update(0.0);
+            Conductor::resetSync();
             LuaManager::get().callFunction("onSongStart");
         }
     } else {
-        Conductor::update(AudioEngine::getSongPosition());
+        Conductor::advanceTime(dt, AudioEngine::getHardwarePosition());
     }
 
     if (countdownActive) {
@@ -2260,7 +2276,7 @@ void PlayState::handleInput(float dt) {
             float bestDiff = 166.0f;
             Note* bestNote = nullptr;
 
-            float pos = Conductor::songPosition;
+            float pos = (AudioEngine::isLoaded && !AudioEngine::paused) ? (float)AudioEngine::getHardwarePosition() : (float)Conductor::songPosition;
             for(auto& n : songNotes) {
                 if (n.strumTime < pos - 350.0f) continue;
                 if (n.strumTime > pos + 350.0f) break;
@@ -2379,7 +2395,8 @@ void PlayState::handleInput(float dt) {
                         float digitW = 43.0f * 0.5f * numScale;
                         auto itNum0 = numSubtexs.find("num0");
                         if (itNum0 != numSubtexs.end()) {
-                            digitW = itNum0->second.width * 0.5f * numScale;
+                            float baseWidth = itNum0->second.frameWidth > 0.0f ? itNum0->second.frameWidth : (itNum0->second.rotated ? (float)itNum0->second.sub.height : (float)itNum0->second.sub.width);
+                            digitW = baseWidth * 0.5f * numScale * itNum0->second.autoScale;
                         }
 
                         float startX = baseX - (digitW * numDigits) / 2.0f;
@@ -3806,18 +3823,31 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 auto itRating = ratingSubtexs.find(rp.key);
                 if (itRating == ratingSubtexs.end()) continue;
 
-                Tex3DS_SubTexture& sub = itRating->second;
-                C2D_Image img = { ratingBaseImage.tex, &sub };
+                const RatingFrame& rf = itRating->second;
+                C2D_Image img = { ratingBaseImage.tex, const_cast<Tex3DS_SubTexture*>(&rf.sub) };
 
                 C2D_ImageTint tint;
                 C2D_AlphaImageTint(&tint, rp.alpha * ClientPrefs::comboAlpha);
 
-                float drawX = rp.x - (sub.width * rp.scale / 2.0f) + hsX + offset3D_rating;
-                float drawY = rp.y - (sub.height * rp.scale / 2.0f) + hsY;
-
-                // z in [0.95, 0.96]: older popups slightly behind, newest popup in front
+                float cx = rp.x + hsX + offset3D_rating;
+                float cy = rp.y + hsY;
+                float s = rp.scale * rf.autoScale;
                 float z = 0.95f + 0.01f * (float)i / (float)(drawCount > 1 ? drawCount - 1 : 1);
-                drawImageScaledTinted(img, drawX, drawY, z, rp.scale, rp.scale, &tint);
+
+                float canvasW = rf.frameWidth > 0.0f ? rf.frameWidth : (rf.rotated ? (float)rf.sub.height : (float)rf.sub.width);
+                float canvasH = rf.frameHeight > 0.0f ? rf.frameHeight : (rf.rotated ? (float)rf.sub.width : (float)rf.sub.height);
+
+                if (rf.rotated) {
+                    float offX = (-rf.frameX + ((float)rf.sub.height - canvasW) * 0.5f) * s;
+                    float offY = (-rf.frameY + ((float)rf.sub.width - canvasH) * 0.5f) * s;
+                    C2D_DrawImageAtRotated(img, cx + offX, cy + offY, z, -1.5707963267948966f, &tint, s, s);
+                } else {
+                    float offX = (-rf.frameX + ((float)rf.sub.width - canvasW) * 0.5f) * s;
+                    float offY = (-rf.frameY + ((float)rf.sub.height - canvasH) * 0.5f) * s;
+                    float drawX = (cx + offX) - (float)rf.sub.width * s * 0.5f;
+                    float drawY = (cy + offY) - (float)rf.sub.height * s * 0.5f;
+                    C2D_DrawImageAt(img, drawX, drawY, z, &tint, s, s);
+                }
             }
         }
 
@@ -3847,18 +3877,31 @@ void PlayState::draw(C3D_RenderTarget* top, C3D_RenderTarget* bottom) {
                 auto itNum = numSubtexs.find(cd.key);
                 if (itNum == numSubtexs.end()) continue;
 
-                const Tex3DS_SubTexture& sub = itNum->second;
-                C2D_Image img = { ratingBaseImage.tex, const_cast<Tex3DS_SubTexture*>(&sub) };
+                const RatingFrame& rf = itNum->second;
+                C2D_Image img = { ratingBaseImage.tex, const_cast<Tex3DS_SubTexture*>(&rf.sub) };
 
                 C2D_ImageTint tint;
                 C2D_AlphaImageTint(&tint, cd.alpha * ClientPrefs::comboNumAlpha);
 
-                float drawX = cd.x - (sub.width  * cd.scale / 2.0f) + hsX + offset3D_num;
-                float drawY = cd.y - (sub.height * cd.scale / 2.0f) + hsY;
-
-                // z in [0.93, 0.94]: older groups slightly behind, newest group at 0.94
+                float cx = cd.x + hsX + offset3D_num;
+                float cy = cd.y + hsY;
+                float s = cd.scale * rf.autoScale;
                 float z = 0.93f + 0.01f * (float)i / (float)(drawCount > 1 ? drawCount - 1 : 1);
-                drawImageScaledTinted(img, drawX, drawY, z, cd.scale, cd.scale, &tint);
+
+                float canvasW = rf.frameWidth > 0.0f ? rf.frameWidth : (rf.rotated ? (float)rf.sub.height : (float)rf.sub.width);
+                float canvasH = rf.frameHeight > 0.0f ? rf.frameHeight : (rf.rotated ? (float)rf.sub.width : (float)rf.sub.height);
+
+                if (rf.rotated) {
+                    float offX = (-rf.frameX + ((float)rf.sub.height - canvasW) * 0.5f) * s;
+                    float offY = (-rf.frameY + ((float)rf.sub.width - canvasH) * 0.5f) * s;
+                    C2D_DrawImageAtRotated(img, cx + offX, cy + offY, z, -1.5707963267948966f, &tint, s, s);
+                } else {
+                    float offX = (-rf.frameX + ((float)rf.sub.width - canvasW) * 0.5f) * s;
+                    float offY = (-rf.frameY + ((float)rf.sub.height - canvasH) * 0.5f) * s;
+                    float drawX = (cx + offX) - (float)rf.sub.width * s * 0.5f;
+                    float drawY = (cy + offY) - (float)rf.sub.height * s * 0.5f;
+                    C2D_DrawImageAt(img, drawX, drawY, z, &tint, s, s);
+                }
             }
         }
 

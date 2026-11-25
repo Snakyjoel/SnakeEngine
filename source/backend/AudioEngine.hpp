@@ -23,6 +23,7 @@ public:
     static void exit();
     static void shutdown();
     static double getSongPosition();
+    static double getHardwarePosition();
     static double getTotalTime();
     static bool isFinished();
     static void clearSoundCache();
@@ -115,7 +116,9 @@ private:
     static double lastSampleTick;
     static double pauseOffset;
     static double lastReportedPosition;
+    static double lastHardwarePosition;
     static uint64_t samplesSubmitted;
+    static uint64_t waveBufStartSample[BUFFER_COUNT];
 
 
     static std::map<std::string, SoundData> soundCache;

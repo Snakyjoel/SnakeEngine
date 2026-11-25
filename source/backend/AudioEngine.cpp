@@ -112,7 +112,9 @@ long AudioEngine::actualSampleRate = 44100;
 double AudioEngine::pauseOffset = 0;
 double AudioEngine::lastSampleTick = 0;
 double AudioEngine::lastReportedPosition = 0;
+double AudioEngine::lastHardwarePosition = 0;
 uint64_t AudioEngine::samplesSubmitted = 0;
+uint64_t AudioEngine::waveBufStartSample[BUFFER_COUNT] = {0};
 
 static bool openWavFile(const char* path, FILE*& outWav, uint32_t& outSampleRate, int& outChannels, uint32_t& outDataOffset, uint32_t& outTotalSamples) {
     FILE* f = fopen(path, "rb");
@@ -324,10 +326,14 @@ bool AudioEngine::init(const char* instPath, const char* vocalsPath) {
     totalSamples = 0;
     lastSampleTick = 0;
     lastReportedPosition = 0;
+    lastHardwarePosition = 0;
     samplesSubmitted = 0;
     fillBuf = 0;
     vocalsFillBuf = 0;
     paused = true;
+    for (int i = 0; i < BUFFER_COUNT; i++) {
+        waveBufStartSample[i] = 0;
+    }
     if (hasVocals) setVocalsVolume(1.0f);
 
     ndspChnSetPaused(0, true);
@@ -337,6 +343,7 @@ bool AudioEngine::init(const char* instPath, const char* vocalsPath) {
         waveBuf[i].data_vaddr = &bufferData[i * BUFFER_SAMPLES * instNumChannels];
         waveBuf[i].nsamples = BUFFER_SAMPLES;
         fill(i, false, false);
+        waveBufStartSample[i] = samplesSubmitted;
         ndspChnWaveBufAdd(0, &waveBuf[i]);
         samplesSubmitted += waveBuf[i].nsamples;
 
@@ -363,6 +370,7 @@ void AudioEngine::start() {
     lastSampleTick = (double)osGetTime();
     pauseOffset = 0;
     lastReportedPosition = 0;
+    lastHardwarePosition = 0;
     paused = false;
     ndspChnSetPaused(0, false);
     if (hasVocals) ndspChnSetPaused(1, false);
@@ -376,7 +384,9 @@ void AudioEngine::pause() {
         return;
     }
     paused = true;
-    pauseOffset = (double)osGetTime() - lastSampleTick;
+    pauseOffset = getHardwarePosition();
+    lastReportedPosition = pauseOffset;
+    lastHardwarePosition = pauseOffset;
     ndspChnSetPaused(0, true);
     if (hasVocals) ndspChnSetPaused(1, true);
     LightLock_Unlock(&s_audioLock);
@@ -476,8 +486,62 @@ void AudioEngine::fill(int id, bool countAsPlayed, bool isVocals) {
     DSP_FlushDataCache(targetBuf, sizeof(ndspWaveBuf));
 }
 
+double AudioEngine::getHardwarePosition() {
+    if (!isLoaded) return 0;
+    if (paused) return pauseOffset;
+
+    if (!ndspChnIsPlaying(0)) {
+        return getSongPosition();
+    }
+
+    u16 currentSeq = ndspChnGetWaveBufSeq(0);
+    int activeBuf = -1;
+    for (int i = 0; i < BUFFER_COUNT; i++) {
+        if (waveBuf[i].sequence_id == currentSeq && waveBuf[i].status == NDSP_WBUF_PLAYING) {
+            activeBuf = i;
+            break;
+        }
+    }
+
+    if (activeBuf == -1) {
+        for (int i = 0; i < BUFFER_COUNT; i++) {
+            if (waveBuf[i].status == NDSP_WBUF_PLAYING) {
+                activeBuf = i;
+                break;
+            }
+        }
+    }
+
+    if (activeBuf == -1) {
+        return getSongPosition();
+    }
+
+    u32 samplePos = ndspChnGetSamplePos(0);
+    if (samplePos > waveBuf[activeBuf].nsamples) {
+        samplePos = waveBuf[activeBuf].nsamples;
+    }
+
+    uint64_t currentSample = waveBufStartSample[activeBuf] + samplePos;
+    double hwMs = ((double)currentSample / (double)actualSampleRate) * 1000.0;
+
+    double maxPossibleMs = (double)samplesSubmitted / (double)actualSampleRate * 1000.0;
+    if (hwMs > maxPossibleMs) hwMs = maxPossibleMs;
+
+    if (hwMs < lastHardwarePosition) {
+        hwMs = lastHardwarePosition;
+    } else {
+        lastHardwarePosition = hwMs;
+    }
+
+    return hwMs;
+}
+
 double AudioEngine::getSongPosition() {
     if (!isLoaded || lastSampleTick == 0) return 0;
+    if (!paused && ndspChnIsPlaying(0)) {
+        double hw = getHardwarePosition();
+        if (hw > 0) return hw;
+    }
     double anchorMs = (double)totalSamples / (double)actualSampleRate * 1000.0;
     double diff = paused ? pauseOffset : ((double)osGetTime() - lastSampleTick);
     double pos = anchorMs + diff;
@@ -571,6 +635,7 @@ void AudioEngine::update() {
     for (int i = 0; i < BUFFER_COUNT; i++) {
         if (!instEof && waveBuf[fillBuf].status == NDSP_WBUF_DONE) {
             fill(fillBuf, true, false);
+            waveBufStartSample[fillBuf] = samplesSubmitted;
             ndspChnWaveBufAdd(0, &waveBuf[fillBuf]);
             samplesSubmitted += waveBuf[fillBuf].nsamples;
             fillBuf = (fillBuf + 1) % BUFFER_COUNT;

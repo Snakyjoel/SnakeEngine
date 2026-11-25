@@ -23,6 +23,16 @@ struct HealthIconData {
     std::string iconName = "";
 };
 
+struct RatingFrame {
+    Tex3DS_SubTexture sub;
+    bool rotated = false;
+    float frameX = 0.0f;
+    float frameY = 0.0f;
+    float frameWidth = 0.0f;
+    float frameHeight = 0.0f;
+    float autoScale = 1.0f;
+};
+
 struct DebugLog {
     std::string text;
     float timer;
@@ -549,8 +559,8 @@ private:
     // Rating Popup variables
     C2D_SpriteSheet ratingSheet = nullptr;
     C2D_Image ratingBaseImage;
-    std::map<std::string, Tex3DS_SubTexture> ratingSubtexs;
-    std::map<std::string, Tex3DS_SubTexture> numSubtexs;   // "num0".."num9"
+    std::map<std::string, RatingFrame> ratingSubtexs;
+    std::map<std::string, RatingFrame> numSubtexs;   // "num0".."num9"
     std::vector<NoteSprite> noteSubtexs;
     std::vector<std::vector<NoteSprite>> noteSubtexFrames;
     std::string currentRatingStr;
