@@ -3,6 +3,7 @@
 - Freeplay can now resume searching for icons in the "/icons" folder
 - The NoteMiss functions are now working
 - The functionality of screenCenter() was corrected
+- The timing at which the "Change Character" event begins preloading characters is now customizable, which is useful if you have slower SDs
 
 3.8.9
 (The list of changes is very long; I may have missed some changes that aren't listed.)

@@ -273,6 +273,17 @@
       "description": "System preferences and debug options",
       "options": [
         {
+          "id": "charPreloadTime",
+          "name": "Char Preload",
+          "type": "int",
+          "default": 15,
+          "min": 15,
+          "max": 60,
+          "step": 5,
+          "suffix": "s",
+          "description": "Seconds in advance to precache characters for\nChange Character events. (Min: 15s)"
+        },
+        {
           "id": "checkForUpdates",
           "name": "Check Updates",
           "type": "bool",

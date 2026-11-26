@@ -1652,7 +1652,8 @@ void PlayState::update(float dt) {
 
         int keptFutureCount = 0;
         std::vector<std::string> keptFutureNames;
-        float keepTimeLimit = Conductor::songPosition + 15000.0f; // 15 seconds ahead
+        int preloadSec = ClientPrefs::charPreloadTime >= 15 ? ClientPrefs::charPreloadTime : 15;
+        float keepTimeLimit = Conductor::songPosition + (float)(preloadSec * 1000);
         for (size_t i = nextEventIndex; i < songData.events.size(); i++) {
             const auto& ev = songData.events[i];
             if (ev.strumTime > keepTimeLimit || keptFutureCount >= 3) break;
@@ -1687,8 +1688,9 @@ void PlayState::update(float dt) {
         }
     }
 
-    // Lookahead for Change Character events (limit to next 15 seconds and max 3 upcoming characters to protect Linear RAM)
-    float lookaheadTime = Conductor::songPosition + 15000.0f; // 15 seconds ahead
+    // Lookahead for Change Character events (limit to preload window and max 3 upcoming characters to protect Linear RAM)
+    int preloadSecAhead = ClientPrefs::charPreloadTime >= 15 ? ClientPrefs::charPreloadTime : 15;
+    float lookaheadTime = Conductor::songPosition + (float)(preloadSecAhead * 1000);
     int requestedCount = 0;
     std::vector<std::string> requestedNames;
     for (size_t i = nextEventIndex; i < songData.events.size(); i++) {

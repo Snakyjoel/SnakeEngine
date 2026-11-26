@@ -61,6 +61,7 @@ bool ClientPrefs::acceptedEgg = false;
 bool ClientPrefs::eggInteractionOccurred = false;
 bool ClientPrefs::acceptedChallenge = false;
 int ClientPrefs::fpsLimit = 60;
+int ClientPrefs::charPreloadTime = 15;
 
 unsigned int ClientPrefs::noteKeys[4][2] = {
     {KEY_DLEFT, KEY_Y},
@@ -294,6 +295,12 @@ void ClientPrefs::loadSettings() {
 
     val = json_object_get(root, "fpsLimit");
     if (val && json_is_integer(val)) fpsLimit = (int)json_integer_value(val);
+
+    val = json_object_get(root, "charPreloadTime");
+    if (val && json_is_integer(val)) {
+        charPreloadTime = (int)json_integer_value(val);
+        if (charPreloadTime < 15) charPreloadTime = 15;
+    }
     
     json_decref(root);
 
@@ -359,6 +366,7 @@ void ClientPrefs::saveSettings() {
     json_object_set_new(root, "eggInteractionOccurred", eggInteractionOccurred ? json_true() : json_false());
     json_object_set_new(root, "acceptedChallenge", acceptedChallenge ? json_true() : json_false());
     json_object_set_new(root, "fpsLimit", json_integer(fpsLimit));
+    json_object_set_new(root, "charPreloadTime", json_integer(charPreloadTime));
 
     
     json_t *keysArr = json_array();

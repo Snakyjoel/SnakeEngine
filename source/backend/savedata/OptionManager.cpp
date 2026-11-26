@@ -549,9 +549,13 @@ void OptionManager::syncToClientPrefs() {
 
     std::string fps = getString("fpsLimit", "60 FPS");
     ClientPrefs::fpsLimit = (fps == "30 FPS") ? 30 : 60;
+
+    ClientPrefs::charPreloadTime = getInt("charPreloadTime", 15);
+    if (ClientPrefs::charPreloadTime < 15) ClientPrefs::charPreloadTime = 15;
 }
 
 void OptionManager::syncFromClientPrefs() {
+    setInt("charPreloadTime", ClientPrefs::charPreloadTime >= 15 ? ClientPrefs::charPreloadTime : 15);
     setBool("downscroll", ClientPrefs::downscroll);
     setBool("middleScroll", ClientPrefs::middleScroll);
     setBool("opponentStrums", ClientPrefs::opponentStrums);

@@ -66,6 +66,7 @@ public:
     static bool eggInteractionOccurred;
     static bool acceptedChallenge;
     static int fpsLimit;
+    static int charPreloadTime;
     
     static void loadSettings();
     static void saveSettings();
