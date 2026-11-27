@@ -131,9 +131,11 @@ int main(int argc, char* argv[]) {
         if (target) C3D_RenderTargetSetOutput(target, screen, side, 0x1000);
         return target;
     };
+    void* vramLockB = vramAllocAt(0x280000, VRAM_ALLOC_B);
     C3D_RenderTarget* top      = createScreenTargetStencil(GFX_TOP, GFX_LEFT);
     C3D_RenderTarget* topRight = createScreenTargetStencil(GFX_TOP, GFX_RIGHT);
     C3D_RenderTarget* bottom   = createScreenTargetStencil(GFX_BOTTOM, GFX_LEFT);
+    if (vramLockB) vramFree(vramLockB);
 
     C3D_AlphaTest(true, GPU_GREATER, 0x00);
     C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA); //Fucking Long Line

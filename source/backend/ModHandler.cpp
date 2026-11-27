@@ -19,6 +19,16 @@ ModHandler& ModHandler::get() {
     return instance;
 }
 
+struct ModLockGuard {
+#ifdef _3DS
+    LightLock* lk;
+    ModLockGuard(LightLock* l) : lk(l) { LightLock_Lock(lk); }
+    ~ModLockGuard() { LightLock_Unlock(lk); }
+#else
+    ModLockGuard(void*) {}
+#endif
+};
+
 std::string ModHandler::currentModFolder = "";
 
 static std::string workingBase = "sdmc:/SnakeEngine/";
@@ -27,6 +37,9 @@ static void checkWorkingBase() {}
 std::string ModHandler::getWorkingBase() { checkWorkingBase(); return workingBase; }
 
 void ModHandler::scanMods() {
+#ifdef _3DS
+    ModLockGuard lock(&modLock);
+#endif
     mods.clear();
     
     const char* roots[] = {"sdmc:/SnakeEngine/", "/SnakeEngine/", "SnakeEngine/"};
@@ -239,6 +252,9 @@ void ModHandler::loadConfig() {
 }
 
 void ModHandler::reorderMod(int from, int to) {
+#ifdef _3DS
+    ModLockGuard lock(&modLock);
+#endif
     if (from < 0 || from >= (int)mods.size() || to < 0 || to >= (int)mods.size()) return;
     // Don't allow reordering above direct mods if we want to keep them at top?
     // User said direct mods are ALWAYS at the top.
@@ -250,6 +266,9 @@ void ModHandler::reorderMod(int from, int to) {
 }
 
 std::string ModHandler::getModPath(const std::string& relativePath) {
+#ifdef _3DS
+    ModLockGuard lock(&modLock);
+#endif
     checkWorkingBase();
 
     // Global Mode: Search active global mods
@@ -276,6 +295,9 @@ std::string ModHandler::getModPath(const std::string& relativePath) {
 }
 
 std::string ModHandler::getModFolderOfFile(const std::string& relativePath) {
+#ifdef _3DS
+    ModLockGuard lock(&modLock);
+#endif
     checkWorkingBase();
     for (const auto& mod : mods) {
         if (!mod.active && mod.folder != currentModFolder) continue;

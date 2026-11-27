@@ -264,8 +264,32 @@ void LuaManager::syncGlobals() {
     lua_pushboolean(L, ClientPrefs::opponentNotes);
     lua_setglobal(L, "opponentNotes");
 
-    lua_pushboolean(L, ClientPrefs::opponentStrums);
-    lua_setglobal(L, "opponentStrums");
+    lua_pushboolean(L, ClientPrefs::lowQuality);
+    lua_setglobal(L, "lowQuality");
+
+    lua_pushboolean(L, ClientPrefs::flashing);
+    lua_setglobal(L, "flashingLights");
+
+    lua_pushboolean(L, ClientPrefs::flashing);
+    lua_setglobal(L, "flashing");
+
+    for (const auto& cat : OptionManager::get().getModCategories()) {
+        for (const auto& item : cat.options) {
+            if (item.type == OptionType::BOOL) {
+                lua_pushboolean(L, OptionManager::get().getModBool(item.modFolder, item.id, item.boolVal));
+                lua_setglobal(L, item.id.c_str());
+            } else if (item.type == OptionType::INT) {
+                lua_pushinteger(L, OptionManager::get().getModInt(item.modFolder, item.id, item.intVal));
+                lua_setglobal(L, item.id.c_str());
+            } else if (item.type == OptionType::FLOAT) {
+                lua_pushnumber(L, OptionManager::get().getModFloat(item.modFolder, item.id, item.floatVal));
+                lua_setglobal(L, item.id.c_str());
+            } else if (item.type == OptionType::STRING_LIST) {
+                lua_pushstring(L, OptionManager::get().getModString(item.modFolder, item.id, item.stringVal).c_str());
+                lua_setglobal(L, item.id.c_str());
+            }
+        }
+    }
 
     lua_pushinteger(L, ClientPrefs::fpsLimit); // framerate
     lua_setglobal(L, "framerate");
@@ -632,10 +656,12 @@ static void releaseLuaSpriteMemory(StageSprite& oldSprite) {
 void LuaManager::clearAllSprites() {
     if (!PlayState::instance) return;
     
-    // First, safely release all individual sprites
-    for (auto& s : PlayState::instance->luaSprites) {
+    while (!PlayState::instance->luaSprites.empty()) {
+        StageSprite s = PlayState::instance->luaSprites.back();
+        PlayState::instance->luaSprites.pop_back();
         releaseLuaSpriteMemory(s);
     }
+    PlayState::instance->luaSpriteIndices.clear();
     
     // Any remaining cache entries (if any leaked ref counts, though shouldn't happen)
     for (auto& pair : PlayState::instance->luaTextureCache) {
@@ -751,9 +777,9 @@ int LuaManager::lua_makeLuaSprite(lua_State* L) {
         if (skipLoad) {
             auto it = PlayState::instance->luaSpriteIndices.find(tag);
             if (it != PlayState::instance->luaSpriteIndices.end()) {
-                StageSprite& oldSprite = PlayState::instance->luaSprites[it->second];
-                releaseLuaSpriteMemory(oldSprite);
+                StageSprite oldSprite = PlayState::instance->luaSprites[it->second];
                 PlayState::instance->luaSprites[it->second] = s;
+                releaseLuaSpriteMemory(oldSprite);
             } else {
                 PlayState::instance->luaSpriteIndices[tag] = PlayState::instance->luaSprites.size();
                 PlayState::instance->luaSprites.push_back(s);
@@ -781,9 +807,9 @@ int LuaManager::lua_makeLuaSprite(lua_State* L) {
             
             auto it = PlayState::instance->luaSpriteIndices.find(tag);
             if (it != PlayState::instance->luaSpriteIndices.end()) {
-                StageSprite& oldSprite = PlayState::instance->luaSprites[it->second];
-                releaseLuaSpriteMemory(oldSprite);
+                StageSprite oldSprite = PlayState::instance->luaSprites[it->second];
                 PlayState::instance->luaSprites[it->second] = s;
+                releaseLuaSpriteMemory(oldSprite);
             } else {
                 PlayState::instance->luaSpriteIndices[tag] = PlayState::instance->luaSprites.size();
                 PlayState::instance->luaSprites.push_back(s);
@@ -801,9 +827,9 @@ int LuaManager::lua_makeLuaSprite(lua_State* L) {
             // Save to mapping (preventing duplicates)
             auto it = PlayState::instance->luaSpriteIndices.find(tag);
             if (it != PlayState::instance->luaSpriteIndices.end()) {
-                StageSprite& oldSprite = PlayState::instance->luaSprites[it->second];
-                releaseLuaSpriteMemory(oldSprite);
+                StageSprite oldSprite = PlayState::instance->luaSprites[it->second];
                 PlayState::instance->luaSprites[it->second] = s;
+                releaseLuaSpriteMemory(oldSprite);
             } else {
                 PlayState::instance->luaSpriteIndices[tag] = PlayState::instance->luaSprites.size();
                 PlayState::instance->luaSprites.push_back(s);
@@ -837,9 +863,9 @@ int LuaManager::lua_makeLuaSprite(lua_State* L) {
                     // Save to mapping
                     auto it = PlayState::instance->luaSpriteIndices.find(tag);
                     if (it != PlayState::instance->luaSpriteIndices.end()) {
-                        StageSprite& oldSprite = PlayState::instance->luaSprites[it->second];
-                        releaseLuaSpriteMemory(oldSprite);
+                        StageSprite oldSprite = PlayState::instance->luaSprites[it->second];
                         PlayState::instance->luaSprites[it->second] = s;
+                        releaseLuaSpriteMemory(oldSprite);
                     } else {
                         PlayState::instance->luaSpriteIndices[tag] = PlayState::instance->luaSprites.size();
                         PlayState::instance->luaSprites.push_back(s);
@@ -885,10 +911,9 @@ int LuaManager::lua_makeLuaSprite(lua_State* L) {
                                 // Save to mapping (preventing duplicates)
                                 auto it = PlayState::instance->luaSpriteIndices.find(tag);
                                 if (it != PlayState::instance->luaSpriteIndices.end()) {
-                                    // Clean up old manual sprite if it exists
-                                    StageSprite& oldSprite = PlayState::instance->luaSprites[it->second];
-                                        releaseLuaSpriteMemory(oldSprite);
+                                    StageSprite oldSprite = PlayState::instance->luaSprites[it->second];
                                     PlayState::instance->luaSprites[it->second] = s;
+                                    releaseLuaSpriteMemory(oldSprite);
                                 } else {
                                     PlayState::instance->luaSpriteIndices[tag] = PlayState::instance->luaSprites.size();
                                     PlayState::instance->luaSprites.push_back(s);
@@ -921,9 +946,9 @@ int LuaManager::lua_makeLuaSprite(lua_State* L) {
 
                         auto it = PlayState::instance->luaSpriteIndices.find(tag);
                         if (it != PlayState::instance->luaSpriteIndices.end()) {
-                            StageSprite& oldSprite = PlayState::instance->luaSprites[it->second];
-                            releaseLuaSpriteMemory(oldSprite);
+                            StageSprite oldSprite = PlayState::instance->luaSprites[it->second];
                             PlayState::instance->luaSprites[it->second] = s;
+                            releaseLuaSpriteMemory(oldSprite);
                         } else {
                             PlayState::instance->luaSpriteIndices[tag] = PlayState::instance->luaSprites.size();
                             PlayState::instance->luaSprites.push_back(s);
@@ -1262,26 +1287,72 @@ int LuaManager::lua_setSpriteVram(lua_State* L) {
         }
 
         if (tex && tex->data) {
-            s.vramData = vramAlloc(tex->size);
-            if (s.vramData) {
-                u32 gxFormat = GX_TRANSFER_FMT_RGBA8;
-                if (tex->fmt == GPU_RGBA8) gxFormat = GX_TRANSFER_FMT_RGBA8;
-                else if (tex->fmt == GPU_RGB8) gxFormat = GX_TRANSFER_FMT_RGB8;
-                else if (tex->fmt == GPU_RGB565) gxFormat = GX_TRANSFER_FMT_RGB565;
-                else if (tex->fmt == GPU_RGBA5551) gxFormat = GX_TRANSFER_FMT_RGB5A1;
-                else if (tex->fmt == GPU_RGBA4) gxFormat = GX_TRANSFER_FMT_RGBA4;
-
-                GSPGPU_FlushDataCache(tex->data, tex->size);
-                GX_DisplayTransfer((u32*)tex->data, GX_BUFFER_DIM(tex->width, tex->height),
-                                   (u32*)s.vramData, GX_BUFFER_DIM(tex->width, tex->height),
-                                   GX_TRANSFER_FLIP_VERT(0) | GX_TRANSFER_OUT_TILED(0) | GX_TRANSFER_RAW_COPY(1) | 
-                                   GX_TRANSFER_IN_FORMAT(gxFormat) | GX_TRANSFER_OUT_FORMAT(gxFormat) | 
-                                   GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO));
-                gspWaitForPPF();
-                if (!s.sheet) {
-                    linearFree(tex->data);
+            size_t texSize = tex->size;
+            if (texSize == 0) {
+                u32 bpp = 4;
+                switch (tex->fmt) {
+                    case GPU_RGBA8: bpp = 4; break;
+                    case GPU_RGB8: bpp = 3; break;
+                    case GPU_RGBA5551:
+                    case GPU_RGB565:
+                    case GPU_RGBA4:
+                    case GPU_LA8: bpp = 2; break;
+                    case GPU_A8:
+                    case GPU_L8:
+                    case GPU_ETC1A4: bpp = 1; break;
+                    case GPU_L4:
+                    case GPU_A4:
+                    case GPU_ETC1: bpp = 0; break;
+                    default: bpp = 4; break;
                 }
+                texSize = (bpp > 0) ? ((size_t)tex->width * tex->height * bpp) : (((size_t)tex->width * tex->height) / 2);
+            }
+
+            s.vramData = vramAlloc(texSize);
+            if (!s.vramData) {
+                s.vramData = vramAllocAt(texSize, VRAM_ALLOC_B);
+                if (!s.vramData) {
+                    s.vramData = vramAllocAt(texSize, VRAM_ALLOC_A);
+                }
+            }
+
+            if (s.vramData) {
+                memcpy(s.vramData, tex->data, texSize);
+                GSPGPU_FlushDataCache(s.vramData, texSize);
+
+                linearFree(tex->data);
                 tex->data = s.vramData;
+                s.img.tex = tex;
+
+                for (auto& f : s.frames) {
+                    if (f.tex) {
+                        f.tex = tex;
+                        f.tex->data = s.vramData;
+                    }
+                }
+
+                for (auto& spr : PlayState::instance->luaSprites) {
+                    if ((s.sheet && spr.sheet == s.sheet) ||
+                        (s.img.tex && spr.img.tex == s.img.tex)) {
+                        spr.vramData = s.vramData;
+                        spr.img.tex = tex;
+                        for (auto& f : spr.frames) {
+                            if (f.tex) {
+                                f.tex = tex;
+                                f.tex->data = s.vramData;
+                            }
+                        }
+                    }
+                }
+                for (auto& pair : PlayState::instance->luaTextureCache) {
+                    if ((s.sheet && pair.second.sheet == s.sheet) ||
+                        (s.img.tex && pair.second.tex == s.img.tex)) {
+                        pair.second.vramData = s.vramData;
+                        pair.second.tex = tex;
+                    }
+                }
+
+                SpritesheetCache::get().updateVram(s.sheet, (!s.sheet ? tex : nullptr), s.vramData);
             }
         }
     }
@@ -1579,25 +1650,9 @@ int LuaManager::lua_makeAnimatedLuaSprite(lua_State* L) {
     // Save to mapping (preventing duplicates)
     auto it = PlayState::instance->luaSpriteIndices.find(tag);
     if (it != PlayState::instance->luaSpriteIndices.end()) {
-        // Clean up old manual sprite if it exists
-        StageSprite& oldSprite = PlayState::instance->luaSprites[it->second];
-        if (oldSprite.vramData) {
-            vramFree(oldSprite.vramData);
-            if (oldSprite.img.tex) oldSprite.img.tex->data = nullptr;
-            oldSprite.vramData = nullptr;
-        }
-        if (oldSprite.sheet) {
-            // Only free if not owned by the global SpritesheetCache
-            if (!SpritesheetCache::get().contains(oldSprite.sheet)) {
-                C2D_SpriteSheetFree(oldSprite.sheet);
-            }
-            oldSprite.sheet = nullptr;
-        } else if (oldSprite.img.tex) {
-            C3D_TexDelete(oldSprite.img.tex);
-            delete oldSprite.img.tex;
-            delete oldSprite.img.subtex;
-        }
+        StageSprite oldSprite = PlayState::instance->luaSprites[it->second];
         PlayState::instance->luaSprites[it->second] = s;
+        releaseLuaSpriteMemory(oldSprite);
     } else {
         PlayState::instance->luaSpriteIndices[tag] = PlayState::instance->luaSprites.size();
         PlayState::instance->luaSprites.push_back(s);
@@ -1738,6 +1793,11 @@ int LuaManager::lua_getProperty(lua_State* L) {
     else if (variable == "curBeat") lua_pushnumber(L, Conductor::getBeat());
     else if (variable == "camZoom") lua_pushnumber(L, PlayState::instance->camZoom);
     else if (variable == "hudZoom") lua_pushnumber(L, PlayState::instance->hudZoom);
+    else if (variable == "camZooming") lua_pushboolean(L, PlayState::instance->camZooming);
+    else if (variable == "camZoomingFrequency") lua_pushinteger(L, PlayState::instance->camZoomingFrequency);
+    else if (variable == "camZoomingDecay") lua_pushnumber(L, PlayState::instance->camZoomingDecay);
+    else if (variable == "camZoomingMult") lua_pushnumber(L, PlayState::instance->camZoomingMult);
+    else if (variable == "defaultCamZoom") lua_pushnumber(L, PlayState::instance->targetZoom);
     else if (variable == "camFollowX") lua_pushnumber(L, PlayState::instance->camFollowX);
     else if (variable == "camFollowY") lua_pushnumber(L, PlayState::instance->camFollowY);
     else if (variable == "camFollowLocked") lua_pushboolean(L, PlayState::instance->camFollowLocked);
@@ -2045,6 +2105,10 @@ int LuaManager::lua_setProperty(lua_State* L) {
         else if (prop == "hudZoom") PlayState::instance->hudZoom = (float)luaL_checknumber(L, 2);
         else if (prop == "targetZoom") PlayState::instance->targetZoom = (float)luaL_checknumber(L, 2);
         else if (prop == "defaultCamZoom") PlayState::instance->targetZoom = (float)luaL_checknumber(L, 2);
+        else if (prop == "camZooming") PlayState::instance->camZooming = getBoolSafe(2);
+        else if (prop == "camZoomingFrequency") PlayState::instance->camZoomingFrequency = (int)luaL_checkinteger(L, 2);
+        else if (prop == "camZoomingDecay") PlayState::instance->camZoomingDecay = (float)luaL_checknumber(L, 2);
+        else if (prop == "camZoomingMult") PlayState::instance->camZoomingMult = (float)luaL_checknumber(L, 2);
         else if (prop == "autoIconPosition") PlayState::instance->autoIconPosition = lua_toboolean(L, 2);
         else if (prop == "camFollowX") PlayState::instance->camFollowX = (float)luaL_checknumber(L, 2);
         else if (prop == "camFollowY") PlayState::instance->camFollowY = (float)luaL_checknumber(L, 2);
@@ -4910,35 +4974,61 @@ int LuaManager::lua_setOption(lua_State* L) {
     return 0;
 }
 
+static bool pushOptionValueToLua(lua_State* L, const std::string& key) {
+    if (OptionManager::get().hasBoolKey(key)) {
+        lua_pushboolean(L, OptionManager::get().getRawBool(key));
+        return true;
+    }
+    if (OptionManager::get().hasIntKey(key)) {
+        lua_pushinteger(L, OptionManager::get().getRawInt(key));
+        return true;
+    }
+    if (OptionManager::get().hasFloatKey(key)) {
+        lua_pushnumber(L, OptionManager::get().getRawFloat(key));
+        return true;
+    }
+    if (OptionManager::get().hasStringKey(key)) {
+        lua_pushstring(L, OptionManager::get().getRawString(key).c_str());
+        return true;
+    }
+    return false;
+}
+
 int LuaManager::lua_getModOption(lua_State* L) {
     if (lua_gettop(L) < 1) {
         lua_pushnil(L);
         return 1;
     }
-    std::string id = luaL_checkstring(L, 1);
-    std::string modFolder = ModHandler::currentModFolder;
-    if (lua_gettop(L) >= 3 && lua_isstring(L, 3)) {
-        modFolder = lua_tostring(L, 3);
+    std::string optId = luaL_checkstring(L, 1);
+    bool searchGlobal = false;
+    if (lua_gettop(L) >= 2 && lua_isboolean(L, 2)) {
+        searchGlobal = lua_toboolean(L, 2);
     }
 
-    if (lua_isboolean(L, 2)) {
-        bool def = lua_toboolean(L, 2);
-        lua_pushboolean(L, OptionManager::get().getModBool(modFolder, id, def));
-    } else if (lua_type(L, 2) == LUA_TNUMBER) {
-        float def = (float)lua_tonumber(L, 2);
-        lua_pushnumber(L, OptionManager::get().getModFloat(modFolder, id, def));
-    } else if (lua_isstring(L, 2)) {
-        std::string def = lua_tostring(L, 2);
-        lua_pushstring(L, OptionManager::get().getModString(modFolder, id, def).c_str());
+    if (!searchGlobal) {
+        std::string currentMod = ModHandler::currentModFolder;
+        if (currentMod.empty() && PlayState::instance) {
+            currentMod = PlayState::instance->modDirectory;
+        }
+        std::string key = currentMod.empty() ? optId : (currentMod + ":" + optId);
+        if (pushOptionValueToLua(L, key)) {
+            return 1;
+        }
     } else {
-        std::string sVal = OptionManager::get().getModString(modFolder, id, "");
-        if (!sVal.empty()) {
-            lua_pushstring(L, sVal.c_str());
-        } else {
-            bool bVal = OptionManager::get().getModBool(modFolder, id, false);
-            lua_pushboolean(L, bVal);
+        for (const auto& mod : ModHandler::get().getMods()) {
+            if (!mod.active || !mod.runsGlobally) continue;
+            std::string key = mod.folder.empty() ? optId : (mod.folder + ":" + optId);
+            if (pushOptionValueToLua(L, key)) {
+                return 1;
+            }
         }
     }
+
+    if (lua_gettop(L) >= 3) {
+        lua_pushvalue(L, 3);
+        return 1;
+    }
+    lua_pushnil(L);
     return 1;
 }
 

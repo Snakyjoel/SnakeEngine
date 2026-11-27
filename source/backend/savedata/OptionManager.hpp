@@ -90,8 +90,31 @@ public:
     std::string getModString(const std::string& modFolder, const std::string& id, const std::string& def = "");
     void setModString(const std::string& modFolder, const std::string& id, const std::string& val);
 
+    bool hasBoolKey(const std::string& key) const { return boolMap.find(key) != boolMap.end(); }
+    bool hasIntKey(const std::string& key) const { return intMap.find(key) != intMap.end(); }
+    bool hasFloatKey(const std::string& key) const { return floatMap.find(key) != floatMap.end(); }
+    bool hasStringKey(const std::string& key) const { return stringMap.find(key) != stringMap.end(); }
+
+    bool getRawBool(const std::string& key) const {
+        auto it = boolMap.find(key);
+        return it != boolMap.end() ? it->second : false;
+    }
+    int getRawInt(const std::string& key) const {
+        auto it = intMap.find(key);
+        return it != intMap.end() ? it->second : 0;
+    }
+    float getRawFloat(const std::string& key) const {
+        auto it = floatMap.find(key);
+        return it != floatMap.end() ? it->second : 0.0f;
+    }
+    std::string getRawString(const std::string& key) const {
+        auto it = stringMap.find(key);
+        return it != stringMap.end() ? it->second : "";
+    }
+
     // Category list for UI
     std::vector<OptionCategory>& getCategories() { return categories; }
+    const std::vector<OptionCategory>& getModCategories() const { return modCategories; }
     OptionCategory* getCategory(int index);
     OptionCategory* getCategoryById(const std::string& id);
 

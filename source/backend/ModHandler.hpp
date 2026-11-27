@@ -3,6 +3,10 @@
 #include <vector>
 #include <map>
 
+#ifdef _3DS
+#include <3ds.h>
+#endif
+
 struct ModMetadata {
     std::string folder;
     std::string name;
@@ -50,7 +54,14 @@ public:
     std::vector<ModWeek> getWeeksFromMod(const std::string& folder);
 
 private:
-    ModHandler() {}
+    ModHandler() {
+#ifdef _3DS
+        LightLock_Init(&modLock);
+#endif
+    }
+#ifdef _3DS
+    LightLock modLock;
+#endif
     std::vector<ModMetadata> mods;
     std::vector<std::string> priorityOrder;
     

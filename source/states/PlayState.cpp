@@ -1956,13 +1956,19 @@ void PlayState::update(float dt) {
 
 
 
-    float zoomLerp = std::min(1.0f, dt * 3.1f);
     float bumpLerp = std::min(1.0f, dt * 8.0f);
     float scoreLerp = std::min(1.0f, dt * 10.0f);
 
-    // Zoom Lerping (Restored Backup Values with spike protection)
-    camZoom = lerp(camZoom, targetZoom, zoomLerp);
-    hudZoom = lerp(hudZoom, 1.0f, zoomLerp);
+    // Zoom decay
+    if (camZooming) {
+        float decayFactor = expf(-dt * 3.125f * camZoomingDecay);
+        camZoom = targetZoom + decayFactor * (camZoom - targetZoom);
+        hudZoom = 1.0f + decayFactor * (hudZoom - 1.0f);
+    } else {
+        float zoomLerp = std::min(1.0f, dt * 3.125f);
+        camZoom = lerp(camZoom, targetZoom, zoomLerp);
+        hudZoom = lerp(hudZoom, 1.0f, zoomLerp);
+    }
     iconBump = lerp(iconBump, 1.0f, bumpLerp);
     scoreZoom = lerp(scoreZoom, 1.0f, scoreLerp);
 
@@ -3269,8 +3275,17 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         float tailX = laneCenterX - cosf(dirRad) * tailDistance + offset3D_notes;
         float tailY = laneCenterY + sinf(dirRad) * tailDistance;
 
-        if (headY < -300.0f && tailY < -300.0f) continue;
-        if (headY > ScreenHeight + 300.0f && tailY > ScreenHeight + 300.0f) continue;
+        if (ClientPrefs::frustumCulling) {
+            float yBoundMin = -100.0f;
+            float yBoundMax = ScreenHeight + 100.0f;
+            if ((headY < yBoundMin && tailY < yBoundMin) || (headY > yBoundMax && tailY > yBoundMax)) continue;
+            float xBoundMin = -100.0f;
+            float xBoundMax = 500.0f;
+            if ((headX < xBoundMin && tailX < xBoundMin) || (headX > xBoundMax && tailX > xBoundMax)) continue;
+        } else {
+            if (headY < -300.0f && tailY < -300.0f) continue;
+            if (headY > ScreenHeight + 300.0f && tailY > ScreenHeight + 300.0f) continue;
+        }
 
         float screenHeadX = centerXT + (headX - centerXT) * hudZoom;
         float screenHeadY = centerYT + (headY - centerYT) * hudZoom;
@@ -3502,9 +3517,19 @@ void PlayState::drawNotes(float shakeX, float shakeY) {
         float lx = targetRecX - cosf(dirRad) * dist;
         float ly = targetRecY + sinf(dirRad) * dist;
 
-        if (ly < -200.0f || ly > ScreenHeight + 200.0f) {
-            if (ClientPrefs::downscroll && ly < -300.0f) break;
-            if (!ClientPrefs::downscroll && ly > ScreenHeight + 300.0f) break;
+        if (ClientPrefs::frustumCulling) {
+            if (ly < -100.0f || ly > ScreenHeight + 100.0f) {
+                if (ClientPrefs::downscroll && ly < -100.0f) break;
+                if (!ClientPrefs::downscroll && ly > ScreenHeight + 100.0f) break;
+                continue;
+            }
+            if (lx < -100.0f || lx > 500.0f) continue;
+        } else {
+            if (ly < -200.0f || ly > ScreenHeight + 200.0f) {
+                if (ClientPrefs::downscroll && ly < -300.0f) break;
+                if (!ClientPrefs::downscroll && ly > ScreenHeight + 300.0f) break;
+                continue;
+            }
         }
 
         float sx = noteScale, sy = noteScale;
@@ -4128,9 +4153,9 @@ void PlayState::stepHit(int step) {
 void PlayState::beatHit(int beat) {
     iconBump = 1.2f;
 
-    if (camZooming && beat % 4 == 0) {
-        camZoom += 0.015f;
-        hudZoom += 0.030f;
+    if (camZooming && ClientPrefs::camZooms && camZoom < 1.35f && camZoomingFrequency > 0 && (beat % camZoomingFrequency == 0)) {
+        camZoom += 0.015f * camZoomingMult;
+        hudZoom += 0.030f * camZoomingMult;
     }
 
     if (gf && (beat % gf->danceEveryNumBeats == 0)) {
@@ -4366,7 +4391,7 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
     std::vector<StageSprite*> sortedSprites;
     for (auto& ls : luaSprites) {
         if (ls.camera != camera || ls.front != front) continue;
-        if (!ls.visible) continue;
+        if (!ls.visible || ls.alpha <= 0.001f) continue;
         if (!ls.isGraphic && !ls.img.tex) continue;
         sortedSprites.push_back(&ls);
     }
@@ -4396,6 +4421,7 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
         }
 
         if (curFrame) {
+            if (curFrame->tex) useImg.tex = curFrame->tex;
             useImg.subtex = &curFrame->uv;
             frameRotated = curFrame->rotated;
         }
@@ -4444,6 +4470,7 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
         float finalAlpha = ls.alpha;
         if (camType == 0) finalAlpha *= camAlpha;
         else if (camType == 1) finalAlpha *= hudAlpha;
+        if (finalAlpha <= 0.001f) continue;
 
         if (ls.isGraphic) {
             float w = ls.graphicWidth * drawScaleX;
@@ -4542,6 +4569,22 @@ void PlayState::drawLuaSpritesForCamera(const std::string& camera, bool front, f
         float angleRad = ls.angle * DEG_TO_RAD;
         if (frameRotated) {
             angleRad -= (3.14159265f / 2.0f);
+        }
+
+        if (ClientPrefs::frustumCulling && camZoom >= 0.2f) {
+            float halfW = imgW * absScaleX * 0.5f;
+            float halfH = imgH * absScaleY * 0.5f;
+            float boundExtX = halfW;
+            float boundExtY = halfH;
+            if (angleRad != 0.0f) {
+                float maxHalf = halfW > halfH ? halfW : halfH;
+                boundExtX = maxHalf * 1.41421356f;
+                boundExtY = boundExtX;
+            }
+            float screenMinX = -100.0f;
+            float screenMaxX = (camType == 3 ? 420.0f : 500.0f);
+            if (centerX + boundExtX < screenMinX || centerX - boundExtX > screenMaxX) continue;
+            if (centerY + boundExtY < -100.0f || centerY - boundExtY > 340.0f) continue;
         }
 
         // When flipping, always draw around the fixed center so the flip pivots in
@@ -4665,6 +4708,12 @@ void PlayState::triggerEvent(const Event& event) {
     else if (event.name == "Add Camera Zoom") {
         if (!event.value1.empty()) camZoom += std::atof(event.value1.c_str());
         if (!event.value2.empty()) hudZoom += std::atof(event.value2.c_str());
+    }
+    else if (event.name == "Change BPM") {
+        float newBpm = std::atof(event.value1.c_str());
+        if (newBpm > 0.0f) {
+            Conductor::changeBPM(newBpm);
+        }
     }
     else if (event.name == "Play Animation") {
         std::string targetTag = event.value2;

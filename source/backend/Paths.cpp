@@ -202,12 +202,14 @@ std::string Paths::audio(const std::string& folder, const std::string& filename)
         for (const auto& baseName : fileCases) {
             std::string finalName = baseName;
             size_t extPos;
-            if ((extPos = finalName.find(".ogg")) != std::string::npos && strcmp(ext, ".ogg") != 0) {
-                finalName.replace(extPos, 4, ext);
-            } else if ((extPos = finalName.find(".adp")) != std::string::npos && strcmp(ext, ".adp") != 0) {
-                finalName.replace(extPos, 4, ext);
-            } else if ((extPos = finalName.find(".wav")) != std::string::npos && strcmp(ext, ".wav") != 0) {
-                finalName.replace(extPos, 4, ext);
+            if ((extPos = finalName.find(".ogg")) != std::string::npos) {
+                if (strcmp(ext, ".ogg") != 0) finalName.replace(extPos, 4, ext);
+            } else if ((extPos = finalName.find(".adp")) != std::string::npos) {
+                if (strcmp(ext, ".adp") != 0) finalName.replace(extPos, 4, ext);
+            } else if ((extPos = finalName.find(".wav")) != std::string::npos) {
+                if (strcmp(ext, ".wav") != 0) finalName.replace(extPos, 4, ext);
+            } else {
+                finalName += ext;
             }
 
             std::string modPath = ModHandler::get().getModPath(normFolder + "/" + finalName);
@@ -219,27 +221,26 @@ std::string Paths::audio(const std::string& folder, const std::string& filename)
 
     std::string resolvedCandidate;
 
-    std::string path1 = "romfs:/" + normFolder + "/" + filename;
-    if (checkAndResolve(path1, resolvedCandidate)) return resolvedCandidate;
+    for (const char* ext : extensions) {
+        for (const auto& baseName : fileCases) {
+            std::string finalName = baseName;
+            size_t extPos;
+            if ((extPos = finalName.find(".ogg")) != std::string::npos) {
+                if (strcmp(ext, ".ogg") != 0) finalName.replace(extPos, 4, ext);
+            } else if ((extPos = finalName.find(".adp")) != std::string::npos) {
+                if (strcmp(ext, ".adp") != 0) finalName.replace(extPos, 4, ext);
+            } else if ((extPos = finalName.find(".wav")) != std::string::npos) {
+                if (strcmp(ext, ".wav") != 0) finalName.replace(extPos, 4, ext);
+            } else {
+                finalName += ext;
+            }
 
-    if (capped != filename) {
-        std::string path2 = "romfs:/" + normFolder + "/" + capped;
-        if (checkAndResolve(path2, resolvedCandidate)) return resolvedCandidate;
+            std::string romPath = "romfs:/" + normFolder + "/" + finalName;
+            if (checkAndResolve(romPath, resolvedCandidate)) return resolvedCandidate;
+        }
     }
 
-    auto toAdp = [](std::string s) {
-        size_t p = s.find(".ogg");
-        if (p != std::string::npos) s.replace(p, 4, ".adp");
-        return s;
-    };
-    std::string adp1 = toAdp(path1);
-    if (checkAndResolve(adp1, resolvedCandidate)) return resolvedCandidate;
-    if (capped != filename) {
-        std::string adp2 = toAdp("romfs:/" + normFolder + "/" + capped);
-        if (checkAndResolve(adp2, resolvedCandidate)) return resolvedCandidate;
-    }
-
-    return resolve(path1);
+    return resolve("romfs:/" + normFolder + "/" + filename);
 }
 
 

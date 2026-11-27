@@ -418,6 +418,17 @@ void OptionManager::resetToDefaults() {
 
 bool OptionManager::getBool(const std::string& id, bool def) {
     if (boolMap.find(id) != boolMap.end()) return boolMap[id];
+    if (!ModHandler::currentModFolder.empty()) {
+        std::string key = ModHandler::currentModFolder + ":" + id;
+        if (boolMap.find(key) != boolMap.end()) return boolMap[key];
+    }
+    std::string suffix = ":" + id;
+    for (const auto& pair : boolMap) {
+        if (pair.first.length() >= suffix.length() &&
+            pair.first.compare(pair.first.length() - suffix.length(), suffix.length(), suffix) == 0) {
+            return pair.second;
+        }
+    }
     return def;
 }
 
@@ -427,6 +438,17 @@ void OptionManager::setBool(const std::string& id, bool val) {
 
 int OptionManager::getInt(const std::string& id, int def) {
     if (intMap.find(id) != intMap.end()) return intMap[id];
+    if (!ModHandler::currentModFolder.empty()) {
+        std::string key = ModHandler::currentModFolder + ":" + id;
+        if (intMap.find(key) != intMap.end()) return intMap[key];
+    }
+    std::string suffix = ":" + id;
+    for (const auto& pair : intMap) {
+        if (pair.first.length() >= suffix.length() &&
+            pair.first.compare(pair.first.length() - suffix.length(), suffix.length(), suffix) == 0) {
+            return pair.second;
+        }
+    }
     return def;
 }
 
@@ -436,6 +458,17 @@ void OptionManager::setInt(const std::string& id, int val) {
 
 float OptionManager::getFloat(const std::string& id, float def) {
     if (floatMap.find(id) != floatMap.end()) return floatMap[id];
+    if (!ModHandler::currentModFolder.empty()) {
+        std::string key = ModHandler::currentModFolder + ":" + id;
+        if (floatMap.find(key) != floatMap.end()) return floatMap[key];
+    }
+    std::string suffix = ":" + id;
+    for (const auto& pair : floatMap) {
+        if (pair.first.length() >= suffix.length() &&
+            pair.first.compare(pair.first.length() - suffix.length(), suffix.length(), suffix) == 0) {
+            return pair.second;
+        }
+    }
     return def;
 }
 
@@ -445,6 +478,17 @@ void OptionManager::setFloat(const std::string& id, float val) {
 
 std::string OptionManager::getString(const std::string& id, const std::string& def) {
     if (stringMap.find(id) != stringMap.end()) return stringMap[id];
+    if (!ModHandler::currentModFolder.empty()) {
+        std::string key = ModHandler::currentModFolder + ":" + id;
+        if (stringMap.find(key) != stringMap.end()) return stringMap[key];
+    }
+    std::string suffix = ":" + id;
+    for (const auto& pair : stringMap) {
+        if (pair.first.length() >= suffix.length() &&
+            pair.first.compare(pair.first.length() - suffix.length(), suffix.length(), suffix) == 0) {
+            return pair.second;
+        }
+    }
     return def;
 }
 
@@ -453,43 +497,47 @@ void OptionManager::setString(const std::string& id, const std::string& val) {
 }
 
 bool OptionManager::getModBool(const std::string& modFolder, const std::string& id, bool def) {
-    std::string key = modFolder + ":" + id;
+    std::string key = modFolder.empty() ? id : (modFolder + ":" + id);
     if (boolMap.find(key) != boolMap.end()) return boolMap[key];
-    return def;
+    return getBool(id, def);
 }
 
 void OptionManager::setModBool(const std::string& modFolder, const std::string& id, bool val) {
-    boolMap[modFolder + ":" + id] = val;
+    std::string folder = modFolder.empty() ? ModHandler::currentModFolder : modFolder;
+    boolMap[folder.empty() ? id : (folder + ":" + id)] = val;
 }
 
 int OptionManager::getModInt(const std::string& modFolder, const std::string& id, int def) {
-    std::string key = modFolder + ":" + id;
+    std::string key = modFolder.empty() ? id : (modFolder + ":" + id);
     if (intMap.find(key) != intMap.end()) return intMap[key];
-    return def;
+    return getInt(id, def);
 }
 
 void OptionManager::setModInt(const std::string& modFolder, const std::string& id, int val) {
-    intMap[modFolder + ":" + id] = val;
+    std::string folder = modFolder.empty() ? ModHandler::currentModFolder : modFolder;
+    intMap[folder.empty() ? id : (folder + ":" + id)] = val;
 }
 
 float OptionManager::getModFloat(const std::string& modFolder, const std::string& id, float def) {
-    std::string key = modFolder + ":" + id;
+    std::string key = modFolder.empty() ? id : (modFolder + ":" + id);
     if (floatMap.find(key) != floatMap.end()) return floatMap[key];
-    return def;
+    return getFloat(id, def);
 }
 
 void OptionManager::setModFloat(const std::string& modFolder, const std::string& id, float val) {
-    floatMap[modFolder + ":" + id] = val;
+    std::string folder = modFolder.empty() ? ModHandler::currentModFolder : modFolder;
+    floatMap[folder.empty() ? id : (folder + ":" + id)] = val;
 }
 
 std::string OptionManager::getModString(const std::string& modFolder, const std::string& id, const std::string& def) {
-    std::string key = modFolder + ":" + id;
+    std::string key = modFolder.empty() ? id : (modFolder + ":" + id);
     if (stringMap.find(key) != stringMap.end()) return stringMap[key];
-    return def;
+    return getString(id, def);
 }
 
 void OptionManager::setModString(const std::string& modFolder, const std::string& id, const std::string& val) {
-    stringMap[modFolder + ":" + id] = val;
+    std::string folder = modFolder.empty() ? ModHandler::currentModFolder : modFolder;
+    stringMap[folder.empty() ? id : (folder + ":" + id)] = val;
 }
 
 void OptionManager::syncToClientPrefs() {
@@ -520,6 +568,7 @@ void OptionManager::syncToClientPrefs() {
     ClientPrefs::lowQuality        = getBool("lowQuality", false);
     ClientPrefs::globalAntialiasing= getBool("globalAntialiasing", true);
     ClientPrefs::enable3DEffect    = getBool("enable3DEffect", true);
+    ClientPrefs::frustumCulling    = getBool("frustumCulling", true);
     ClientPrefs::drawGrid          = getBool("drawGrid", true);
     ClientPrefs::debugInfo         = getBool("debugInfo", false);
     ClientPrefs::extendedDebug     = getBool("extendedDebug", false);
@@ -582,6 +631,7 @@ void OptionManager::syncFromClientPrefs() {
 
     setBool("lowQuality", ClientPrefs::lowQuality);
     setBool("globalAntialiasing", ClientPrefs::globalAntialiasing);
+    setBool("frustumCulling", ClientPrefs::frustumCulling);
     setBool("drawGrid", ClientPrefs::drawGrid);
     setBool("debugInfo", ClientPrefs::debugInfo);
     setBool("extendedDebug", ClientPrefs::extendedDebug);

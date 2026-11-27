@@ -312,6 +312,7 @@ private:
         std::string iconName;
         std::string albumName;
         std::string difficultyName;
+        std::string modFolder;
         int songIndex = -1;
         int priority = 0;
         

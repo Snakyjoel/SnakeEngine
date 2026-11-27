@@ -27,6 +27,7 @@ bool ClientPrefs::lowQuality = false;
 bool ClientPrefs::showRatings = true;
 bool ClientPrefs::globalAntialiasing = true;
 bool ClientPrefs::enable3DEffect = true;
+bool ClientPrefs::frustumCulling = true;
 
 bool ClientPrefs::flashing = true;
 bool ClientPrefs::disableReset = false;
@@ -162,6 +163,9 @@ void ClientPrefs::loadSettings() {
 
     val = json_object_get(root, "enable3DEffect");
     if (val && json_is_boolean(val)) enable3DEffect = json_is_true(val);
+
+    val = json_object_get(root, "frustumCulling");
+    if (val && json_is_boolean(val)) frustumCulling = json_is_true(val);
 
     val = json_object_get(root, "flashing");
     if (val && json_is_boolean(val)) flashing = json_is_true(val);
@@ -335,6 +339,7 @@ void ClientPrefs::saveSettings() {
     json_object_set_new(root, "showRatings", showRatings ? json_true() : json_false());
     json_object_set_new(root, "globalAntialiasing", globalAntialiasing ? json_true() : json_false());
     json_object_set_new(root, "enable3DEffect", enable3DEffect ? json_true() : json_false());
+    json_object_set_new(root, "frustumCulling", frustumCulling ? json_true() : json_false());
     json_object_set_new(root, "flashing", flashing ? json_true() : json_false());
     json_object_set_new(root, "disableReset", disableReset ? json_true() : json_false());
     json_object_set_new(root, "botPlay", botPlay ? json_true() : json_false());

@@ -26,6 +26,7 @@ public:
     static bool showRatings;
     static bool globalAntialiasing;
     static bool enable3DEffect;
+    static bool frustumCulling;
     
     static bool flashing;
     static bool disableReset;

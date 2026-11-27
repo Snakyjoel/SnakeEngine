@@ -551,6 +551,9 @@ private:
     int lastBeat;
     
     bool camZooming = true;
+    int camZoomingFrequency = 4;
+    float camZoomingDecay = 1.0f;
+    float camZoomingMult = 1.0f;
     float scoreZoom = 1.0f;
 
     float vocalMuteTimer = 0.0f;

@@ -306,6 +306,8 @@ void FreeplayState::confirmSong(int chosenIndex) {
     selectedSong = true;
     confirmTimer = 0.0f;
     confirmedSongIndex = chosenIndex;
+    threadRunning = false;
+    LightEvent_Signal(&loadEvent);
 
     FreeplaySong& fs = songs[chosenIndex];
     confirmedSongName = fs.name;
@@ -2900,7 +2902,7 @@ void FreeplayState::exitState() {
     threadRunning = false;
     LightEvent_Signal(&loadEvent);
     if (loadThread) {
-        threadJoin(loadThread, 2000000000ULL); // 2s safe timeout
+        threadJoin(loadThread, U64_MAX);
         threadFree(loadThread);
         loadThread = nullptr;
     }
@@ -4062,6 +4064,12 @@ void FreeplayState::triggerAsyncLoad() {
         if (isMod && !WeekData::weeksLoaded[fs.week].modFolder.empty()) {
             modFolder = WeekData::weeksLoaded[fs.week].modFolder;
         }
+        if (modFolder.empty()) {
+            std::string songLower = fs.name;
+            for (char& c : songLower) c = (char)tolower((unsigned char)c);
+            modFolder = ModHandler::get().getModFolderOfFile("data/" + songLower + "/" + songLower + ".json");
+        }
+        baseReq.modFolder = modFolder;
         std::string assetScope = modFolder.empty() ? "base" : modFolder;
 
         // 1. Difficulty sprite (curSelected only)
@@ -4114,20 +4122,13 @@ void FreeplayState::triggerAsyncLoad() {
 
 FreeplayState::LoadedRawData FreeplayState::loadRawFile(AsyncLoadRequest& req) {
     LoadedRawData data;
+    data.req = req;
+
+    if (!threadRunning) return data;
 
     std::string path = "";
     bool isChar = false;
-
-    std::string modFolder = "";
-
-    if (WeekData::weeksLoaded.count(req.week) && !WeekData::weeksLoaded[req.week].modFolder.empty()) {
-        modFolder = WeekData::weeksLoaded[req.week].modFolder;
-    }
-    if (modFolder.empty()) {
-        std::string songLower = req.songName;
-        for (char& c : songLower) c = (char)tolower((unsigned char)c);
-        modFolder = ModHandler::get().getModFolderOfFile("data/" + songLower + "/" + songLower + ".json");
-    }
+    std::string modFolder = req.modFolder;
 
     std::string base = ModHandler::getWorkingBase();
     if (base.empty()) {
@@ -4140,6 +4141,7 @@ FreeplayState::LoadedRawData FreeplayState::loadRawFile(AsyncLoadRequest& req) {
     if (!base.empty() && base.back() != '/') base += "/";
 
     auto checkFile = [&](const std::string& rel) -> std::string {
+        if (!threadRunning) return "";
         if (!modFolder.empty()) {
             std::string p = base + modFolder + "/" + rel;
             if (Paths::fileExists(p)) return p;
@@ -4345,9 +4347,14 @@ void FreeplayState::threadMain(void* arg) {
             continue;
         }
 
+        if (!state->threadRunning) break;
+
         LoadedRawData raw = state->loadRawFile(req);
+
         LightLock_Lock(&state->loadLock);
-        state->completedDataQueue.push_back(raw);
+        if (state->threadRunning) {
+            state->completedDataQueue.push_back(raw);
+        }
         LightLock_Unlock(&state->loadLock);
     }
 }

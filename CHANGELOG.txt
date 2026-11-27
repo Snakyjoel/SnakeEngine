@@ -4,6 +4,13 @@
 - The NoteMiss functions are now working
 - The functionality of screenCenter() was corrected
 - The timing at which the "Change Character" event begins preloading characters is now customizable, which is useful if you have slower SDs
+- Frustum Culling was added (STILL IN WIP, THERE MAY BE ERRORS, YOU CAN FOUND THIS ON OPTIONS)
+- Objects that have their alpha at 0 are now also discarded to save resources
+- The way the engine searches for audio files was corrected
+- The camera's Zoom Beats now update according to the BPM (How could I have forgotten such an important detail?)
+- The long-forgotten "setSpriteVRAM()" function now works as it should (though I still recommend not using it; the VRAM is far too small)
+- The way customized options work has been improved
+- A crash in freeplay was fixed
 
 3.8.9
 (The list of changes is very long; I may have missed some changes that aren't listed.)

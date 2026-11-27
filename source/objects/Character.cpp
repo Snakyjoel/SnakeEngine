@@ -1451,7 +1451,7 @@ bool Character::hasAnimation(const std::string& animName) {
 }
 
 void Character::draw(float stageX, float stageY, float depth, float zoom, float camX, float camY, float shakeX, float shakeY) {
-    if (!visible) return;
+    if (!visible || alpha <= 0.001f) return;
 
     if (isSpritemap) {
         if (curAnim.empty()) return;
@@ -1630,11 +1630,26 @@ void Character::draw(float stageX, float stageY, float depth, float zoom, float 
     float angleRad = totalAngle * (3.14159265f / 180.0f);
     if (f.rotated) angleRad -= (3.14159265f / 2.0f);
 
+    float imgW = f.rotated ? (float)f.h : (float)f.w;
+    float imgH = f.rotated ? (float)f.w : (float)f.h;
+    float centerX = drawX + imgW * (shouldFlip ? -finalScaleX : finalScaleX) / 2.0f;
+    float centerY = drawY + imgH * finalScaleY / 2.0f;
+
+    if (ClientPrefs::frustumCulling && zoom >= 0.2f) {
+        float halfW = imgW * fabsf(finalScaleX) * 0.5f;
+        float halfH = imgH * fabsf(finalScaleY) * 0.5f;
+        float boundExtX = halfW;
+        float boundExtY = halfH;
+        if (angleRad != 0.0f) {
+            float maxHalf = halfW > halfH ? halfW : halfH;
+            boundExtX = maxHalf * 1.41421356f;
+            boundExtY = boundExtX;
+        }
+        if (centerX + boundExtX < -100.0f || centerX - boundExtX > 500.0f) return;
+        if (centerY + boundExtY < -100.0f || centerY - boundExtY > 340.0f) return;
+    }
+
     if (totalAngle != 0.0f || f.rotated) {
-        float imgW = f.rotated ? (float)f.h : (float)f.w;
-        float imgH = f.rotated ? (float)f.w : (float)f.h;
-        float centerX = drawX + imgW * (shouldFlip ? -finalScaleX : finalScaleX) / 2.0f;
-        float centerY = drawY + imgH * finalScaleY / 2.0f;
         
         float scaleX = shouldFlip ? -finalScaleX : finalScaleX;
         float scaleY = finalScaleY;

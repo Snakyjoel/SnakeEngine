@@ -13,6 +13,7 @@ struct CachedSpritesheet {
     std::vector<Frame> frames;
     C3D_Tex* rawTex = nullptr;
     Tex3DS_SubTexture* rawSub = nullptr;
+    void* vramData = nullptr;
 };
 
 class SpritesheetCache {
@@ -253,12 +254,23 @@ public:
     void clear() {
         for (auto& pair : cache) {
             if (pair.second.sheet) {
+                if (pair.second.vramData) {
+                    C3D_Tex* tex = C2D_SpriteSheetGetImage(pair.second.sheet, 0).tex;
+                    if (tex) tex->data = nullptr;
+                    vramFree(pair.second.vramData);
+                    pair.second.vramData = nullptr;
+                }
                 C2D_SpriteSheetFree(pair.second.sheet);
             }
             for (auto sub : pair.second.subSheets) {
                 if (sub) C2D_SpriteSheetFree(sub);
             }
             if (pair.second.rawTex) {
+                if (pair.second.vramData) {
+                    pair.second.rawTex->data = nullptr;
+                    vramFree(pair.second.vramData);
+                    pair.second.vramData = nullptr;
+                }
                 C3D_TexDelete(pair.second.rawTex);
                 delete pair.second.rawTex;
                 pair.second.rawTex = nullptr;
@@ -270,6 +282,19 @@ public:
         }
         cache.clear();
         pinnedKeys.clear();
+    }
+
+    void updateVram(C2D_SpriteSheet sheet, C3D_Tex* tex, void* vramData) {
+        for (auto& pair : cache) {
+            if ((sheet && pair.second.sheet == sheet) || (tex && pair.second.rawTex == tex)) {
+                pair.second.vramData = vramData;
+                for (auto& f : pair.second.frames) {
+                    if (f.tex) {
+                        f.tex->data = vramData;
+                    }
+                }
+            }
+        }
     }
 
     bool contains(C2D_SpriteSheet sheet) {
@@ -287,6 +312,12 @@ public:
                     return false;
                 }
                 if (it->second.sheet) {
+                    if (it->second.vramData) {
+                        C3D_Tex* tex = C2D_SpriteSheetGetImage(it->second.sheet, 0).tex;
+                        if (tex) tex->data = nullptr;
+                        vramFree(it->second.vramData);
+                        it->second.vramData = nullptr;
+                    }
                     C2D_SpriteSheetFree(it->second.sheet);
                 }
                 for (auto sub : it->second.subSheets) {

@@ -234,6 +234,13 @@
           "description": "If unchecked, disables stereoscopic 3D rendering\non the top screen."
         },
         {
+          "id": "frustumCulling",
+          "name": "Frustum Culling (W.I.P)",
+          "type": "bool",
+          "default": false,
+          "description": "Skip drawing off-screen sprites and notes.\nDrastically reduces GPU load and lag."
+        },
+        {
           "id": "fpsLimit",
           "name": "FPS Limit",
           "type": "string_list",
