@@ -1805,11 +1805,7 @@ void PlayState::update(float dt) {
 
         AsyncAssetManager::get().suspend();
         AsyncAssetManager::get().clearAll();
-        SpritesheetCache::get().clear();
-        noteSheet = nullptr;
-        ratingSheet = nullptr;
-        countdownSheet = nullptr;
-        customNoteSheets.clear();
+        AsyncAssetManager::get().resume();
 
         // Now load the Game Over Boyfriend
         deadBF = new Character();
@@ -1830,8 +1826,8 @@ void PlayState::update(float dt) {
         deadBF->y = deadBfY + deadBF->y;
 
         // Exact FNF getGraphicMidpoint approximation
-        deathCamFollowX = deadBF->x + 200.0f;
-        deathCamFollowY = deadBF->y + 200.0f;
+        deathCamFollowX = deadBF->x + 200.0f + deadBF->camOffsetX;
+        deathCamFollowY = deadBF->y + 200.0f + deadBF->camOffsetY;
 
         // Reset conductor position and change BPM to 100
         Conductor::songPosition = 0;
@@ -4269,15 +4265,19 @@ void PlayState::exitState() {
     for (auto& pair : customNoteImages) {
         C2D_Image& img = pair.second;
         if (img.tex) {
-            if (img.tex->data) {
-                linearFree(img.tex->data);
-                img.tex->data = nullptr;
+            if (!SpritesheetCache::get().containsRawTex(img.tex)) {
+                if (img.tex->data) {
+                    linearFree(img.tex->data);
+                    img.tex->data = nullptr;
+                }
+                C3D_TexDelete(img.tex);
+                delete img.tex;
             }
-            C3D_TexDelete(img.tex);
-            delete img.tex;
         }
         if (img.subtex) {
-            delete img.subtex;
+            if (!SpritesheetCache::get().containsRawSub(img.subtex)) {
+                delete img.subtex;
+            }
         }
     }
     customNoteImages.clear();

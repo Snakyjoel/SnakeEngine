@@ -8,9 +8,9 @@
 - Objects that have their alpha at 0 are now also discarded to save resources
 - The way the engine searches for audio files was corrected
 - The camera's Zoom Beats now update according to the BPM (How could I have forgotten such an important detail?)
-- The long-forgotten "setSpriteVRAM()" function now works as it should (though I still recommend not using it; the VRAM is far too small)
 - The way customized options work has been improved
 - A crash in freeplay was fixed
+- Now, GameOver updates the camera to that of the character assigned to that screen
 
 3.8.9
 (The list of changes is very long; I may have missed some changes that aren't listed.)

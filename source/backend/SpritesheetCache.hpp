@@ -304,6 +304,22 @@ public:
         return false;
     }
 
+    bool containsRawTex(const C3D_Tex* tex) {
+        if (!tex) return false;
+        for (auto& pair : cache) {
+            if (pair.second.rawTex == tex) return true;
+        }
+        return false;
+    }
+
+    bool containsRawSub(const Tex3DS_SubTexture* sub) {
+        if (!sub) return false;
+        for (auto& pair : cache) {
+            if (pair.second.rawSub == sub) return true;
+        }
+        return false;
+    }
+
     bool unloadBySheet(C2D_SpriteSheet sheet) {
         if (!sheet) return false;
         for (auto it = cache.begin(); it != cache.end(); ++it) {

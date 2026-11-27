@@ -625,13 +625,15 @@ static void releaseLuaSpriteMemory(StageSprite& oldSprite) {
             C2D_SpriteSheetFree(sheetToFree);
         }
     } else if (texToFree) {
-        if (vramDataToFree) {
-            texToFree->data = nullptr;
-            vramFree(vramDataToFree);
+        if (!SpritesheetCache::get().containsRawTex(texToFree)) {
+            if (vramDataToFree) {
+                texToFree->data = nullptr;
+                vramFree(vramDataToFree);
+            }
+            C3D_TexDelete(texToFree);
+            delete texToFree;
+            if (subtexToFree && !SpritesheetCache::get().containsRawSub(subtexToFree)) delete subtexToFree;
         }
-        C3D_TexDelete(texToFree);
-        delete texToFree;
-        if (subtexToFree) delete subtexToFree;
     }
 
     // Remove from luaTextureCache if present
@@ -676,13 +678,17 @@ void LuaManager::clearAllSprites() {
                 C2D_SpriteSheetFree(shared.sheet);
             }
         } else if (shared.tex) {
-            if (shared.vramData) {
-                shared.tex->data = nullptr;
-                vramFree(shared.vramData);
+            if (!SpritesheetCache::get().containsRawTex(shared.tex)) {
+                if (shared.vramData) {
+                    shared.tex->data = nullptr;
+                    vramFree(shared.vramData);
+                }
+                C3D_TexDelete(shared.tex);
+                delete shared.tex;
+                if (shared.subtex && !SpritesheetCache::get().containsRawSub((Tex3DS_SubTexture*)shared.subtex)) {
+                    delete (Tex3DS_SubTexture*)shared.subtex;
+                }
             }
-            C3D_TexDelete(shared.tex);
-            delete shared.tex;
-            if (shared.subtex) delete (Tex3DS_SubTexture*)shared.subtex;
         }
     }
     PlayState::instance->luaTextureCache.clear();
@@ -704,18 +710,22 @@ void LuaManager::clearAllSprites() {
                 C2D_SpriteSheetFree(shared.sheet);
             }
         } else if (shared.tex) {
-            if (shared.vramData) {
-                if (addrIsVRAM(shared.vramData)) {
-                    shared.tex->data = nullptr;
-                    vramFree(shared.vramData);
-                } else {
-                    linearFree(shared.vramData);
+            if (!SpritesheetCache::get().containsRawTex(shared.tex)) {
+                if (shared.vramData) {
+                    if (addrIsVRAM(shared.vramData)) {
+                        shared.tex->data = nullptr;
+                        vramFree(shared.vramData);
+                    } else {
+                        linearFree(shared.vramData);
+                    }
+                    shared.vramData = nullptr;
                 }
-                shared.vramData = nullptr;
+                C3D_TexDelete(shared.tex);
+                delete shared.tex;
+                if (shared.subtex && !SpritesheetCache::get().containsRawSub((Tex3DS_SubTexture*)shared.subtex)) {
+                    delete (Tex3DS_SubTexture*)shared.subtex;
+                }
             }
-            C3D_TexDelete(shared.tex);
-            delete shared.tex;
-            if (shared.subtex) delete (Tex3DS_SubTexture*)shared.subtex;
         }
     }
     PlayState::instance->namedTextureRegistry.clear();

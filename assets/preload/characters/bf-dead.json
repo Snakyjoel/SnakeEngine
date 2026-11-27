@@ -37,8 +37,8 @@
 	"no_antialiasing": false,
 	"image": "characters/BOYFRIEND_DEAD",
 	"position": [
-		0,
-		350
+		200,
+		100
 	],
 	"healthicon": "bf",
 	"flip_x": true,
@@ -48,9 +48,9 @@
 		209
 	],
 	"camera_position": [
-		0,
-		0
+		-120,
+		-120
 	],
 	"sing_duration": 4,
-	"scale": 1
+	"scale": 3.2
 }

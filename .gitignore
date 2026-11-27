@@ -7,12 +7,9 @@
 *.smdh
 *.map
 
-# RomFS generated files (keep source t3s, ignore converted)
-!/romfs/
-/romfs/*
-!/romfs/**/
-/romfs/**/*.t3x
-/romfs/**/*.bcfnt
+# RomFS generated directories
+romfs/
+romfs-lite/
 
 # devkitARM / 3DS specific
 *.agb
